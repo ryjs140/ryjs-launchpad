@@ -1,0 +1,9 @@
+# Build output
+*.dll
+*.pdb
+*.obj
+*.exp
+*.lib
+build/
+dist/
+__pycache__/

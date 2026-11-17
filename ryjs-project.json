@@ -1,0 +1,19 @@
+{
+  "id": "ryjs-launchpad",
+  "name": "RYJS Launchpad",
+  "maintainer": "ryjs",
+  "repository": "https://github.com/ryjs140/ryjs-launchpad",
+  "version": "0.1.0",
+  "phase": 1,
+  "deliverySource": "ryjs-launchpad.wh.cpp",
+  "developmentSource": "mods/local/seamless-launchpad/seamless-launchpad.wh.cpp",
+  "storageSchema": 1,
+  "groupLayoutSchema": 1,
+  "backupSchema": 1,
+  "upstream": "https://github.com/DavidHiFi/davids-windhawk-mods",
+  "upstreamBaseCommit": "09a71bacd81b356d61ae388982cc3426dfea6101",
+  "customBaseCommit": "598c8f565a04765ec415a0f5d05bc04be05aee9f",
+  "preservedWorkingTreeTag": "ryjs-fork-baseline",
+  "credits": ["DavidHiFi / Seamless Launchpad", "Rafael Mendes / Fullscreen Start"],
+  "license": "MIT"
+}

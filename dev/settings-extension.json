@@ -1,0 +1,16 @@
+[
+  {"key":"gpuPresenter","type":"Check","default":true,"label":"GPU composition","description":"Use GPU composition for smoother animation. Turn off for the compatibility renderer.","page":1,"group":"Rendering"},
+  {"key":"performanceLogging","type":"Check","default":true,"label":"Record performance","description":"Record opening latency, frame intervals and rendering cost in the mod storage folder.","page":1,"group":"Rendering"},
+  {"key":"frameRateLimit","type":"Number","default":0,"label":"Frame rate limit","description":"0 follows the selected monitor. Other values cap animation updates without changing the monitor.","min":0,"max":1000,"page":1,"group":"Rendering"},
+  {"key":"openDuration","type":"Number","default":280,"label":"Open duration (ms)","description":"Duration of the opening transition.","min":60,"max":1500,"page":1,"group":"Motion"},
+  {"key":"closeDuration","type":"Number","default":180,"label":"Close duration (ms)","description":"Duration of the closing transition.","min":60,"max":1500,"page":1,"group":"Motion"},
+  {"key":"animationEasing","type":"Choice","default":"settle","label":"Animation easing","description":"Choose how movement slows down. These curves do not overshoot.","options":{"settle":"Gentle settle","cubic":"Cubic ease-out","quint":"Quintic ease-out"},"page":1,"group":"Motion"},
+  {"key":"reducedMotion","type":"Check","default":false,"label":"Reduce motion","description":"Use immediate transitions. Windows animation accessibility settings are also respected.","page":1,"group":"Motion"},
+  {"key":"labelFontSize","type":"Number","default":13,"label":"Application name size","description":"Text size in DIP. Display scaling is applied automatically.","min":9,"max":32,"page":1,"group":"Typography"},
+  {"key":"horizontalSpacing","type":"Number","default":56,"label":"Horizontal icon spacing","description":"Preferred horizontal space between icons, in DIP.","min":8,"max":240,"page":1,"group":"Grid"},
+  {"key":"verticalSpacing","type":"Number","default":16,"label":"Vertical icon spacing","description":"Additional space between icon rows, in DIP.","min":0,"max":180,"page":1,"group":"Grid"},
+  {"key":"groupWidth","type":"Number","default":0,"label":"Group width","description":"Preferred group width in DIP. 0 adapts to the screen and number of groups.","min":0,"max":1600,"page":1,"group":"Expanded groups"},
+  {"key":"groupSpacing","type":"Number","default":32,"label":"Group spacing","description":"Space between groups, in DIP.","min":8,"max":160,"page":1,"group":"Expanded groups"},
+  {"key":"groupFlow","type":"Choice","default":"columns","label":"Group arrangement","description":"Arrange groups in columns or use one full-width group per row.","options":{"columns":"Responsive columns","rows":"Full-width rows"},"page":1,"group":"Expanded groups"},
+  {"key":"groupNavigation","type":"Choice","default":"scroll","label":"Group navigation","description":"Large groups continue on the next page when paging is selected.","options":{"scroll":"Vertical scrolling","pages":"Horizontal pages"},"page":1,"group":"Expanded groups"}
+]
