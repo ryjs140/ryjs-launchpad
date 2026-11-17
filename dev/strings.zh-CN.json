@@ -248,5 +248,7 @@
   "Could not export the layout. Use a full backup to preserve unreadable data.": "当前布局无法导出。请使用完整备份工具保留不可读数据。",
   "Layout data is unreadable or unsupported: changes are read-only. Restore a verified backup.": "布局数据不可读或格式不受支持，当前禁止保存。请恢复已校验的备份。",
   "Upstream source on GitHub": "上游项目源码（GitHub）",
-  "Maintained by ryjs. Based on DavidHiFi's Seamless Launchpad and Rafael Mendes's Fullscreen Start.": "由 ryjs 维护，基于 DavidHiFi 的 Seamless Launchpad 和 Rafael Mendes 的 Fullscreen Start。"
+  "Maintained by ryjs. Based on DavidHiFi's Seamless Launchpad and Rafael Mendes's Fullscreen Start.": "由 ryjs 维护，基于 DavidHiFi 的 Seamless Launchpad 和 Rafael Mendes 的 Fullscreen Start。",
+  "Folder duration (ms)": "文件夹动画时长（毫秒）",
+  "Duration of folder expansion and collapse.": "文件夹展开与收起的动画时长。"
 }

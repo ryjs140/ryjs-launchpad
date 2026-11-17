@@ -49,5 +49,6 @@
   "groupWidth": "0",
   "groupSpacing": "32",
   "groupFlow": "columns",
-  "groupNavigation": "scroll"
+  "groupNavigation": "scroll",
+  "folderDuration": "180"
 }

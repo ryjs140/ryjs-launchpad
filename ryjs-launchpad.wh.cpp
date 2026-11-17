@@ -4,7 +4,7 @@
 // @name:zh-CN      RYJS Launchpad
 // @description     A bilingual fullscreen app launcher with expanded groups, folders, local font selection, GPU composition, search and configurable motion
 // @description:zh-CN 支持中英文、展开分组、文件夹、拖放、本机字体、GPU 合成和动画自定义的全屏应用启动器
-// @version         0.1.0
+// @version         0.1.1
 // @author          ryjs
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
@@ -536,6 +536,11 @@ SOFTWARE.
   $options:zh-CN:
   - scroll: 上下滚动
   - pages: 左右分页
+- folderDuration: 180
+  $name: Folder duration (ms)
+  $description: Duration of folder expansion and collapse.
+  $name:zh-CN: 文件夹动画时长（毫秒）
+  $description:zh-CN: 文件夹展开与收起的动画时长。
 */
 // ==/WindhawkModSettings==
 
@@ -652,6 +657,7 @@ inline constexpr Resource resources[] = {
     {L"Dock position", L"电源栏位置"},
     {L"Drag hold time", L"长按拖动等待时间"},
     {L"Drop apps here", L"将应用拖到这里"},
+    {L"Duration of folder expansion and collapse.", L"文件夹展开与收起的动画时长。"},
     {L"Duration of the closing transition.", L"控制启动器关闭过渡的持续时间。"},
     {L"Duration of the opening transition.", L"控制启动器打开过渡的持续时间。"},
     {L"Edit mode wiggle", L"编辑时图标轻晃"},
@@ -661,6 +667,7 @@ inline constexpr Resource resources[] = {
     {L"Export layout file", L"导出当前布局文件"},
     {L"Fill small icons", L"放大小图标"},
     {L"Folder", L"文件夹"},
+    {L"Folder duration (ms)", L"文件夹动画时长（毫秒）"},
     {L"Follow Windows display language. Save to apply; app names stay unchanged.", L"跟随 Windows 显示语言，保存后生效。应用名称保持原样。"},
     {L"Frame rate limit", L"动画帧率上限"},
     {L"Free and open source. A tip on Ko-fi keeps it moving.", L"免费开源，可通过 Ko-fi 支持原作者继续维护。"},
@@ -1339,7 +1346,7 @@ enum class DockAlign { Left, Center, Right };
 struct Settings {
     std::wstring font;
     bool gpuPresenter = true, performanceLogging = true, reducedMotion = false;
-    int openMs = 280, closeMs = 180, frameRateLimit = 0;
+    int openMs = 280, closeMs = 180, folderMs = 180, frameRateLimit = 0;
     std::wstring easing = L"settle";
     bool groups = false, groupRows = false;
     int groupWidth = 0, groupGap = 32, horizontalGap = 56, verticalGap = 16;
@@ -1454,6 +1461,7 @@ void LoadSettings() {
     s.reducedMotion = IntSetting(L"reducedMotion", 0) != 0;
     s.openMs = std::clamp(IntSetting(L"openDuration", 280), 60, 1500);
     s.closeMs = std::clamp(IntSetting(L"closeDuration", 180), 60, 1500);
+    s.folderMs = std::clamp(IntSetting(L"folderDuration", 180), 60, 1500);
     s.frameRateLimit = std::clamp(IntSetting(L"frameRateLimit", 0), 0, 1000);
     s.easing = GetStringSetting(L"animationEasing");
     if (s.easing.empty()) s.easing = L"settle";
@@ -5505,7 +5513,7 @@ void StartFrames() {
         g_frameTimer = true;
         g_lastFrame = Now();
         if (g_frameWake) ArmNextFrame(true);
-        else SetTimer(g_wnd, kTimerFrame, 10, nullptr);
+        else SetTimer(g_wnd, kTimerFrame, (UINT)std::max(1.0, std::round(1000.0 / g_refreshHz)), nullptr);
     }
 }
 
@@ -5546,6 +5554,11 @@ void HideNow() {
     g_searchGlow = g_btnGlow = 0;
 }
 
+float AdvanceTransition(float value, float target, double elapsed, int durationMs) {
+    float step = (float)(std::max(0.0, elapsed) * 1000.0 / std::max(1, durationMs));
+    return value < target ? std::min(target, value + step) : std::max(target, value - step);
+}
+
 void OnFrame() {
     double now = Now();
     g_metrics.Frame(now);
@@ -5556,14 +5569,11 @@ void OnFrame() {
     }
     bool animating = false;
 
-    // Folders fade and grow in over about 180 ms, and out the same way.
+    // Use elapsed time, independent of the number of submitted frames.
     if (g_openFolder || g_closingFolder) {
         float folderTarget = g_openFolder ? 1.0f : 0.0f;
         if (g_folderAnim != folderTarget) {
-            float step = dt / 0.18f;
-            g_folderAnim = g_folderAnim < folderTarget
-                               ? std::min(folderTarget, g_folderAnim + step)
-                               : std::max(folderTarget, g_folderAnim - step);
+            g_folderAnim = AdvanceTransition(g_folderAnim, folderTarget, dt, g_settings.folderMs);
             animating = true;
         }
         if (!g_openFolder && g_folderAnim <= 0) {
@@ -5574,10 +5584,8 @@ void OnFrame() {
 
     float target = g_closing ? 0.0f : 1.0f;
     if (g_appear != target) {
-        float speed = 1000.0f / (g_closing ? g_settings.closeMs : g_settings.openMs);
-        g_appear = g_closing ? std::max(0.0f, g_appear - dt * speed)
-                             : std::min(1.0f, g_appear + dt * speed);
-        animating = g_appear != target;
+        g_appear = AdvanceTransition(g_appear, target, dt, g_closing ? g_settings.closeMs : g_settings.openMs);
+        animating |= g_appear != target;
     }
     if (g_scroll != g_scrollTarget) {
         g_scroll += (g_scrollTarget - g_scroll) * (Animate() ? 1 - std::exp(-dt * 16) : 1);
@@ -5946,6 +5954,11 @@ struct SetField {
     std::wstring fitFor; // The text that was measured.
 };
 
+static bool Set_HasSlider(const SetField& f) {
+    return f.max - f.min <= 100 || wcscmp(f.key,L"openDuration")==0 ||
+        wcscmp(f.key,L"closeDuration")==0 || wcscmp(f.key,L"folderDuration")==0;
+}
+
 // Names, descriptions and option labels match the ==WindhawkModSettings== block word for word.
 // Generated by test-settings\gen_table.py from src\00-header.cpp.
 static const std::vector<std::wstring>& Set_InstalledFontFamilies() {
@@ -5984,6 +5997,7 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Number, L"frameRateLimit", L"Frame rate limit", L"0 follows the selected monitor. Other values cap animation updates without changing the monitor.", L"0", {}, 0, 1000, 1, L"Rendering"},
 {K::Number, L"openDuration", L"Open duration (ms)", L"Duration of the opening transition.", L"280", {}, 60, 1500, 1, L"Motion"},
 {K::Number, L"closeDuration", L"Close duration (ms)", L"Duration of the closing transition.", L"180", {}, 60, 1500, 1, L"Motion"},
+{K::Number, L"folderDuration", L"Folder duration (ms)", L"Duration of folder expansion and collapse.", L"180", {}, 60, 1500, 1, L"Motion"},
 {K::Choice, L"animationEasing", L"Animation easing", L"Choose how movement slows down. These curves do not overshoot.", L"settle", {{L"settle", L"Gentle settle"}, {L"cubic", L"Cubic ease-out"}, {L"quint", L"Quintic ease-out"}}, 0, 100, 1, L"Motion"},
 {K::Check, L"reducedMotion", L"Reduce motion", L"Use immediate transitions. Windows animation accessibility settings are also respected.", L"0", {}, 0, 100, 1, L"Motion"},
 {K::Number, L"labelFontSize", L"Application name size", L"Text size in DIP. Display scaling is applied automatically.", L"13", {}, 9, 32, 1, L"Typography"},
@@ -6426,7 +6440,7 @@ static float Set_ControlW(const SetField& f) {
     switch (f.kind) {
         case SetField::Check: return 40;
         case SetField::Choice: return Set_FitOr(f, 200);
-        case SetField::Number: return f.max - f.min <= 100 ? 150 + 12 + 64 : 96;
+        case SetField::Number: return Set_HasSlider(f) ? 150 + 12 + 64 : 96;
         case SetField::Text: return Set_FitOr(f, 280);
         case SetField::Hotkey: return Set_FitOr(f, 220);
         case SetField::Color: return 362;
@@ -6470,7 +6484,7 @@ static SetParts Set_Parts(const SetField& f, const D2D1_RECT_F& row) {
             p.box = {r - Set_FitOr(f, 200), mid - h, r, mid + h};
             break;
         case SetField::Number:
-            if (f.max - f.min <= 100) {
+            if (Set_HasSlider(f)) {
                 p.slider = true;
                 p.box = {r - 64, mid - h, r, mid + h};
                 p.track = {p.box.left - 12 - 150, mid - 2, p.box.left - 12, mid + 2};
