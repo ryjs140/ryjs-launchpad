@@ -1,3 +1,4 @@
+#include "launchpad_group_edit.inc"
 // Shared operations for pointer, context-menu and keyboard group editing.
 void MoveAppToGroup(const Tile& tile, const std::shared_ptr<Folder>& destination, int position) {
     if (!tile.app || !destination) return;
@@ -103,9 +104,20 @@ void ShowGroupMenu(HWND hwnd, const std::shared_ptr<Folder>& group, POINT point)
     AppendMenuW(menu, MF_STRING, 3, Tr(L"Move group later"));
     AppendMenuW(menu, MF_STRING, 4, Tr(L"Delete group"));
     AppendMenuW(menu, MF_STRING, 5, Tr(L"New group"));
+    AppendMenuW(menu, MF_STRING, 6, Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
+    AppendMenuW(menu, MF_STRING, 7, Tr(group->collapsed?L"Show as expanded group":L"Show as traditional folder"));
     g_modal = true;
     int command = TrackLaunchpadPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, point.x, point.y, hwnd, nullptr);
     g_modal = false; DestroyMenu(menu);
+    if(command==6){ToggleGroupEdit();return;}
+    if(command==7){
+        if(g_groupPositionsReadOnly||g_layoutReadOnly||g_dataReadOnly)return;
+        bool wasEditing=g_groupEditMode;
+        if(!g_freeGroupLayout){if(!g_groupEditMode)ToggleGroupEdit();g_freeGroupLayout=true;g_groupEditMode=wasEditing;}
+        group->collapsed=!group->collapsed;
+        if(!SaveGroupPositions())group->collapsed=!group->collapsed;
+        Refresh();return;
+    }
     if (command == 1) {
         auto name = PromptGroupName(hwnd, group->name);
         if (!name.empty()) group->name = std::move(name);
@@ -131,7 +143,7 @@ void GroupDragMove(int x, int y) {
     auto area = ProjectGroupRect(geometry.area);
     float relativeX = x - area.left - 12 * g_layout.scale;
     float relativeY = y - area.top - 48 * g_layout.scale;
-    int col = std::clamp((int)std::floor(relativeX / g_layout.cellWidth), 0, geometry.columns - 1);
+    int col = std::clamp((int)std::floor(relativeX / geometry.cellWidth), 0, geometry.columns - 1);
     int row = std::max(0, (int)std::floor(relativeY / g_layout.cellHeight));
     g_groupDropSlot = std::clamp(geometry.firstInGroup + row * geometry.columns + col, 0, (int)geometry.group->apps.size());
 }
@@ -142,12 +154,15 @@ POINT g_groupHeaderAt{};
 double g_groupHeaderEdgeTime=0;
 int g_groupHeaderEdge=0;
 bool GroupPointerDown(HWND hwnd, int x, int y) {
+    if(g_groupEditMode)return FreeGroupPointerDown(hwnd,x,y);
     int index = GroupAtPoint(x, y, true);
     if (index < 0) return false;
     g_groupHeaderPressed = g_groupGeometry[index].group;
     g_groupHeaderStart = g_groupHeaderAt = {x,y}; SetCapture(hwnd); return true;
 }
 bool GroupPointerMove(int x, int y) {
+    if(g_groupGesture.group)return FreeGroupPointerMove(x,y);
+    if(!g_groupEditMode&&g_groupHeaderPressed)return true;
     if (!g_groupHeaderPressed) return false;
     if (std::abs(x-g_groupHeaderStart.x) > GetSystemMetrics(SM_CXDRAG) || std::abs(y-g_groupHeaderStart.y) > GetSystemMetrics(SM_CYDRAG))
         g_groupHeaderDragging = g_groupHeaderPressed;
@@ -167,10 +182,12 @@ void GroupHeaderTick() {
     g_groupDropFolder=index<0?nullptr:g_groupGeometry[index].group;
 }
 void CancelGroupPointer() {
+    g_groupGesture={};
     g_groupHeaderPressed.reset(); g_groupHeaderDragging.reset(); g_groupDropFolder.reset();
     g_groupHeaderEdge=0;
 }
 bool GroupPointerUp(HWND hwnd) {
+    if(g_groupEditMode)return FreeGroupPointerUp(hwnd);
     if (!g_groupHeaderPressed) return false;
     if (g_groupHeaderDragging && g_groupDropFolder && g_groupHeaderDragging != g_groupDropFolder) {
         MoveGroup(g_groupHeaderDragging, IndexOf(g_tiles, {nullptr,g_groupDropFolder}));

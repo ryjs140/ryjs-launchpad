@@ -50,5 +50,15 @@
   "groupSpacing": "32",
   "groupFlow": "columns",
   "groupNavigation": "scroll",
-  "folderDuration": "180"
+  "folderDuration": "180",
+  "themeMode": "custom",
+  "textColor": "#CDD6F4",
+  "groupColor": "#1E1E2E",
+  "groupOpacity": "0",
+  "hoverColor": "#89B4FA",
+  "selectionColor": "#CBA6F7",
+  "labelPlateOpacity": "65",
+  "labelRadius": "6",
+  "labelShadow": "45",
+  "backgroundDim": "0"
 }

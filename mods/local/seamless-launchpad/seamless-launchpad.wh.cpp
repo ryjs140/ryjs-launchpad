@@ -4,13 +4,13 @@
 // @name:zh-CN      RYJS Launchpad
 // @description     A bilingual fullscreen app launcher with expanded groups, folders, local font selection, GPU composition, search and configurable motion
 // @description:zh-CN 支持中英文、展开分组、文件夹、拖放、本机字体、GPU 合成和动画自定义的全屏应用启动器
-// @version         0.1.1
+// @version         0.2.0
 // @author          ryjs
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
 // @include         explorer.exe
 // @architecture    x86-64
-// @compilerOptions -lgdi32 -lshell32 -lshcore -ldwmapi -ld2d1 -ldwrite -ld3d11 -ldxgi -ldcomp -lole32 -luuid -lcomdlg32 -luxtheme -lpropsys -lpowrprof -lwindowscodecs -limm32 -lcomctl32
+// @compilerOptions -lgdi32 -lshell32 -lshcore -ldwmapi -ld2d1 -ldwrite -ld3d11 -ldxgi -ldcomp -lole32 -luuid -lcomdlg32 -luxtheme -lpropsys -lpowrprof -lwindowscodecs -limm32 -lcomctl32 -lwinhttp -lshlwapi
 // @license         MIT
 // @donateUrl       https://ko-fi.com/DavidHiFi
 // ==/WindhawkMod==
@@ -26,8 +26,15 @@ Fullscreen Start by Rafael Mendes. Upstream credits and MIT notices remain below
 - Expanded groups show their apps directly. Choose Layout > Expanded groups;
   the original scrolling and paged folder modes remain available.
 - Right-click empty space to create a group. Right-click a group title to
-  rename or reorder it. Drag a title to reorder groups; drag apps between
-  groups, or use an app's Move to group menu (also available in search).
+  rename it or enter Edit group layout. In edit mode drag a title to move
+  the group, or its lower-right handle to resize it. Drag apps between groups,
+  or use Move to group (also available in search).
+- Add entry accepts programs, shortcuts, Remote Desktop files, Store apps
+  and web addresses. Edit entry saves aliases, arguments and working folders.
+  Website icons are fetched on explicit add/update and cached locally.
+- Light, dark, system and custom themes include name backplate/shadow controls
+  for readable labels over bright blurred windows. New discoveries never
+  insert themselves into an existing arrangement.
 - Interface language follows Windows, with manual Chinese/English selection.
   The Interface font picker lists local fonts without changing icon glyphs.
 - Icon/name sizes, spacing, group width/flow, blur, opacity, taskbar coverage,
@@ -45,7 +52,9 @@ Fullscreen Start by Rafael Mendes. Upstream credits and MIT notices remain below
 ### 中文操作
 在“应用布局”中选择“展开分组”，应用会直接显示在分组内；原文件夹模式仍可选。
 右键空白处或点击搜索栏的“…”可新建分组，右键标题可重命名、前移、后移或删除分组。
-拖动标题可调整组顺序，拖动应用可在组内排序或跨组移动；搜索结果的右键菜单也可将应用加入分组。
+进入“编辑分组布局”后拖动标题可自由移动分组，拖动右下角可调整尺寸；重叠时显示红色预览并拒绝提交。
+“添加入口”支持程序、快捷方式、RDP、商店应用和网址；右键“编辑入口”可改名、路径、参数和图标。
+缩小分组后在组内滚动查看应用，按住 Shift 滚动整体画布；未进入编辑模式时保留已有排列。
 删除分组会将应用移到“未分组”，不会卸载应用。字体、名称字号、图标间距及分组布局可在设置中调整。
 设置保存在模块私有目录中；修改 Windhawk 设置页的同名选项后，以该次修改为准。
 布局自动保留上一次备份；“…”菜单提供导入及恢复。导入前会保留当前布局。
@@ -541,11 +550,74 @@ SOFTWARE.
   $description: Duration of folder expansion and collapse.
   $name:zh-CN: 文件夹动画时长（毫秒）
   $description:zh-CN: 文件夹展开与收起的动画时长。
+- themeMode: custom
+  $name: Theme mode
+  $description: Choose a preset, follow Windows, or keep your own colors.
+  $options:
+  - custom: Custom
+  - light: Light
+  - dark: Dark
+  - system: Follow Windows
+  $name:zh-CN: 主题模式
+  $description:zh-CN: 选择浅色、深色、跟随 Windows，或保留自定义颜色。
+  $options:zh-CN:
+  - custom: 自定义
+  - light: 浅色
+  - dark: 深色
+  - system: 跟随 Windows
+- textColor: '#CDD6F4'
+  $name: Text color
+  $description: Application and group names in the custom theme.
+  $name:zh-CN: 文字颜色
+  $description:zh-CN: 自定义主题中的应用和分组名称颜色。
+- groupColor: '#1E1E2E'
+  $name: Group background color
+  $description: Group and folder background in the custom theme.
+  $name:zh-CN: 分组背景颜色
+  $description:zh-CN: 自定义主题中的分组与文件夹背景色。
+- groupOpacity: 0
+  $name: Group background opacity
+  $description: 0–100 percent. Zero preserves transparent expanded groups.
+  $name:zh-CN: 分组背景透明度
+  $description:zh-CN: 0～100%。设为 0 时展开分组保持透明。
+- hoverColor: '#89B4FA'
+  $name: Hover color
+  $description: Background color of the application under the pointer.
+  $name:zh-CN: 悬停颜色
+  $description:zh-CN: 鼠标悬停应用的背景色。
+- selectionColor: '#CBA6F7'
+  $name: Selection color
+  $description: Background color of the keyboard-selected application.
+  $name:zh-CN: 选中颜色
+  $description:zh-CN: 键盘选中应用的背景色。
+- labelPlateOpacity: 65
+  $name: Name backplate opacity
+  $description: Protect names from bright window glare. Zero turns the backplate off.
+  $name:zh-CN: 名称底衬强度
+  $description:zh-CN: 避免白色窗口光晕淹没名称，设为 0 可关闭底衬。
+- labelRadius: 6
+  $name: Name backplate corner radius
+  $description: Corner radius in DIP, independent of icon size.
+  $name:zh-CN: 名称底衬圆角
+  $description:zh-CN: 底衬圆角大小，不影响图标尺寸。
+- labelShadow: 45
+  $name: Name shadow strength
+  $description: 0–100 percent, combined with the name backplate.
+  $name:zh-CN: 名称阴影强度
+  $description:zh-CN: 0～100%，可与名称底衬共同使用。
+- backgroundDim: 0
+  $name: Background dimming
+  $description: Additional darkening of the blurred background, 0–80 percent.
+  $name:zh-CN: 背景压暗
+  $description:zh-CN: 进一步压暗毛玻璃背景，范围为 0～80%。
 */
 // ==/WindhawkModSettings==
 
 #include <windows.h>
 #include <wincodec.h>
+#include <winhttp.h>
+#include <shlwapi.h>
+#include <regex>
 // Original code and credits: DavidHiFi and Rafael Mendes. See the MIT readme above.
 #include <windowsx.h>
 #include <shellapi.h>
@@ -562,6 +634,7 @@ SOFTWARE.
 // Otherwise the Win32 macro renames ID2D1RenderTarget::DrawText.
 #undef DrawText
 #include <d2d1_1.h>
+#include <d2d1_3.h>
 #include <d2d1effects.h>
 #include <d3d11.h>
 #include <dwrite.h>
@@ -664,6 +737,10 @@ enum class DockAlign { Left, Center, Right };
 
 struct Settings {
     std::wstring font;
+    std::wstring theme=L"custom";
+    D2D1_COLOR_F textColor=D2D1::ColorF(0xCDD6F4),groupColor=D2D1::ColorF(0x1E1E2E),labelPlateColor=D2D1::ColorF(0x111318),hoverColor=D2D1::ColorF(0x89B4FA),selectionColor=D2D1::ColorF(0xCBA6F7);
+    float groupOpacity=0,labelPlateOpacity=0.65f,labelShadow=0.45f,backgroundDim=0;
+    int labelRadius=6;
     bool gpuPresenter = true, performanceLogging = true, reducedMotion = false;
     int openMs = 280, closeMs = 180, folderMs = 180, frameRateLimit = 0;
     std::wstring easing = L"settle";
@@ -836,6 +913,27 @@ void LoadSettings() {
     s.showLabels = IntSetting(L"showLabels", 1) != 0;
     s.normalizeIcons = IntSetting(L"normalizeIcons", 1) != 0;
     s.trayIcon = IntSetting(L"settingsTrayIcon", 1) != 0;
+    s.theme=GetStringSetting(L"themeMode");
+    s.textColor=ParseColor(GetStringSetting(L"textColor"),s.textColor);
+    s.groupColor=ParseColor(GetStringSetting(L"groupColor"),s.groupColor);
+    s.hoverColor=ParseColor(GetStringSetting(L"hoverColor"),s.accent);
+    s.selectionColor=ParseColor(GetStringSetting(L"selectionColor"),s.selectionColor);
+    s.groupOpacity=std::clamp(IntSetting(L"groupOpacity",0),0,100)/100.0f;
+    s.labelPlateOpacity=std::clamp(IntSetting(L"labelPlateOpacity",65),0,100)/100.0f;
+    s.labelShadow=std::clamp(IntSetting(L"labelShadow",45),0,100)/100.0f;
+    s.labelRadius=std::clamp(IntSetting(L"labelRadius",6),0,24);
+    s.backgroundDim=std::clamp(IntSetting(L"backgroundDim",0),0,80)/100.0f;
+    bool light=s.theme==L"light";
+    if(s.theme==L"system") {
+        DWORD value=0,size=sizeof(value);
+        RegGetValueW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",L"AppsUseLightTheme",RRF_RT_REG_DWORD,nullptr,&value,&size);
+        light=value!=0;
+    }
+    if(s.theme==L"light"||s.theme==L"dark"||s.theme==L"system") {
+        s.tint=D2D1::ColorF(light?0xE9EDF4:0x111318);s.textColor=D2D1::ColorF(light?0x182235:0xF2F4F8);
+        s.groupColor=D2D1::ColorF(light?0xFFFFFF:0x202638);s.labelPlateColor=D2D1::ColorF(light?0xFFFFFF:0x111318);
+        s.opacity=std::max(s.opacity,light?0.55f:0.40f);
+    }
     g_settings = s;
     g_requestedAnimations = s.animations && !s.reducedMotion;
     auto action = [](PCWSTR name) {
@@ -884,6 +982,8 @@ void RunProgram() {
 
 struct App {
     std::wstring name;
+    std::wstring originalName, stableKey, layoutTarget, arguments, workingDirectory;
+    bool manual = false, unavailable = false;
     std::wstring target;  // shell:AppsFolder\... or a path, opened with ShellExecute.
     bool desktop = false;  // Came from the desktop.
     std::vector<UINT32> pixels;  // Square icon, premultiplied BGRA.
@@ -1584,12 +1684,17 @@ struct Folder {
     std::wstring name;
     Tiles apps;
     bool inbox = false;
+    bool collapsed = false; // Explicit traditional-folder presentation in a free layout.
     std::vector<std::pair<size_t,std::wstring>> unavailable;
 };
 
 [[clang::no_destroy]] Tiles g_tiles;
 bool g_layoutReadOnly = false;
 bool g_dataReadOnly = false;
+extern bool g_entriesReadOnly;
+bool SaveGroupPositions();
+void BeforeArrangeGeometry();
+void AfterArrangeGeometry();
 
 std::shared_ptr<Folder> InboxGroup() {
     for (const auto& tile : g_tiles) if (tile.folder && tile.folder->inbox) return tile.folder;
@@ -1623,7 +1728,10 @@ bool OffGrid(const std::wstring& key) {
 }
 
 std::wstring AppKey(const App& app) {
-    return ToLower(app.target);
+    return ToLower(app.stableKey.empty() ? app.target : app.stableKey);
+}
+const std::wstring& LayoutAppKey(const App& app) {
+    return app.layoutTarget.empty()?app.target:app.layoutTarget;
 }
 
 // The Windhawk namespace is independent; versioned data is committed only
@@ -1821,7 +1929,7 @@ std::vector<std::wstring> ArrangementLines() {
     }
     for (const auto& tile : g_tiles) {
         if (tile.app) {
-            lines.push_back(L"app\t" + tile.app->target);
+            lines.push_back(L"app\t" + LayoutAppKey(*tile.app));
             continue;
         }
         lines.push_back(L"folder\t" + (tile.folder->name.empty()
@@ -1833,7 +1941,7 @@ std::vector<std::wstring> ArrangementLines() {
         while (appIndex<apps.size() || missingIndex<missing.size()) {
             if (missingIndex<missing.size() && (appIndex>=apps.size() || missing[missingIndex].first<=position))
                 lines.push_back(L"in\t"+missing[missingIndex++].second);
-            else lines.push_back(L"in\t"+apps[appIndex++].app->target);
+            else lines.push_back(L"in\t"+LayoutAppKey(*apps[appIndex++].app));
             ++position;
         }
     }
@@ -1856,7 +1964,8 @@ void TidyTiles() {
     g_tiles.swap(tidy);
 }
 
-void ArrangeTiles(const std::vector<std::wstring>& lines) {
+void ArrangeTiles(const std::vector<std::wstring>& lines,bool appendNew=false) {
+    BeforeArrangeGeometry();
     std::vector<std::vector<std::wstring>> parsed;
     for (const auto& line : lines) {
         std::vector<std::wstring> fields(1);
@@ -1886,6 +1995,7 @@ void ArrangeTiles(const std::vector<std::wstring>& lines) {
         if (it == byKey.end() || OffGrid(key) || !placed.insert(key).second) {
             return nullptr;
         }
+        it->second->layoutTarget=target;
         return it->second;
     };
     g_tiles.clear();
@@ -1916,15 +2026,19 @@ void ArrangeTiles(const std::vector<std::wstring>& lines) {
         }
     }
     for (const auto& app : g_apps) {
-        if (auto taken = take(app->target)) {
+        if(app->manual)continue; // Only explicit addition/pinning chooses a manual entry's place.
+        if(!appendNew&&!lines.empty())continue; // Discovery never inserts into an existing arrangement.
+        if (auto taken = take(AppKey(*app))) {
             g_tiles.push_back({std::move(taken), nullptr});
         }
     }
     TidyTiles();
     NormalizeGroups();
+    AfterArrangeGeometry();
 }
 
 bool SaveTiles(bool explicitImport = false) {
+    if (g_entriesReadOnly) return false;
     if (g_layoutReadOnly || g_dataReadOnly) { Wh_Log(L"Layout is read-only; keeping original file unchanged"); return false; }
     auto path = StoragePath(LayoutFile());
     if (!explicitImport && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
@@ -1935,11 +2049,45 @@ bool SaveTiles(bool explicitImport = false) {
             return false;
         }
     }
-    return WriteLines(path, ArrangementLines());
+    return WriteLines(path, ArrangementLines()) && SaveGroupPositions();
 }
+
+#include "launchpad_svg.inc"
 
 // A picture (or the icon of a file) in place of an app's icon.
 bool LoadIconFile(const std::wstring& path, int size, App& app) {
+    ComPtr<IWICImagingFactory> factory;
+    ComPtr<IWICBitmapDecoder> decoder;
+    ComPtr<IWICBitmapFrameDecode> frame;
+    ComPtr<IWICBitmapScaler> scaler;
+    ComPtr<IWICFormatConverter> converter;
+    if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&factory))) &&
+        SUCCEEDED(factory->CreateDecoderFromFilename(path.c_str(),nullptr,GENERIC_READ,WICDecodeMetadataCacheOnLoad,&decoder)) &&
+        SUCCEEDED(decoder->GetFrame(0,&frame))) {
+        UINT frames=0;decoder->GetFrameCount(&frames);unsigned best=UINT_MAX;
+        for(UINT i=0;i<std::min(frames,64u);i++) {
+            ComPtr<IWICBitmapFrameDecode> candidate;UINT cw=0,ch=0;
+            if(FAILED(decoder->GetFrame(i,&candidate))||FAILED(candidate->GetSize(&cw,&ch)))continue;
+            unsigned edge=std::min(cw,ch),score=(unsigned)std::abs((int)edge-size)+(edge<(UINT)size?10000:0);
+            if(score<best){best=score;frame=candidate;}
+        }
+        UINT w=0,h=0;frame->GetSize(&w,&h);
+        UINT side=(UINT)std::clamp(size,16,512);
+        UINT dw=w>=h?side:std::max(1u,(UINT)((unsigned long long)side*w/std::max(1u,h)));
+        UINT dh=h>=w?side:std::max(1u,(UINT)((unsigned long long)side*h/std::max(1u,w)));
+        if (w && h && w<=16384 && h<=16384 && SUCCEEDED(factory->CreateBitmapScaler(&scaler)) &&
+            SUCCEEDED(scaler->Initialize(frame.Get(),dw,dh,WICBitmapInterpolationModeFant)) &&
+            SUCCEEDED(factory->CreateFormatConverter(&converter)) &&
+            SUCCEEDED(converter->Initialize(scaler.Get(),GUID_WICPixelFormat32bppPBGRA,WICBitmapDitherTypeNone,nullptr,0,WICBitmapPaletteTypeCustom))) {
+            std::vector<UINT32> pixels((size_t)dw*dh);
+            if (SUCCEEDED(converter->CopyPixels(nullptr,dw*4,(UINT)pixels.size()*4,(BYTE*)pixels.data()))) {
+                app.pixels.assign((size_t)side*side,0);app.iconSize=side;
+                for(UINT y=0;y<dh;y++)std::copy_n(pixels.data()+y*dw,dw,app.pixels.data()+(y+(side-dh)/2)*side+(side-dw)/2);
+                app.bitmap.Reset();app.generation=0;return true;
+            }
+        }
+    }
+    if(LoadSvgIcon(path,size,app))return true;
     ComPtr<IShellItem> item;
     if (FAILED(SHCreateItemFromParsingName(path.c_str(), nullptr,
                                            IID_PPV_ARGS(&item)))) {
@@ -1994,6 +2142,9 @@ void ApplyCustomIcons(int size) {
     }
 }
 
+#include "launchpad_entries.inc"
+#include "launchpad_group_positions.inc"
+
 void SavePins() {
     std::vector<std::wstring> lines;
     for (const auto& key : g_pins) {
@@ -2003,6 +2154,7 @@ void SavePins() {
 }
 
 void LoadTiles() {
+    ClearGroupPositions();
     // Do not replace the in-memory layout or write any data if any active
     // layout/pins/icons file becomes unreadable or unsupported after startup.
     if (!ryjs_data::ValidateDirectory(DataRoot())) {
@@ -2040,6 +2192,7 @@ void LoadTiles() {
         lines.push_back(std::move(line));
     }
     ArrangeTiles(lines);
+    if(g_settings.groups)LoadGroupPositions();
     if (importing) SaveTiles();
 }
 
@@ -2080,7 +2233,7 @@ void UpdateFilter() {
     if (g_query.empty()) {
         g_visible.clear();
         for (const auto& tile : g_tiles) {
-            if (g_settings.groups && tile.folder) g_visible.insert(g_visible.end(), tile.folder->apps.begin(), tile.folder->apps.end());
+            if (g_settings.groups && tile.folder && !tile.folder->collapsed) g_visible.insert(g_visible.end(), tile.folder->apps.begin(), tile.folder->apps.end());
             else g_visible.push_back(tile);
         }
         return;
@@ -2106,6 +2259,7 @@ void UpdateFilter() {
         int rank = 0;
         for (size_t w = 0; w < words.size() && rank >= 0; w++) {
             int r = MatchRank(g_apps[i]->name, words[w]);
+            if (r < 0 && !g_apps[i]->originalName.empty()) r = MatchRank(g_apps[i]->originalName, words[w]);
             rank = r < 0 ? -1 : (w == 0 ? r : rank);
         }
         if (rank >= 0) {
@@ -4289,6 +4443,18 @@ void DrawTileIcon(const Tile& tile, const D2D1_RECT_F& r, float opacity) {
     if (ID2D1Bitmap* bitmap = GetBitmap(*tile.app)) {
         g_target->DrawBitmap(bitmap, r, opacity,
                              D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+    } else {
+        Fill(r,D2D1::ColorF(0x45475A,0.7f*opacity),side*0.20f);
+        auto center=D2D1::Point2F((r.left+r.right)/2,(r.top+r.bottom)/2);
+        g_brush->SetColor(D2D1::ColorF(0xCDD6F4,opacity));
+        if(IsWebEntry(tile.app->target)) {
+            g_target->DrawEllipse(D2D1::Ellipse(center,side*0.28f,side*0.28f),g_brush.Get(),side*0.04f);
+            g_target->DrawEllipse(D2D1::Ellipse(center,side*0.12f,side*0.28f),g_brush.Get(),side*0.03f);
+            g_target->DrawLine({r.left+side*0.22f,center.y},{r.right-side*0.22f,center.y},g_brush.Get(),side*0.03f);
+        } else {
+            g_target->DrawRectangle({r.left+side*0.2f,r.top+side*0.22f,r.right-side*0.2f,r.bottom-side*0.28f},g_brush.Get(),side*0.04f);
+            g_target->DrawLine({center.x,r.bottom-side*0.28f},{center.x,r.bottom-side*0.15f},g_brush.Get(),side*0.04f);
+        }
     }
 }
 
@@ -4385,6 +4551,8 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
         if (alpha > 0.001f) {
             auto box = c.highlight;
             box.bottom = std::max(box.bottom, c.label.bottom + 6 * s);
+            auto color=i==g_selected?g_settings.selectionColor:g_settings.hoverColor;
+            color.a=alpha*0.16f;Fill(box,color,7*s);
             float radius = 7 * s;
             DrawHoverBox(box, radius, alpha);
         }
@@ -4397,6 +4565,12 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
     }
     float entryAlpha=GroupTileProgress(tile);
     DrawTileIcon(tile, c.icon, (live && i == g_pressed ? 0.6f : 1.0f)*entryAlpha);
+    if(tile.app && tile.app->unavailable) {
+        auto badge=c.icon;badge.left=badge.right-18*s;badge.bottom=badge.top+18*s;
+        Fill(badge,D2D1::ColorF(0xB43B3B,entryAlpha),9*s);
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF,entryAlpha));
+        g_target->DrawText(L"!",1,g_tipFormat.Get(),badge,g_brush.Get());
+    }
     if (g_settings.showLabels && g_labelFormat) {
         // Light shadow so the name reads well over any background.
         const std::wstring& name = TileName(tile);
@@ -4405,8 +4579,16 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
         shadow.bottom += 1 * s;
         g_brush->SetColor(D2D1::ColorF(0, 0, 0, 0.45f*entryAlpha));
         auto text = TileLabel(tile, c.label);
+        if(text&&g_settings.labelPlateOpacity>0) {
+            DWRITE_TEXT_METRICS metrics{};text->GetMetrics(&metrics);
+            auto plate=D2D1::RectF(c.label.left+metrics.left-4*s,c.label.top+metrics.top-2*s,
+                c.label.left+metrics.left+std::min(metrics.width,c.label.right-c.label.left)+4*s,c.label.top+metrics.top+metrics.height+2*s);
+            auto color=g_settings.labelPlateColor;color.a=g_settings.labelPlateOpacity*entryAlpha;
+            Fill(plate,color,g_settings.labelRadius*s);
+        }
+        g_brush->SetColor(D2D1::ColorF(0,0,0,g_settings.labelShadow*entryAlpha));
         if (text) g_target->DrawTextLayout(D2D1::Point2F(shadow.left, shadow.top), text, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        g_brush->SetColor(D2D1::ColorF(0xCDD6F4, 0.98f*entryAlpha));
+        auto labelColor=g_settings.textColor;labelColor.a=0.98f*entryAlpha;g_brush->SetColor(labelColor);
         if (text) g_target->DrawTextLayout(D2D1::Point2F(c.label.left, c.label.top), text, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     if (wiggle) {
@@ -4421,7 +4603,8 @@ void DrawFolder() {
     const Layout& L = g_layout;
     float s = L.scale;
     FolderLayout F = GetFolderLayout();
-    Fill(F.panel, D2D1::ColorF(0x1E1E2E, 0.62f), 24 * s);
+    auto folderColor=g_settings.groupColor;folderColor.a=g_settings.groupOpacity>0?g_settings.groupOpacity:0.62f;
+    Fill(F.panel, folderColor, 24 * s);
     g_brush->SetColor(D2D1::ColorF(0x45475A, 0.35f));
     g_target->DrawRoundedRectangle(
         D2D1::RoundedRect(D2D1::RectF(F.panel.left + 0.5f, F.panel.top + 0.5f,
@@ -4495,10 +4678,12 @@ void DrawGrid() {
         last = std::min((int)g_visible.size(), (lastRow + 1) * L.columns);
     }
     for (int i = first; i < last; i++) {
+        if(GroupedView()&&g_freeGroupLayout&&g_groupCells[i].icon.right<=g_groupCells[i].icon.left)continue;
         Cell cell = AnimatedCell(g_visible[i], CellAt(i));
         if (cell.label.bottom < L.viewTop || cell.icon.top > L.viewBottom || cell.icon.right < 0 || cell.icon.left > L.width) continue;
         DrawTile(g_visible[i], cell, i, !g_openFolder);
     }
+    if(GroupedView())DrawGroupEditPreview();
     g_target->PopAxisAlignedClip();
 
     if (g_settings.pages) {
@@ -4573,6 +4758,7 @@ void Render() {
         }
     }
     Fill(D2D1::RectF(0, 0, W, H), Alpha(g_settings.tint, g_settings.opacity));
+    if(g_settings.backgroundDim>0)Fill(D2D1::RectF(0,0,W,H),D2D1::ColorF(0,0,0,g_settings.backgroundDim));
 
     // When opening, the grid arrives from slightly larger, like in Launchpad.
     float zoom = 1.06f - 0.06f * Ease(g_appear);
@@ -4690,6 +4876,8 @@ void HideNow() {
     if (g_shown) ResetTaskbarStartButtons();
 #endif
     CancelGroupPointer();
+    g_groupEditMode=false;
+    if(!g_freeGroupLayout)g_groupPositions.clear();
     g_groupDropFolder.reset(); g_groupDropSlot = -1;
     FinishMetrics();
     if (g_frameWake) CancelWaitableTimer(g_frameWake);
@@ -4983,7 +5171,7 @@ void Toggle() {
 // target is a silent no-op, so a temporary .lnk aimed at the target carries
 // the elevation instead — the shell brokers that into an elevated launch
 // (verified: the spawned Terminal answers the elevation token query).
-void LaunchTarget(const std::wstring& target, PCWSTR verb);
+void LaunchTarget(const std::wstring& target, PCWSTR verb, const App* entry = nullptr);
 void ElevateViaTempLnk(const std::wstring& target) {
     PWSTR temp = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &temp))) {
@@ -5008,15 +5196,23 @@ void ElevateViaTempLnk(const std::wstring& target) {
     }
 }
 
-void LaunchTarget(const std::wstring& target, PCWSTR verb = nullptr) {
+void LaunchTarget(const std::wstring& target, PCWSTR verb = nullptr, const App* entry) {
     SHELLEXECUTEINFOW sei{sizeof(sei)};
     sei.fMask = SEE_MASK_ASYNCOK;
     sei.lpVerb = verb;
     sei.lpFile = target.c_str();
+    // Normal activations retain arguments and working directory from entry edits.
+    if (entry) {sei.lpParameters=entry->arguments.empty()?nullptr:entry->arguments.c_str();sei.lpDirectory=entry->workingDirectory.empty()?nullptr:entry->workingDirectory.c_str();}
     sei.nShow = SW_SHOWNORMAL;
     AllowSetForegroundWindow(ASFW_ANY);
-    ShellExecuteExW(&sei);
-    Close();
+    if (ShellExecuteExW(&sei)) Close();
+    else {
+        bool previous=g_modal;
+        g_modal=true;
+        MessageBoxW(g_wnd,Tr(L"Could not open this entry. Use Edit entry to repair its target."),Tr(L"Launch failed"),MB_OK|MB_ICONWARNING);
+        g_modal=previous;
+        if(g_shown)ForceForeground(g_wnd);
+    }
 }
 
 // The settings window, from the "..." menu. Its overrides are saved in this
@@ -5175,6 +5371,16 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Number, L"groupSpacing", L"Group spacing", L"Space between groups, in DIP.", L"32", {}, 8, 160, 1, L"Expanded groups"},
 {K::Choice, L"groupFlow", L"Group arrangement", L"Arrange groups in columns or use one full-width group per row.", L"columns", {{L"columns", L"Responsive columns"}, {L"rows", L"Full-width rows"}}, 0, 100, 1, L"Expanded groups"},
 {K::Choice, L"groupNavigation", L"Group navigation", L"Large groups continue on the next page when paging is selected.", L"scroll", {{L"scroll", L"Vertical scrolling"}, {L"pages", L"Horizontal pages"}}, 0, 100, 1, L"Expanded groups"},
+{K::Choice, L"themeMode", L"Theme mode", L"Choose a preset, follow Windows, or keep your own colors.", L"custom", {{L"custom", L"Custom"}, {L"light", L"Light"}, {L"dark", L"Dark"}, {L"system", L"Follow Windows"}}, 0, 100, 2, L"Theme"},
+{K::Color, L"textColor", L"Text color", L"Application and group names in the custom theme.", L"#CDD6F4", {}, 0, 100, 2, L"Theme"},
+{K::Color, L"groupColor", L"Group background color", L"Group and folder background in the custom theme.", L"#1E1E2E", {}, 0, 100, 2, L"Theme"},
+{K::Number, L"groupOpacity", L"Group background opacity", L"0–100 percent. Zero preserves transparent expanded groups.", L"0", {}, 0, 100, 2, L"Theme"},
+{K::Color, L"hoverColor", L"Hover color", L"Background color of the application under the pointer.", L"#89B4FA", {}, 0, 100, 2, L"Theme"},
+{K::Color, L"selectionColor", L"Selection color", L"Background color of the keyboard-selected application.", L"#CBA6F7", {}, 0, 100, 2, L"Theme"},
+{K::Number, L"labelPlateOpacity", L"Name backplate opacity", L"Protect names from bright window glare. Zero turns the backplate off.", L"65", {}, 0, 100, 2, L"Readability"},
+{K::Number, L"labelRadius", L"Name backplate corner radius", L"Corner radius in DIP, independent of icon size.", L"6", {}, 0, 24, 2, L"Readability"},
+{K::Number, L"labelShadow", L"Name shadow strength", L"0–100 percent, combined with the name backplate.", L"45", {}, 0, 100, 2, L"Readability"},
+{K::Number, L"backgroundDim", L"Background dimming", L"Additional darkening of the blurred background, 0–80 percent.", L"0", {}, 0, 80, 2, L"Readability"},
 // Custom settings end
 {K::Choice, L"interfaceLanguage", L"Interface language", L"Follow Windows display language. Save to apply; app names stay unchanged.", L"auto", {{L"auto", L"Automatic (Windows)"}, {L"zh-CN", L"Simplified Chinese"}, {L"en", L"English"}}, 0, 100, 2, L"Language"},
 {K::Choice, L"uiFont", L"Interface font", L"Choose a locally installed font. Applies to text only; symbol icons use their own font.", L"auto", {{L"auto", L"Automatic (language default)"}}, 0, 100, 2, L"Typography"},
@@ -6133,7 +6339,7 @@ static void Set_DrawRail(SetPaint& p, SetWindow& w) {
         float my = (tb.top + tb.bottom) / 2;
         Set_DrawMark(p, w.fIcon.get(), {d.left + 56, my - 13, d.left + 82, my + 13}, textA);
     }
-    p.Text(w.fRailName.get(), L"Seamless", {d.left + 90, d.top + 9, d.left + w.railW - 10, d.top + 33}, mocha::text, textA);
+    p.Text(w.fRailName.get(), L"RYJS", {d.left + 90, d.top + 9, d.left + w.railW - 10, d.top + 33}, mocha::text, textA);
     p.Text(w.fRailName.get(), L"Launchpad", {d.left + 90, d.top + 32, d.left + w.railW - 10, d.top + 56}, mocha::text, textA);
     for (int i = 0; i < kSetPageCount; i++) {
         D2D1_RECT_F r = Set_RailRect(w, i);
@@ -7768,6 +7974,7 @@ void EnsureVisible(int index) {
     }
     const Layout& L = g_layout;
     if (GroupedView() && index < (int)g_groupCells.size()) {
+        EnsureFreeGroupVisible(index);
         auto cell = g_groupCells[index];
         if (g_settings.pages) g_scrollTarget = std::floor(cell.icon.left / L.width) * L.width;
         else {
@@ -7884,7 +8091,7 @@ void ActivateItem(int index) {
     if (items[index].folder) {
         OpenFolder(items[index].folder);
     } else {
-        LaunchTarget(items[index].app->target);
+        LaunchTarget(items[index].app->target,nullptr,items[index].app.get());
     }
 }
 
@@ -8250,9 +8457,10 @@ bool PickIconFile(HWND hwnd, std::wstring& path) {
     ofn.lpstrTitle = Tr(L"Choose a picture for the icon");
     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
                 OFN_NOCHANGEDIR;
+    bool previousModal = g_modal;
     g_modal = true;
     BOOL ok = GetOpenFileNameW(&ofn);
-    g_modal = false;
+    g_modal = previousModal;
     if (g_shown && !g_closing) {
         ForceForeground(hwnd);
     }
@@ -8334,6 +8542,9 @@ bool IsPackagedTarget(const std::wstring& target) {
     return ToLower(target).rfind(ToLower(kAppsFolder), 0) == 0;
 }
 
+#include "launchpad_web_icons.inc"
+#include "launchpad_entry_editor.inc"
+
 void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     enum {
         kOpen = 1,
@@ -8368,6 +8579,9 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             AppendMenuW(menu, MF_POPUP, (UINT_PTR)groups, Tr(L"Move to group"));
             AppendMenuW(menu, MF_STRING, 91, Tr(L"Remove from group"));
         }
+        AppendMenuW(menu, MF_STRING, 92, Tr(L"Edit entry…"));
+        if (tile.app->manual) AppendMenuW(menu, MF_STRING, 93, Tr(L"Delete manual entry"));
+        if (IsWebEntry(tile.app->target)) AppendMenuW(menu, MF_STRING, 94, Tr(L"Refresh website icon"));
         // Anything with a launchable file can be elevated: a classic .exe,
         // any Start-menu shortcut, or a packaged app through a temporary
         // .lnk aimed at its AppsFolder target.
@@ -8417,6 +8631,9 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     DestroyMenu(menu);
 
     int size = g_appsKey & 0xFFFF;
+    if (tile.app && command==92) {EditEntry(hwnd,tile.app);return;}
+    if (tile.app && command==93) {DeleteManualEntry(tile.app);return;}
+    if (tile.app && command==94) {g_customIcons.erase(AppKey(*tile.app));SaveCustomIcons();StartWebIconFetch(AppKey(*tile.app),tile.app->target);return;}
     if (g_settings.groups && tile.app && (command == 91 || (command >= 1000 && command < 1000 + (int)g_tiles.size()))) {
         auto destination = command == 91 ? InboxGroup() : g_tiles[command - 1000].folder;
         MoveAppToGroup(tile, destination, destination ? (int)destination->apps.size() : 0);
@@ -8429,7 +8646,7 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             if (tile.folder) {
                 OpenFolder(tile.folder);
             } else {
-                LaunchTarget(tile.app->target);
+                LaunchTarget(tile.app->target,nullptr,tile.app.get());
             }
             break;
         case kUngroup:
@@ -8442,7 +8659,7 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             if (IsPackagedTarget(tile.app->target)) {
                 ElevateViaTempLnk(tile.app->target);
             } else {
-                LaunchTarget(linkOrFile, L"runas");
+                LaunchTarget(linkOrFile, L"runas",tile.app.get());
             }
             break;
         case kFileLocation:
@@ -8483,10 +8700,15 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             RemoveApp(tile.app);
             break;
         case kPin:
-            g_pins.insert(key);
-            SavePins();
-            g_hidden.erase(key);
-            g_tiles.push_back(tile);  // At the end of the grid.
+            if(g_settings.groups) {
+                auto destination=InboxGroup();
+                MoveAppToGroup(tile,destination,(int)destination->apps.size());
+            } else {
+                g_pins.insert(key);
+                SavePins();
+                g_hidden.erase(key);
+                g_tiles.push_back(tile);
+            }
             SaveTiles();
             Refresh();
             break;
@@ -8525,6 +8747,8 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     AppendMenuW(menu, MF_STRING, 90, Tr(L"Exit preview"));
 #endif
     AppendMenuW(menu, MF_STRING, kOpenSettings, Tr(L"Open settings"));
+    AppendMenuW(menu, MF_STRING, 54, Tr(L"Add entry…"));
+    if(g_settings.groups)AppendMenuW(menu,MF_STRING,55,Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
     if (g_settings.groups) AppendMenuW(menu, MF_STRING, 50, Tr(L"New group"));
     AppendMenuW(menu, MF_STRING, 51, Tr(L"Restore layout backup"));
     AppendMenuW(menu, MF_STRING, 52, Tr(L"Import layout file"));
@@ -8556,6 +8780,8 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     if (command == 50) { CreateGroup(hwnd); return; }
     if (command == 51 || command == 52) { ImportOrRestoreLayout(hwnd, command == 51); return; }
     if (command == 53) { ExportLayout(hwnd); return; }
+    if (command == 54) { EditEntry(hwnd); return; }
+    if (command == 55) { ToggleGroupEdit(); return; }
     if (command == kOpenSettings) {
         HideNow();
         OpenSettingsWindow();
@@ -8569,7 +8795,7 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
         } else {
             g_hidden.erase(AppKey(*removed[command - kRestoreFirst]));
         }
-        ArrangeTiles(ArrangementLines());  // They come back at the end.
+        ArrangeTiles(ArrangementLines(),true);  // Explicit restore puts them at the end.
         DropGoneFolder();
         SaveTiles();
         Refresh();
@@ -8749,6 +8975,14 @@ void MoveGroupSelection(WPARAM key) {
 }
 
 void OnKeyDown(WPARAM key) {
+    if(key==VK_ESCAPE&&g_groupEditMode) {
+        if(g_groupGesture.group) {
+            g_groupGesture={};
+            if(GetCapture()==g_wnd)ReleaseCapture();
+            Render();
+        } else ToggleGroupEdit();
+        return;
+    }
     if (key == VK_ESCAPE && g_groupHeaderPressed) {
         CancelGroupPointer(); if (GetCapture() == g_wnd) ReleaseCapture(); Render(); return;
     }
@@ -9029,6 +9263,7 @@ void OnAppsLoaded(AppList* list, int key) {
     delete list;
     g_appsLoaded = true;
     g_appsKey = key;
+    ApplyEntries(key & 0xFFFF);
     LoadTiles();
     ApplyCustomIcons(key & 0xFFFF);
     if (key != AppsKey()) {
@@ -9214,6 +9449,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_APP_APPS:
             OnAppsLoaded((AppList*)lParam, (int)wParam);
             return 0;
+        case kWebIconReady: OnWebIconReady((WebIconResult*)lParam); return 0;
 
         case WM_APP_RELOAD:
             if (g_shown) HideNow(); // Save an edited folder using the previous layout mode.
@@ -9550,6 +9786,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_MOUSEWHEEL:
         case WM_MOUSEHWHEEL:
+            if(msg==WM_MOUSEWHEEL&&!g_openFolder&&ScrollFreeGroup(hwnd,lParam,GET_WHEEL_DELTA_WPARAM(wParam)))return 0;
             if (g_openFolder) {
                 if (msg == WM_MOUSEWHEEL) {
                     g_wheelDelta += GET_WHEEL_DELTA_WPARAM(wParam);
@@ -9626,6 +9863,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_DISPLAYCHANGE:
         case WM_SETTINGCHANGE:
             RefreshSystemAnimations();
+            if(msg==WM_SETTINGCHANGE&&g_settings.theme==L"system")PostMessageW(hwnd,WM_APP_RELOAD,0,0);
             if (g_shown && (msg == WM_DISPLAYCHANGE || wParam == SPI_SETWORKAREA)) {
                 HideNow();
             }
@@ -9752,6 +9990,7 @@ DWORD WINAPI StartThread(void*) {
 #endif
 
     g_workerStop = true;
+    StopWebIcons();
     if (g_worker) {
         WaitForSingleObject(g_worker, INFINITE);
         CloseHandle(g_worker);
@@ -9793,6 +10032,7 @@ DWORD WINAPI StartThread(void*) {
     UnregisterClassW(kWindowClass, instance);
     UnregisterClassW(kBackdropClass, instance);
     UnregisterClassW(kGroupNameClass, instance);
+    UnregisterClassW(kEntryEditorClass, instance);
     OleUninitialize();
     return 0;
 }

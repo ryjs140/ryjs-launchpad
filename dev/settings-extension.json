@@ -164,5 +164,111 @@
     },
     "page": 1,
     "group": "Expanded groups"
+  },
+  {
+    "key": "themeMode",
+    "type": "Choice",
+    "default": "custom",
+    "label": "Theme mode",
+    "description": "Choose a preset, follow Windows, or keep your own colors.",
+    "options": {
+      "custom": "Custom",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "Follow Windows"
+    },
+    "page": 2,
+    "group": "Theme"
+  },
+  {
+    "key": "textColor",
+    "type": "Color",
+    "default": "#CDD6F4",
+    "label": "Text color",
+    "description": "Application and group names in the custom theme.",
+    "page": 2,
+    "group": "Theme"
+  },
+  {
+    "key": "groupColor",
+    "type": "Color",
+    "default": "#1E1E2E",
+    "label": "Group background color",
+    "description": "Group and folder background in the custom theme.",
+    "page": 2,
+    "group": "Theme"
+  },
+  {
+    "key": "groupOpacity",
+    "type": "Number",
+    "default": 0,
+    "label": "Group background opacity",
+    "description": "0–100 percent. Zero preserves transparent expanded groups.",
+    "min": 0,
+    "max": 100,
+    "page": 2,
+    "group": "Theme"
+  },
+  {
+    "key": "hoverColor",
+    "type": "Color",
+    "default": "#89B4FA",
+    "label": "Hover color",
+    "description": "Background color of the application under the pointer.",
+    "page": 2,
+    "group": "Theme"
+  },
+  {
+    "key": "selectionColor",
+    "type": "Color",
+    "default": "#CBA6F7",
+    "label": "Selection color",
+    "description": "Background color of the keyboard-selected application.",
+    "page": 2,
+    "group": "Theme"
+  },
+  {
+    "key": "labelPlateOpacity",
+    "type": "Number",
+    "default": 65,
+    "label": "Name backplate opacity",
+    "description": "Protect names from bright window glare. Zero turns the backplate off.",
+    "min": 0,
+    "max": 100,
+    "page": 2,
+    "group": "Readability"
+  },
+  {
+    "key": "labelRadius",
+    "type": "Number",
+    "default": 6,
+    "label": "Name backplate corner radius",
+    "description": "Corner radius in DIP, independent of icon size.",
+    "min": 0,
+    "max": 24,
+    "page": 2,
+    "group": "Readability"
+  },
+  {
+    "key": "labelShadow",
+    "type": "Number",
+    "default": 45,
+    "label": "Name shadow strength",
+    "description": "0–100 percent, combined with the name backplate.",
+    "min": 0,
+    "max": 100,
+    "page": 2,
+    "group": "Readability"
+  },
+  {
+    "key": "backgroundDim",
+    "type": "Number",
+    "default": 0,
+    "label": "Background dimming",
+    "description": "Additional darkening of the blurred background, 0–80 percent.",
+    "min": 0,
+    "max": 80,
+    "page": 2,
+    "group": "Readability"
   }
 ]

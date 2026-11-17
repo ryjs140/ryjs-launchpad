@@ -293,6 +293,26 @@ void Preview_RunSmoke(HWND hwnd) {
         }
         g_scroll=g_scrollTarget=0; Render();
         ok=SaveGrid(output+L"\\groups-zh-CN-pages.png")&&ok;
+        // Free geometry and readability are rendered against synthetic backgrounds.
+        // This never captures or changes the user's desktop layout.
+        auto beforeGeometry=ArrangementLines();auto appearance=g_settings;
+        g_settings.pages=false;g_layout.area={0,0,1600,1000};g_layout.width=1600;g_layout.height=1000;g_layout.scale=1;
+        g_labelFormat.Reset();EnsureFormats(1);ComputeLayout();ToggleGroupEdit();
+        int geometryIndex=0;
+        for(const auto& tile:g_tiles)if(tile.folder) {
+            int col=geometryIndex/2,row=geometryIndex%2;
+            g_groupPositions[tile.folder]={24.0f+col*500.0f,row*340.0f,460,300};++geometryIndex;
+        }
+        g_freeGroupLayout=true;ok=SaveGroupPositions()&&beforeGeometry==ArrangementLines()&&ok;
+        UpdateFilter();ComputeLayout();Render();ok=SaveGrid(output+L"\\free-group-edit-zh-CN.png")&&ok;
+        g_groupEditMode=false;g_settings.blurMode=BlurMode::None;g_settings.opacity=1;g_settings.tint=D2D1::ColorF(0xFFFFFF);
+        g_settings.textColor=D2D1::ColorF(0xFFFFFF);g_settings.labelPlateColor=D2D1::ColorF(0x111318);g_settings.labelPlateOpacity=0.65f;
+        Render();ok=SaveGrid(output+L"\\readability-white-background.png")&&ok;
+        g_settings.tint=D2D1::ColorF(0x111318);Render();ok=SaveGrid(output+L"\\readability-dark-background.png")&&ok;
+        ok=beforeGeometry==ArrangementLines()&&ok;
+        g_settings=appearance;ClearGroupPositions();DeleteFileW(GroupPositionFile().c_str());DeleteFileW((GroupPositionFile()+L".bak").c_str());
+        UpdateFilter();ComputeLayout();
+        Preview::Log(L"smoke: free group edit, independent geometry persistence and white/dark synthetic background readability rendered");
         SaveTiles(); auto supported=ArrangementLines();
         WriteLines(StoragePath(LayoutFile()),{L"schema\t999\tgroups",L"future\tkeep this file"});
         LoadTiles(); SaveTiles();

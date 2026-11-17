@@ -4,13 +4,13 @@
 // @name:zh-CN      RYJS Launchpad
 // @description     A bilingual fullscreen app launcher with expanded groups, folders, local font selection, GPU composition, search and configurable motion
 // @description:zh-CN 支持中英文、展开分组、文件夹、拖放、本机字体、GPU 合成和动画自定义的全屏应用启动器
-// @version         0.1.1
+// @version         0.2.0
 // @author          ryjs
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
 // @include         explorer.exe
 // @architecture    x86-64
-// @compilerOptions -lgdi32 -lshell32 -lshcore -ldwmapi -ld2d1 -ldwrite -ld3d11 -ldxgi -ldcomp -lole32 -luuid -lcomdlg32 -luxtheme -lpropsys -lpowrprof -lwindowscodecs -limm32 -lcomctl32
+// @compilerOptions -lgdi32 -lshell32 -lshcore -ldwmapi -ld2d1 -ldwrite -ld3d11 -ldxgi -ldcomp -lole32 -luuid -lcomdlg32 -luxtheme -lpropsys -lpowrprof -lwindowscodecs -limm32 -lcomctl32 -lwinhttp -lshlwapi
 // @license         MIT
 // @donateUrl       https://ko-fi.com/DavidHiFi
 // ==/WindhawkMod==
@@ -26,8 +26,15 @@ Fullscreen Start by Rafael Mendes. Upstream credits and MIT notices remain below
 - Expanded groups show their apps directly. Choose Layout > Expanded groups;
   the original scrolling and paged folder modes remain available.
 - Right-click empty space to create a group. Right-click a group title to
-  rename or reorder it. Drag a title to reorder groups; drag apps between
-  groups, or use an app's Move to group menu (also available in search).
+  rename it or enter Edit group layout. In edit mode drag a title to move
+  the group, or its lower-right handle to resize it. Drag apps between groups,
+  or use Move to group (also available in search).
+- Add entry accepts programs, shortcuts, Remote Desktop files, Store apps
+  and web addresses. Edit entry saves aliases, arguments and working folders.
+  Website icons are fetched on explicit add/update and cached locally.
+- Light, dark, system and custom themes include name backplate/shadow controls
+  for readable labels over bright blurred windows. New discoveries never
+  insert themselves into an existing arrangement.
 - Interface language follows Windows, with manual Chinese/English selection.
   The Interface font picker lists local fonts without changing icon glyphs.
 - Icon/name sizes, spacing, group width/flow, blur, opacity, taskbar coverage,
@@ -45,7 +52,9 @@ Fullscreen Start by Rafael Mendes. Upstream credits and MIT notices remain below
 ### 中文操作
 在“应用布局”中选择“展开分组”，应用会直接显示在分组内；原文件夹模式仍可选。
 右键空白处或点击搜索栏的“…”可新建分组，右键标题可重命名、前移、后移或删除分组。
-拖动标题可调整组顺序，拖动应用可在组内排序或跨组移动；搜索结果的右键菜单也可将应用加入分组。
+进入“编辑分组布局”后拖动标题可自由移动分组，拖动右下角可调整尺寸；重叠时显示红色预览并拒绝提交。
+“添加入口”支持程序、快捷方式、RDP、商店应用和网址；右键“编辑入口”可改名、路径、参数和图标。
+缩小分组后在组内滚动查看应用，按住 Shift 滚动整体画布；未进入编辑模式时保留已有排列。
 删除分组会将应用移到“未分组”，不会卸载应用。字体、名称字号、图标间距及分组布局可在设置中调整。
 设置保存在模块私有目录中；修改 Windhawk 设置页的同名选项后，以该次修改为准。
 布局自动保留上一次备份；“…”菜单提供导入及恢复。导入前会保留当前布局。
@@ -541,11 +550,74 @@ SOFTWARE.
   $description: Duration of folder expansion and collapse.
   $name:zh-CN: 文件夹动画时长（毫秒）
   $description:zh-CN: 文件夹展开与收起的动画时长。
+- themeMode: custom
+  $name: Theme mode
+  $description: Choose a preset, follow Windows, or keep your own colors.
+  $options:
+  - custom: Custom
+  - light: Light
+  - dark: Dark
+  - system: Follow Windows
+  $name:zh-CN: 主题模式
+  $description:zh-CN: 选择浅色、深色、跟随 Windows，或保留自定义颜色。
+  $options:zh-CN:
+  - custom: 自定义
+  - light: 浅色
+  - dark: 深色
+  - system: 跟随 Windows
+- textColor: '#CDD6F4'
+  $name: Text color
+  $description: Application and group names in the custom theme.
+  $name:zh-CN: 文字颜色
+  $description:zh-CN: 自定义主题中的应用和分组名称颜色。
+- groupColor: '#1E1E2E'
+  $name: Group background color
+  $description: Group and folder background in the custom theme.
+  $name:zh-CN: 分组背景颜色
+  $description:zh-CN: 自定义主题中的分组与文件夹背景色。
+- groupOpacity: 0
+  $name: Group background opacity
+  $description: 0–100 percent. Zero preserves transparent expanded groups.
+  $name:zh-CN: 分组背景透明度
+  $description:zh-CN: 0～100%。设为 0 时展开分组保持透明。
+- hoverColor: '#89B4FA'
+  $name: Hover color
+  $description: Background color of the application under the pointer.
+  $name:zh-CN: 悬停颜色
+  $description:zh-CN: 鼠标悬停应用的背景色。
+- selectionColor: '#CBA6F7'
+  $name: Selection color
+  $description: Background color of the keyboard-selected application.
+  $name:zh-CN: 选中颜色
+  $description:zh-CN: 键盘选中应用的背景色。
+- labelPlateOpacity: 65
+  $name: Name backplate opacity
+  $description: Protect names from bright window glare. Zero turns the backplate off.
+  $name:zh-CN: 名称底衬强度
+  $description:zh-CN: 避免白色窗口光晕淹没名称，设为 0 可关闭底衬。
+- labelRadius: 6
+  $name: Name backplate corner radius
+  $description: Corner radius in DIP, independent of icon size.
+  $name:zh-CN: 名称底衬圆角
+  $description:zh-CN: 底衬圆角大小，不影响图标尺寸。
+- labelShadow: 45
+  $name: Name shadow strength
+  $description: 0–100 percent, combined with the name backplate.
+  $name:zh-CN: 名称阴影强度
+  $description:zh-CN: 0～100%，可与名称底衬共同使用。
+- backgroundDim: 0
+  $name: Background dimming
+  $description: Additional darkening of the blurred background, 0–80 percent.
+  $name:zh-CN: 背景压暗
+  $description:zh-CN: 进一步压暗毛玻璃背景，范围为 0～80%。
 */
 // ==/WindhawkModSettings==
 
 #include <windows.h>
 #include <wincodec.h>
+#include <winhttp.h>
+#include <shlwapi.h>
+#include <regex>
 // Original code and credits: DavidHiFi and Rafael Mendes. See the MIT readme above.
 #include <windowsx.h>
 #include <shellapi.h>
@@ -562,6 +634,7 @@ SOFTWARE.
 // Otherwise the Win32 macro renames ID2D1RenderTarget::DrawText.
 #undef DrawText
 #include <d2d1_1.h>
+#include <d2d1_3.h>
 #include <d2d1effects.h>
 #include <d3d11.h>
 #include <dwrite.h>
@@ -593,6 +666,8 @@ inline constexpr Resource resources[] = {
     {L"0 to 100 (Suggested: 60). Only for the adjustable blur. The Windows ones have a fixed strength.", L"范围 0–100（建议：60）。仅对可调节模糊生效；Windows 模糊强度固定。"},
     {L"0 to 100 (Suggested: 90). How solid the search bar and the power dock are.", L"范围 0–100（建议：90）。控制搜索栏与电源栏的不透明度。"},
     {L"0 to 30. 0 picks a number that fits the screen (Suggested: 0).", L"范围 0–30。0 表示根据屏幕自动调整（建议：0）。"},
+    {L"0–100 percent, combined with the name backplate.", L"0～100%，可与名称底衬共同使用。"},
+    {L"0–100 percent. Zero preserves transparent expanded groups.", L"0～100%。设为 0 时展开分组保持透明。"},
     {L"1 change not saved", L"有 1 项更改未保存"},
     {L"150 to 1500 (Suggested: 420). Milliseconds to hold an icon before dragging starts.", L"范围 150–1500 毫秒（建议：420）。长按图标达到此时间后开始拖动。"},
     {L"24 to 192 (Suggested: 56). Pixels at 100% scaling.", L"范围 24–192，单位为 100% 缩放下的像素（建议：56）。"},
@@ -601,6 +676,9 @@ inline constexpr Resource resources[] = {
     {L"A Launchpad icon in the system tray. Click it to open these settings, right-click it for a menu.", L"在系统托盘显示启动器图标。点击打开设置，右键打开菜单。"},
     {L"About", L"关于"},
     {L"Accent color", L"强调色"},
+    {L"Add entry…", L"添加入口…"},
+    {L"Add or edit entry", L"添加或编辑入口"},
+    {L"Additional darkening of the blurred background, 0–80 percent.", L"进一步压暗毛玻璃背景，范围为 0～80%。"},
     {L"Additional space between icon rows, in DIP.", L"图标行之间的额外间距，单位为 DIP。"},
     {L"Adjustable (uses the strength below)", L"可调节（使用下方强度）"},
     {L"All files", L"所有文件"},
@@ -608,6 +686,7 @@ inline constexpr Resource resources[] = {
     {L"Animation easing", L"动画缓动"},
     {L"Animations", L"启用动画"},
     {L"Appearance", L"外观"},
+    {L"Application and group names in the custom theme.", L"自定义主题中的应用和分组名称颜色。"},
     {L"Application name size", L"应用名称字号"},
     {L"Apps to show", L"显示的应用"},
     {L"Apps, folders and search in one fullscreen grid, in place of Start.", L"在全屏启动器中浏览、搜索应用并整理文件夹。"},
@@ -618,6 +697,9 @@ inline constexpr Resource resources[] = {
     {L"Automatic (language default)", L"自动（按界面语言选择）"},
     {L"Background blur", L"背景模糊"},
     {L"Background color", L"背景颜色"},
+    {L"Background color of the application under the pointer.", L"鼠标悬停应用的背景色。"},
+    {L"Background color of the keyboard-selected application.", L"键盘选中应用的背景色。"},
+    {L"Background dimming", L"背景压暗"},
     {L"Background opacity (%)", L"背景不透明度（%）"},
     {L"Based on Fullscreen Start by Rafael Mendes", L"基于 Rafael Mendes 的 Fullscreen Start"},
     {L"Blur strength", L"模糊强度"},
@@ -625,11 +707,14 @@ inline constexpr Resource resources[] = {
     {L"Blurred settings window", L"设置窗口毛玻璃"},
     {L"Bring back a removed app", L"恢复已移除的应用"},
     {L"Bring them all back", L"恢复所有已移除应用"},
+    {L"Browse…", L"浏览…"},
     {L"Cancel", L"取消"},
     {L"Center", L"居中"},
     {L"Change icon…", L"更换图标…"},
+    {L"Choose Store app…", L"选择商店应用…"},
     {L"Choose a locally installed font. Applies to text only; symbol icons use their own font.", L"选择本机已安装字体，用于所有界面文字。功能图标使用独立的符号字体。"},
     {L"Choose a picture for the icon", L"选择图标图片"},
+    {L"Choose a preset, follow Windows, or keep your own colors.", L"选择浅色、深色、跟随 Windows，或保留自定义颜色。"},
     {L"Choose how movement slows down. These curves do not overshoot.", L"选择动画减速收尾的方式，所有曲线均无过度回弹。"},
     {L"Choose how you open Launchpad and other programs.", L"选择启动器和其他程序的打开方式。"},
     {L"Choose which power actions appear in the dock.", L"选择电源栏中显示的操作。"},
@@ -641,8 +726,12 @@ inline constexpr Resource resources[] = {
     {L"Click again to sleep", L"再次点击以睡眠"},
     {L"Close duration (ms)", L"关闭动画时长（毫秒）"},
     {L"Columns", L"每行图标数量"},
+    {L"Corner radius in DIP, independent of icon size.", L"底衬圆角大小，不影响图标尺寸。"},
     {L"Could not back up the current layout. Import was cancelled.", L"无法备份当前布局，已取消导入。"},
     {L"Could not export the layout. Use a full backup to preserve unreadable data.", L"当前布局无法导出。请使用完整备份工具保留不可读数据。"},
+    {L"Could not open this entry. Use Edit entry to repair its target.", L"无法打开此入口，请通过“编辑入口”修复目标路径。"},
+    {L"Could not save entry.", L"入口保存失败。"},
+    {L"Could not save group geometry.", L"分组位置和尺寸保存失败，已保留原状态。"},
     {L"Could not save private settings. The previous file was kept.", L"无法保存模块设置，已保留原设置文件。"},
     {L"Could not save the layout. The previous layout was kept.", L"布局保存失败，原有布局已保留。"},
     {L"Couldn't find windhawk-cli.exe, so nothing was saved", L"未找到 windhawk-cli.exe，设置未保存。"},
@@ -651,23 +740,37 @@ inline constexpr Resource resources[] = {
     {L"Cover the whole screen", L"覆盖整个屏幕"},
     {L"Credits", L"致谢"},
     {L"Cubic ease-out", L"三次方减速"},
+    {L"Custom", L"自定义"},
+    {L"Custom icon (optional)", L"自定义图标（可选）"},
+    {L"Dark", L"深色"},
+    {L"Data is read-only. Resolve the load error before editing.", L"数据当前只读，请先解决读取问题再编辑。"},
     {L"DavidHiFi on GitHub", L"原作者 DavidHiFi 的 GitHub"},
     {L"Delete group", L"删除分组（应用移到未分组）"},
+    {L"Delete manual entry", L"删除手动入口"},
     {L"Desktop icons", L"桌面图标"},
+    {L"Destination group", L"目标分组"},
+    {L"Display name", L"显示名称"},
     {L"Dock position", L"电源栏位置"},
     {L"Drag hold time", L"长按拖动等待时间"},
     {L"Drop apps here", L"将应用拖到这里"},
     {L"Duration of folder expansion and collapse.", L"文件夹展开与收起的动画时长。"},
     {L"Duration of the closing transition.", L"控制启动器关闭过渡的持续时间。"},
     {L"Duration of the opening transition.", L"控制启动器打开过渡的持续时间。"},
+    {L"Edit entry…", L"编辑入口…"},
+    {L"Edit group layout", L"编辑分组布局"},
     {L"Edit mode wiggle", L"编辑时图标轻晃"},
+    {L"End of current grid", L"当前网格末尾"},
     {L"English", L"English（英语）"},
+    {L"Enter a name and a valid target.", L"请填写显示名称和有效的文件路径或网址。"},
     {L"Exit preview", L"退出预览"},
     {L"Expanded groups", L"展开分组"},
     {L"Export layout file", L"导出当前布局文件"},
+    {L"File or web address", L"文件路径或网址"},
     {L"Fill small icons", L"放大小图标"},
+    {L"Finish group editing", L"完成分组编辑"},
     {L"Folder", L"文件夹"},
     {L"Folder duration (ms)", L"文件夹动画时长（毫秒）"},
+    {L"Follow Windows", L"跟随 Windows"},
     {L"Follow Windows display language. Save to apply; app names stay unchanged.", L"跟随 Windows 显示语言，保存后生效。应用名称保持原样。"},
     {L"Frame rate limit", L"动画帧率上限"},
     {L"Free and open source. A tip on Ko-fi keeps it moving.", L"免费开源，可通过 Ko-fi 支持原作者继续维护。"},
@@ -677,7 +780,10 @@ inline constexpr Resource resources[] = {
     {L"Glow size", L"光晕范围"},
     {L"Glow strength", L"光晕强度"},
     {L"Grid", L"应用布局"},
+    {L"Group and folder background in the custom theme.", L"自定义主题中的分组与文件夹背景色。"},
     {L"Group arrangement", L"分组排列方式"},
+    {L"Group background color", L"分组背景颜色"},
+    {L"Group background opacity", L"分组背景透明度"},
     {L"Group name", L"分组名称"},
     {L"Group navigation", L"分组浏览方式"},
     {L"Group spacing", L"分组间距"},
@@ -685,6 +791,7 @@ inline constexpr Resource resources[] = {
     {L"Hibernate", L"休眠"},
     {L"Horizontal icon spacing", L"图标水平间距"},
     {L"Horizontal pages", L"左右分页"},
+    {L"Hover color", L"悬停颜色"},
     {L"How the grid is arranged.", L"选择应用排列和浏览方式。"},
     {L"Icon labels", L"显示应用名称"},
     {L"Icon size", L"图标大小"},
@@ -697,10 +804,13 @@ inline constexpr Resource resources[] = {
     {L"Keys", L"启动方式"},
     {L"Language", L"语言"},
     {L"Large groups continue on the next page when paging is selected.", L"选择分页时，大分组的其余应用会在后续页面继续显示。"},
+    {L"Launch arguments", L"启动参数"},
+    {L"Launch failed", L"启动失败"},
     {L"Launchpad layout files", L"启动器布局文件"},
     {L"Layout", L"布局方式"},
     {L"Layout data is unreadable or unsupported: changes are read-only. Restore a verified backup.", L"布局数据不可读或格式不受支持，当前禁止保存。请恢复已校验的备份。"},
     {L"Left", L"靠左"},
+    {L"Light", L"浅色"},
     {L"Like it? Help the mod keep going.", L"支持这个开源项目"},
     {L"Loading apps…", L"正在加载应用…"},
     {L"Lock", L"锁定"},
@@ -716,6 +826,9 @@ inline constexpr Resource resources[] = {
     {L"Move group earlier", L"分组前移"},
     {L"Move group later", L"分组后移"},
     {L"Move to group", L"移动到分组"},
+    {L"Name backplate corner radius", L"名称底衬圆角"},
+    {L"Name backplate opacity", L"名称底衬强度"},
+    {L"Name shadow strength", L"名称阴影强度"},
     {L"Native Windows title bar", L"使用系统标题栏"},
     {L"New group", L"新建分组"},
     {L"Newer layout format: changes are read-only. Restore a backup or import a supported layout.", L"布局版本较新，当前只读。请恢复备份或导入兼容布局。"},
@@ -761,12 +874,15 @@ inline constexpr Resource resources[] = {
     {L"Project", L"项目"},
     {L"Project page on GitHub", L"GitHub 项目主页"},
     {L"Properties", L"属性"},
+    {L"Protect names from bright window glare. Zero turns the backplate off.", L"避免白色窗口光晕淹没名称，设为 0 可关闭底衬。"},
     {L"Put every app back in A to Z order and out of its folder? Removed apps stay removed.", L"将所有应用移出文件夹并按名称重新排序？已移除的应用不会恢复。"},
     {L"Quintic ease-out", L"五次方减速"},
     {L"RYJS Launchpad settings", L"RYJS Launchpad 设置"},
+    {L"Readability", L"文字可读性"},
     {L"Record opening latency, frame intervals and rendering cost in the mod storage folder.", L"在模块存储目录记录打开延迟、帧间隔和渲染耗时。"},
     {L"Record performance", L"记录性能"},
     {L"Reduce motion", L"减少动画"},
+    {L"Refresh website icon", L"重新获取网站图标"},
     {L"Remove from group", L"移出此分组"},
     {L"Remove from this grid", L"从启动器中移除"},
     {L"Rename group", L"重命名分组"},
@@ -788,9 +904,12 @@ inline constexpr Resource resources[] = {
     {L"Search", L"搜索应用"},
     {L"Search bar and dock opacity (%)", L"搜索栏与电源栏不透明度（%）"},
     {L"Search for an app, then use Move to group", L"搜索应用后，右键选择“移动到分组”"},
+    {L"Selection color", L"选中颜色"},
     {L"Settings", L"设置"},
     {L"Settings window", L"设置窗口"},
     {L"Shift + Windows key", L"Shift + Windows 键"},
+    {L"Show as expanded group", L"显示为常驻分组"},
+    {L"Show as traditional folder", L"显示为传统文件夹"},
     {L"Shows only when hibernation is turned on in Windows.", L"仅在 Windows 已启用休眠时显示。"},
     {L"Shut down", L"关机"},
     {L"Sign out", L"注销"},
@@ -806,13 +925,17 @@ inline constexpr Resource resources[] = {
     {L"Suggested values are filled in. Press Save to keep them.", L"已填入建议值，点击“保存”后生效。"},
     {L"Take out of folder", L"移出文件夹"},
     {L"Take the apps out", L"解散文件夹"},
+    {L"Text color", L"文字颜色"},
     {L"Text size in DIP. Display scaling is applied automatically.", L"使用设备无关像素 DIP，自动适应显示缩放。"},
     {L"The kind of blur behind the grid.", L"选择启动器的背景模糊方式。"},
     {L"The layout file is empty, unreadable, or uses a newer version.", L"布局文件为空、无法读取，或使用了较新的版本。"},
     {L"The monitor with the mouse", L"鼠标所在显示器"},
     {L"The original Windhawk mod", L"原始 Windhawk 模块"},
     {L"The pill of power buttons at the bottom of the grid.", L"在启动器底部显示电源操作按钮。"},
+    {L"The target is missing. Keep it so you can repair it later?", L"目标路径不存在，是否保留入口以便稍后修复？"},
     {L"The taskbar Start button, the Standalone Dock's, and every other way Start opens that is not the keyboard.", L"适用于任务栏、独立 Dock 的开始按钮及其他非键盘打开方式。"},
+    {L"Theme", L"主题"},
+    {L"Theme mode", L"主题模式"},
     {L"Tray icon", L"显示托盘图标"},
     {L"Typography", L"字体"},
     {L"Ungrouped", L"未分组"},
@@ -836,6 +959,7 @@ inline constexpr Resource resources[] = {
     {L"Windows blur (DWM)", L"Windows 模糊（DWM）"},
     {L"Windows key", L"Windows 键"},
     {L"With pinned apps, search still finds every app. Right-click an app to pin or unpin it.", L"仅显示固定应用时仍可搜索全部应用。右键可固定或取消固定。"},
+    {L"Working directory", L"工作目录"},
 
 };
 inline void Select(std::wstring_view language) {
@@ -1345,6 +1469,10 @@ enum class DockAlign { Left, Center, Right };
 
 struct Settings {
     std::wstring font;
+    std::wstring theme=L"custom";
+    D2D1_COLOR_F textColor=D2D1::ColorF(0xCDD6F4),groupColor=D2D1::ColorF(0x1E1E2E),labelPlateColor=D2D1::ColorF(0x111318),hoverColor=D2D1::ColorF(0x89B4FA),selectionColor=D2D1::ColorF(0xCBA6F7);
+    float groupOpacity=0,labelPlateOpacity=0.65f,labelShadow=0.45f,backgroundDim=0;
+    int labelRadius=6;
     bool gpuPresenter = true, performanceLogging = true, reducedMotion = false;
     int openMs = 280, closeMs = 180, folderMs = 180, frameRateLimit = 0;
     std::wstring easing = L"settle";
@@ -1517,6 +1645,27 @@ void LoadSettings() {
     s.showLabels = IntSetting(L"showLabels", 1) != 0;
     s.normalizeIcons = IntSetting(L"normalizeIcons", 1) != 0;
     s.trayIcon = IntSetting(L"settingsTrayIcon", 1) != 0;
+    s.theme=GetStringSetting(L"themeMode");
+    s.textColor=ParseColor(GetStringSetting(L"textColor"),s.textColor);
+    s.groupColor=ParseColor(GetStringSetting(L"groupColor"),s.groupColor);
+    s.hoverColor=ParseColor(GetStringSetting(L"hoverColor"),s.accent);
+    s.selectionColor=ParseColor(GetStringSetting(L"selectionColor"),s.selectionColor);
+    s.groupOpacity=std::clamp(IntSetting(L"groupOpacity",0),0,100)/100.0f;
+    s.labelPlateOpacity=std::clamp(IntSetting(L"labelPlateOpacity",65),0,100)/100.0f;
+    s.labelShadow=std::clamp(IntSetting(L"labelShadow",45),0,100)/100.0f;
+    s.labelRadius=std::clamp(IntSetting(L"labelRadius",6),0,24);
+    s.backgroundDim=std::clamp(IntSetting(L"backgroundDim",0),0,80)/100.0f;
+    bool light=s.theme==L"light";
+    if(s.theme==L"system") {
+        DWORD value=0,size=sizeof(value);
+        RegGetValueW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",L"AppsUseLightTheme",RRF_RT_REG_DWORD,nullptr,&value,&size);
+        light=value!=0;
+    }
+    if(s.theme==L"light"||s.theme==L"dark"||s.theme==L"system") {
+        s.tint=D2D1::ColorF(light?0xE9EDF4:0x111318);s.textColor=D2D1::ColorF(light?0x182235:0xF2F4F8);
+        s.groupColor=D2D1::ColorF(light?0xFFFFFF:0x202638);s.labelPlateColor=D2D1::ColorF(light?0xFFFFFF:0x111318);
+        s.opacity=std::max(s.opacity,light?0.55f:0.40f);
+    }
     g_settings = s;
     g_requestedAnimations = s.animations && !s.reducedMotion;
     auto action = [](PCWSTR name) {
@@ -1565,6 +1714,8 @@ void RunProgram() {
 
 struct App {
     std::wstring name;
+    std::wstring originalName, stableKey, layoutTarget, arguments, workingDirectory;
+    bool manual = false, unavailable = false;
     std::wstring target;  // shell:AppsFolder\... or a path, opened with ShellExecute.
     bool desktop = false;  // Came from the desktop.
     std::vector<UINT32> pixels;  // Square icon, premultiplied BGRA.
@@ -2265,12 +2416,17 @@ struct Folder {
     std::wstring name;
     Tiles apps;
     bool inbox = false;
+    bool collapsed = false; // Explicit traditional-folder presentation in a free layout.
     std::vector<std::pair<size_t,std::wstring>> unavailable;
 };
 
 [[clang::no_destroy]] Tiles g_tiles;
 bool g_layoutReadOnly = false;
 bool g_dataReadOnly = false;
+extern bool g_entriesReadOnly;
+bool SaveGroupPositions();
+void BeforeArrangeGeometry();
+void AfterArrangeGeometry();
 
 std::shared_ptr<Folder> InboxGroup() {
     for (const auto& tile : g_tiles) if (tile.folder && tile.folder->inbox) return tile.folder;
@@ -2304,7 +2460,10 @@ bool OffGrid(const std::wstring& key) {
 }
 
 std::wstring AppKey(const App& app) {
-    return ToLower(app.target);
+    return ToLower(app.stableKey.empty() ? app.target : app.stableKey);
+}
+const std::wstring& LayoutAppKey(const App& app) {
+    return app.layoutTarget.empty()?app.target:app.layoutTarget;
 }
 
 // The Windhawk namespace is independent; versioned data is committed only
@@ -2502,7 +2661,7 @@ std::vector<std::wstring> ArrangementLines() {
     }
     for (const auto& tile : g_tiles) {
         if (tile.app) {
-            lines.push_back(L"app\t" + tile.app->target);
+            lines.push_back(L"app\t" + LayoutAppKey(*tile.app));
             continue;
         }
         lines.push_back(L"folder\t" + (tile.folder->name.empty()
@@ -2514,7 +2673,7 @@ std::vector<std::wstring> ArrangementLines() {
         while (appIndex<apps.size() || missingIndex<missing.size()) {
             if (missingIndex<missing.size() && (appIndex>=apps.size() || missing[missingIndex].first<=position))
                 lines.push_back(L"in\t"+missing[missingIndex++].second);
-            else lines.push_back(L"in\t"+apps[appIndex++].app->target);
+            else lines.push_back(L"in\t"+LayoutAppKey(*apps[appIndex++].app));
             ++position;
         }
     }
@@ -2537,7 +2696,8 @@ void TidyTiles() {
     g_tiles.swap(tidy);
 }
 
-void ArrangeTiles(const std::vector<std::wstring>& lines) {
+void ArrangeTiles(const std::vector<std::wstring>& lines,bool appendNew=false) {
+    BeforeArrangeGeometry();
     std::vector<std::vector<std::wstring>> parsed;
     for (const auto& line : lines) {
         std::vector<std::wstring> fields(1);
@@ -2567,6 +2727,7 @@ void ArrangeTiles(const std::vector<std::wstring>& lines) {
         if (it == byKey.end() || OffGrid(key) || !placed.insert(key).second) {
             return nullptr;
         }
+        it->second->layoutTarget=target;
         return it->second;
     };
     g_tiles.clear();
@@ -2597,15 +2758,19 @@ void ArrangeTiles(const std::vector<std::wstring>& lines) {
         }
     }
     for (const auto& app : g_apps) {
-        if (auto taken = take(app->target)) {
+        if(app->manual)continue; // Only explicit addition/pinning chooses a manual entry's place.
+        if(!appendNew&&!lines.empty())continue; // Discovery never inserts into an existing arrangement.
+        if (auto taken = take(AppKey(*app))) {
             g_tiles.push_back({std::move(taken), nullptr});
         }
     }
     TidyTiles();
     NormalizeGroups();
+    AfterArrangeGeometry();
 }
 
 bool SaveTiles(bool explicitImport = false) {
+    if (g_entriesReadOnly) return false;
     if (g_layoutReadOnly || g_dataReadOnly) { Wh_Log(L"Layout is read-only; keeping original file unchanged"); return false; }
     auto path = StoragePath(LayoutFile());
     if (!explicitImport && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
@@ -2616,11 +2781,74 @@ bool SaveTiles(bool explicitImport = false) {
             return false;
         }
     }
-    return WriteLines(path, ArrangementLines());
+    return WriteLines(path, ArrangementLines()) && SaveGroupPositions();
 }
+
+// Rasterize supported SVG icons once on load; no readback in the frame loop.
+// https://learn.microsoft.com/windows/win32/direct2d/svg-support
+bool LoadSvgIcon(const std::wstring& path,int size,App& app) {
+    std::wstring text;
+    if(!ryjs_data::ReadUtf8(path,text)||text.find(L"<svg")==std::wstring::npos)return false;
+    ComPtr<IStream> stream;
+    if(FAILED(SHCreateStreamOnFileEx(path.c_str(),STGM_READ|STGM_SHARE_DENY_WRITE,0,FALSE,nullptr,&stream)))return false;
+    ComPtr<ID3D11Device> d3d;
+    if(FAILED(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,D3D11_CREATE_DEVICE_BGRA_SUPPORT,nullptr,0,D3D11_SDK_VERSION,&d3d,nullptr,nullptr))&&
+       FAILED(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,D3D11_CREATE_DEVICE_BGRA_SUPPORT,nullptr,0,D3D11_SDK_VERSION,&d3d,nullptr,nullptr)))return false;
+    ComPtr<IDXGIDevice> dxgi;ComPtr<ID2D1Factory1> factory;ComPtr<ID2D1Device> device;
+    ComPtr<ID2D1DeviceContext> context;ComPtr<ID2D1DeviceContext5> svgContext;
+    if(FAILED(d3d.As(&dxgi))||FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED,IID_PPV_ARGS(&factory)))||
+        FAILED(factory->CreateDevice(dxgi.Get(),&device))||FAILED(device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,&context))||FAILED(context.As(&svgContext)))return false;
+    UINT side=(UINT)std::clamp(size,16,512);
+    ComPtr<ID2D1SvgDocument> svg;ComPtr<ID2D1Bitmap1> target,readback;
+    auto properties=D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_TARGET,D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED));
+    if(FAILED(svgContext->CreateSvgDocument(stream.Get(),D2D1::SizeF((float)side,(float)side),&svg))||
+        FAILED(context->CreateBitmap(D2D1::SizeU(side,side),nullptr,0,properties,&target)))return false;
+    context->SetTarget(target.Get());context->BeginDraw();context->Clear(D2D1::ColorF(0,0));svgContext->DrawSvgDocument(svg.Get());
+    if(FAILED(context->EndDraw()))return false;
+    properties.bitmapOptions=D2D1_BITMAP_OPTIONS_CPU_READ|D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
+    if(FAILED(context->CreateBitmap(D2D1::SizeU(side,side),nullptr,0,properties,&readback))||FAILED(readback->CopyFromBitmap(nullptr,target.Get(),nullptr)))return false;
+    D2D1_MAPPED_RECT mapped{};if(FAILED(readback->Map(D2D1_MAP_OPTIONS_READ,&mapped)))return false;
+    app.pixels.resize((size_t)side*side);app.iconSize=side;
+    for(UINT y=0;y<side;y++)std::copy_n((UINT32*)(mapped.bits+y*mapped.pitch),side,app.pixels.data()+y*side);
+    readback->Unmap();app.bitmap.Reset();app.generation=0;
+    return std::any_of(app.pixels.begin(),app.pixels.end(),[](UINT32 p){return (p>>24)!=0;});
+}
+
 
 // A picture (or the icon of a file) in place of an app's icon.
 bool LoadIconFile(const std::wstring& path, int size, App& app) {
+    ComPtr<IWICImagingFactory> factory;
+    ComPtr<IWICBitmapDecoder> decoder;
+    ComPtr<IWICBitmapFrameDecode> frame;
+    ComPtr<IWICBitmapScaler> scaler;
+    ComPtr<IWICFormatConverter> converter;
+    if (SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&factory))) &&
+        SUCCEEDED(factory->CreateDecoderFromFilename(path.c_str(),nullptr,GENERIC_READ,WICDecodeMetadataCacheOnLoad,&decoder)) &&
+        SUCCEEDED(decoder->GetFrame(0,&frame))) {
+        UINT frames=0;decoder->GetFrameCount(&frames);unsigned best=UINT_MAX;
+        for(UINT i=0;i<std::min(frames,64u);i++) {
+            ComPtr<IWICBitmapFrameDecode> candidate;UINT cw=0,ch=0;
+            if(FAILED(decoder->GetFrame(i,&candidate))||FAILED(candidate->GetSize(&cw,&ch)))continue;
+            unsigned edge=std::min(cw,ch),score=(unsigned)std::abs((int)edge-size)+(edge<(UINT)size?10000:0);
+            if(score<best){best=score;frame=candidate;}
+        }
+        UINT w=0,h=0;frame->GetSize(&w,&h);
+        UINT side=(UINT)std::clamp(size,16,512);
+        UINT dw=w>=h?side:std::max(1u,(UINT)((unsigned long long)side*w/std::max(1u,h)));
+        UINT dh=h>=w?side:std::max(1u,(UINT)((unsigned long long)side*h/std::max(1u,w)));
+        if (w && h && w<=16384 && h<=16384 && SUCCEEDED(factory->CreateBitmapScaler(&scaler)) &&
+            SUCCEEDED(scaler->Initialize(frame.Get(),dw,dh,WICBitmapInterpolationModeFant)) &&
+            SUCCEEDED(factory->CreateFormatConverter(&converter)) &&
+            SUCCEEDED(converter->Initialize(scaler.Get(),GUID_WICPixelFormat32bppPBGRA,WICBitmapDitherTypeNone,nullptr,0,WICBitmapPaletteTypeCustom))) {
+            std::vector<UINT32> pixels((size_t)dw*dh);
+            if (SUCCEEDED(converter->CopyPixels(nullptr,dw*4,(UINT)pixels.size()*4,(BYTE*)pixels.data()))) {
+                app.pixels.assign((size_t)side*side,0);app.iconSize=side;
+                for(UINT y=0;y<dh;y++)std::copy_n(pixels.data()+y*dw,dw,app.pixels.data()+(y+(side-dh)/2)*side+(side-dw)/2);
+                app.bitmap.Reset();app.generation=0;return true;
+            }
+        }
+    }
+    if(LoadSvgIcon(path,size,app))return true;
     ComPtr<IShellItem> item;
     if (FAILED(SHCreateItemFromParsingName(path.c_str(), nullptr,
                                            IID_PPV_ARGS(&item)))) {
@@ -2675,6 +2903,197 @@ void ApplyCustomIcons(int size) {
     }
 }
 
+// Stable identities keep edits independent of automatic discovery and layout order.
+struct EntryRecord {
+    bool manual=false;
+    std::wstring target,name,arguments,directory;
+};
+[[clang::no_destroy]] std::map<std::wstring,EntryRecord> g_entries;
+bool g_entriesReadOnly=false;
+
+std::wstring EntryEncode(const std::wstring& value) {
+    std::wstring result;
+    for (auto c:value) {
+        if (c==L'%') result+=L"%25";
+        else if (c==L'\t') result+=L"%09";
+        else if (c==L'\n') result+=L"%0A";
+        else if (c==L'\r') result+=L"%0D";
+        else result+=c;
+    }
+    return result;
+}
+bool EntryDecode(const std::wstring& value,std::wstring& result) {
+    result.clear();
+    for (size_t i=0;i<value.size();i++) {
+        if (value[i]!=L'%') { result+=value[i]; continue; }
+        auto escape=value.substr(i,3);
+        if (escape==L"%25") result+=L'%';
+        else if (escape==L"%09") result+=L'\t';
+        else if (escape==L"%0A") result+=L'\n';
+        else if (escape==L"%0D") result+=L'\r';
+        else return false;
+        i+=2;
+    }
+    return true;
+}
+bool SaveEntries() {
+    if (g_entriesReadOnly) return false;
+    std::vector<std::wstring> lines{L"schema\t1\tentries"};
+    for (const auto& [key,e]:g_entries) lines.push_back(L"entry\t"+EntryEncode(key)+L"\t"+(e.manual?L"1":L"0")+
+        L"\t"+EntryEncode(e.target)+L"\t"+EntryEncode(e.name)+L"\t"+EntryEncode(e.arguments)+L"\t"+EntryEncode(e.directory));
+    return WriteLines(StoragePath(L"entries-v1.txt"),lines);
+}
+bool LoadEntries() {
+    auto path=StoragePath(L"entries-v1.txt");
+    bool read=false;
+    auto rows=ReadLines(path,&read);
+    bool missing=GetFileAttributesW(path.c_str())==INVALID_FILE_ATTRIBUTES && GetLastError()==ERROR_FILE_NOT_FOUND;
+    if (missing) { g_entries.clear(); g_entriesReadOnly=false; return true; }
+    std::map<std::wstring,EntryRecord> parsed;
+    bool valid=read && !rows.empty() && rows[0]==std::vector<std::wstring>{L"schema",L"1",L"entries"};
+    for (size_t i=1;valid && i<rows.size();i++) {
+        auto& r=rows[i]; std::wstring key; EntryRecord e;
+        valid=r.size()==7 && r[0]==L"entry" && (r[2]==L"0"||r[2]==L"1");
+        if (!valid) break;
+        e.manual=r[2]==L"1";
+        valid=EntryDecode(r[1],key) && EntryDecode(r[3],e.target) && EntryDecode(r[4],e.name) &&
+            EntryDecode(r[5],e.arguments) && EntryDecode(r[6],e.directory) && !key.empty() && !e.target.empty() && !e.name.empty();
+        if (valid) valid=parsed.emplace(key,std::move(e)).second;
+    }
+    g_entriesReadOnly=!valid;
+    if (valid) g_entries=std::move(parsed);
+    else Wh_Log(L"Entry data is unreadable or unsupported; keeping it read-only.");
+    return valid;
+}
+bool IsWebEntry(const std::wstring& target) {
+    auto lower=ToLower(target);
+    return lower.starts_with(L"https://") || lower.starts_with(L"http://");
+}
+bool IsEntryMissing(const App& app) {
+    if (IsWebEntry(app.target) || ToLower(app.target).starts_with(L"shell:")) return false;
+    return GetFileAttributesW(app.target.c_str())==INVALID_FILE_ATTRIBUTES;
+}
+std::wstring WebIconPath(const std::wstring& key) {
+    unsigned long long hash=14695981039346656037ull;
+    for (WCHAR c:key) { hash^=c;hash*=1099511628211ull; }
+    WCHAR name[40]{};swprintf_s(name,L"web-icons\\%016llx.ico",hash);
+    return StoragePath(name);
+}
+void ApplyEntryRecord(App& app,const std::wstring& key,const EntryRecord& e,int size) {
+    if (app.originalName.empty()) app.originalName=app.name;
+    if(app.layoutTarget.empty())app.layoutTarget=app.target.empty()?key:app.target;
+    app.stableKey=key; app.manual=e.manual; app.name=e.name;
+    app.target=e.target; app.arguments=e.arguments; app.workingDirectory=e.directory;
+    app.unavailable=IsEntryMissing(app);
+    ReloadAppIcon(size,app);
+    if (IsWebEntry(app.target)) {
+        auto icon=WebIconPath(key+L"|"+app.target);
+        LoadIconFile(icon,size,app);
+    }
+}
+void ApplyEntries(int size) {
+    if (!LoadEntries()) return;
+    for (auto& app:g_apps) app->originalName=app->name;
+    for (const auto& [key,e]:g_entries) {
+        auto found=std::find_if(g_apps.begin(),g_apps.end(),[&](const auto& a) {return AppKey(*a)==key;});
+        if (found!=g_apps.end()) ApplyEntryRecord(**found,key,e,size);
+        else {
+            // Keep a modified automatic app too, so a missing target can be repaired.
+            auto app=std::make_shared<App>(); app->name=e.name;
+            ApplyEntryRecord(*app,key,e,size); g_apps.push_back(app);
+        }
+    }
+}
+
+// Optional geometry only. Legacy membership/order files retain their format.
+struct GroupPosition {float x=0,y=0,w=400,h=240;};
+[[clang::no_destroy]] std::map<std::shared_ptr<Folder>,GroupPosition> g_groupPositions;
+[[clang::no_destroy]] std::map<std::shared_ptr<Folder>,int> g_groupRows;
+bool g_freeGroupLayout=false,g_groupEditMode=false,g_groupPositionsReadOnly=false;
+struct GroupGeometryGesture {
+    std::shared_ptr<Folder> group;
+    GroupPosition original,draft;
+    POINT start{};
+    float initialScroll=0;
+    bool resize=false,valid=false,moved=false;
+};
+[[clang::no_destroy]] GroupGeometryGesture g_groupGesture;
+struct ArrangementGeometry {
+    size_t ordinal;std::wstring name;GroupPosition position;
+    int row;bool collapsed;
+};
+[[clang::no_destroy]] std::vector<ArrangementGeometry> g_arrangementGeometry;
+void BeforeArrangeGeometry() {
+    g_arrangementGeometry.clear();
+    if(!g_freeGroupLayout&&!g_groupEditMode)return;
+    for(size_t i=0;i<g_tiles.size();i++)if(auto group=g_tiles[i].folder) {
+        auto found=g_groupPositions.find(group);
+        if(found!=g_groupPositions.end())g_arrangementGeometry.push_back({i,group->name,found->second,g_groupRows[group],group->collapsed});
+    }
+}
+void AfterArrangeGeometry() {
+    if(!g_freeGroupLayout&&!g_groupEditMode)return;
+    g_groupPositions.clear();g_groupRows.clear();
+    for(const auto& saved:g_arrangementGeometry)if(saved.ordinal<g_tiles.size()) {
+        auto group=g_tiles[saved.ordinal].folder;
+        if(group&&group->name==saved.name) {
+            g_groupPositions[group]=saved.position;
+            g_groupRows[group]=saved.row;
+            group->collapsed=saved.collapsed;
+        }
+    }
+    g_arrangementGeometry.clear();
+}
+std::wstring GroupPositionFile(){return StoragePath(L"group-geometry-"+LegacyLayoutFile());}
+void ClearGroupPositions() {
+    g_groupPositions.clear();
+    g_groupRows.clear();
+    g_groupGesture={};
+    g_freeGroupLayout=false;
+    g_groupEditMode=false;
+    g_groupPositionsReadOnly=false;
+}
+bool PositionNumber(const std::wstring& text,float& value) {
+    WCHAR* end=nullptr;value=wcstof(text.c_str(),&end);
+    return !text.empty()&&end&&!*end&&std::isfinite(value)&&value>=0&&value<=1000000;
+}
+bool LoadGroupPositions() {
+    auto path=GroupPositionFile();bool read=false;auto rows=ReadLines(path,&read);
+    if(GetFileAttributesW(path.c_str())==INVALID_FILE_ATTRIBUTES&&GetLastError()==ERROR_FILE_NOT_FOUND)return true;
+    bool valid=read&&!rows.empty()&&rows[0]==std::vector<std::wstring>{L"schema",L"1",L"group-geometry"};
+    std::map<std::shared_ptr<Folder>,GroupPosition> parsed;
+    std::map<std::shared_ptr<Folder>,bool> collapsed;
+    for(size_t i=1;valid&&i<rows.size();i++) {
+        auto& r=rows[i];GroupPosition p;std::wstring name;float ordinal=0;
+        valid=r.size()==8&&r[0]==L"group"&&(r[7]==L"group"||r[7]==L"folder")&&PositionNumber(r[1],ordinal)&&ordinal==std::floor(ordinal)&&ordinal<g_tiles.size()&&
+            EntryDecode(r[2],name)&&PositionNumber(r[3],p.x)&&PositionNumber(r[4],p.y)&&PositionNumber(r[5],p.w)&&PositionNumber(r[6],p.h)&&p.w>=48&&p.h>=60;
+        if(!valid)break;
+        auto group=g_tiles[(size_t)ordinal].folder;
+        valid=group&&group->name==name&&parsed.emplace(group,p).second;
+        if(valid)collapsed[group]=r[7]==L"folder";
+    }
+    if(valid)for(const auto& tile:g_tiles)if(tile.folder&&!parsed.count(tile.folder))valid=false;
+    g_groupPositionsReadOnly=!valid;
+    if(valid){g_groupPositions=std::move(parsed);for(const auto& [group,value]:collapsed)group->collapsed=value;g_freeGroupLayout=true;}
+    else {g_layoutReadOnly=true;Wh_Log(L"Group geometry cannot be matched safely; layout writes disabled.");}
+    return valid;
+}
+bool SaveGroupPositions() {
+    if(g_groupPositionsReadOnly||g_layoutReadOnly||g_dataReadOnly)return false;
+    if(!g_freeGroupLayout)return true;
+    std::vector<std::wstring> lines{L"schema\t1\tgroup-geometry"};
+    float bottom=0;for(const auto& [group,p]:g_groupPositions)bottom=std::max(bottom,p.y+p.h);
+    for(size_t i=0;i<g_tiles.size();i++)if(auto group=g_tiles[i].folder) {
+        // Only an explicit new-group operation can introduce an unmatched group.
+        if(!g_groupPositions.count(group)){g_groupPositions[group]={24,bottom+32,400,240};bottom+=272;}
+        auto p=g_groupPositions[group];
+        lines.push_back(L"group\t"+std::to_wstring(i)+L"\t"+EntryEncode(group->name)+L"\t"+std::to_wstring(p.x)+L"\t"+
+            std::to_wstring(p.y)+L"\t"+std::to_wstring(p.w)+L"\t"+std::to_wstring(p.h)+L"\t"+(group->collapsed?L"folder":L"group"));
+    }
+    return WriteLines(GroupPositionFile(),lines);
+}
+
+
 void SavePins() {
     std::vector<std::wstring> lines;
     for (const auto& key : g_pins) {
@@ -2684,6 +3103,7 @@ void SavePins() {
 }
 
 void LoadTiles() {
+    ClearGroupPositions();
     // Do not replace the in-memory layout or write any data if any active
     // layout/pins/icons file becomes unreadable or unsupported after startup.
     if (!ryjs_data::ValidateDirectory(DataRoot())) {
@@ -2721,6 +3141,7 @@ void LoadTiles() {
         lines.push_back(std::move(line));
     }
     ArrangeTiles(lines);
+    if(g_settings.groups)LoadGroupPositions();
     if (importing) SaveTiles();
 }
 
@@ -2761,7 +3182,7 @@ void UpdateFilter() {
     if (g_query.empty()) {
         g_visible.clear();
         for (const auto& tile : g_tiles) {
-            if (g_settings.groups && tile.folder) g_visible.insert(g_visible.end(), tile.folder->apps.begin(), tile.folder->apps.end());
+            if (g_settings.groups && tile.folder && !tile.folder->collapsed) g_visible.insert(g_visible.end(), tile.folder->apps.begin(), tile.folder->apps.end());
             else g_visible.push_back(tile);
         }
         return;
@@ -2787,6 +3208,7 @@ void UpdateFilter() {
         int rank = 0;
         for (size_t w = 0; w < words.size() && rank >= 0; w++) {
             int r = MatchRank(g_apps[i]->name, words[w]);
+            if (r < 0 && !g_apps[i]->originalName.empty()) r = MatchRank(g_apps[i]->originalName, words[w]);
             rank = r < 0 ? -1 : (w == 0 ? r : rank);
         }
         if (rank >= 0) {
@@ -3684,6 +4106,8 @@ struct ExpandedGroupGeometry {
     std::shared_ptr<Folder> group;
     D2D1_RECT_F area, title;
     int start = 0, firstInGroup = 0, count = 0, columns = 1, entryOrder = 0;
+    float cellWidth = 0;
+    int visibleRows = 1;
 };
 [[clang::no_destroy]] std::vector<ExpandedGroupGeometry> g_groupGeometry;
 [[clang::no_destroy]] std::vector<Cell> g_groupCells;
@@ -3714,7 +4138,43 @@ D2D1_RECT_F ProjectGroupRect(D2D1_RECT_F r) {
     else { r.top -= g_scroll; r.bottom -= g_scroll; }
     return r;
 }
+bool ComputeFreeGroups() {
+    if(!g_freeGroupLayout)return false;
+    auto& L=g_layout;float s=L.scale,pad=12*s,header=36*s;
+    L.cellHeight=std::round(L.icon+L.labelHeight+(18+g_settings.verticalGap)*s);L.cellSpare=0;
+    g_groupGeometry.clear();g_groupEntryOrder.clear();g_groupCells.assign(g_visible.size(),{});
+    int global=0,order=0;float bottom=0,right=0;float savedCellWidth=L.cellWidth;
+    for(const auto& tile:g_tiles)if(tile.folder) {
+        auto found=g_groupPositions.find(tile.folder);if(found==g_groupPositions.end())continue;
+        auto p=found->second;
+        // Fit only the displayed width on a smaller screen; never write this adaptation.
+        float width=std::max(L.icon+2*pad,std::min(p.w*s,L.width-32*s));
+        float page=g_settings.pages?std::floor(p.x*s/std::max(1,L.width))*L.width:0;
+        float x=page+std::clamp(p.x*s-page,16*s,std::max(16*s,L.width-width-16*s));
+        float y=L.viewTop+p.y*s,height=std::max(header+2*pad+L.cellHeight,p.h*s);
+        if(g_settings.pages)height=std::min(height,std::max(header+2*pad+L.cellHeight,L.viewBottom-y));
+        int columns=std::max(1,(int)((width-2*pad)/(L.icon+g_settings.horizontalGap*s)));
+        if(g_settings.columns>0)columns=std::min(columns,g_settings.columns);
+        L.cellWidth=(width-2*pad)/columns;
+        int visibleRows=std::max(1,(int)((height-header-2*pad)/L.cellHeight));
+        int count=tile.folder->collapsed?1:(int)tile.folder->apps.size(),totalRows=(count+columns-1)/columns;
+        int row=std::clamp(g_groupRows[tile.folder],0,std::max(0,totalRows-visibleRows));g_groupRows[tile.folder]=row;
+        int first=row*columns,shown=std::min(std::max(0,count-first),visibleRows*columns);
+        ExpandedGroupGeometry geometry;geometry.group=tile.folder;geometry.area={x,y,x+width,y+height};
+        geometry.title={x+pad,y,x+width-pad,y+header};geometry.start=global+first;geometry.firstInGroup=first;
+        geometry.count=shown;geometry.columns=columns;geometry.entryOrder=order;geometry.cellWidth=L.cellWidth;geometry.visibleRows=visibleRows;
+        g_groupGeometry.push_back(geometry);
+        for(int i=0;i<shown;i++)if(global+first+i<(int)g_groupCells.size()) {
+            g_groupCells[global+first+i]=MakeCell(x+pad+(i%columns)*L.cellWidth,y+header+pad+(i/columns)*L.cellHeight);
+            if(!tile.folder->collapsed){auto& app=tile.folder->apps[first+i].app;if(app)g_groupEntryOrder[app.get()]=order;}
+        }
+        global+=count;++order;bottom=std::max(bottom,y+height-L.viewTop);right=std::max(right,x+width);
+    }
+    L.cellWidth=savedCellWidth;L.contentHeight=bottom;L.pages=std::max(1,(int)std::ceil(right/std::max(1,L.width)));L.perPage=std::max(1,global);
+    return true;
+}
 void ComputeGroups() {
+    if(ComputeFreeGroups())return;
     auto& L = g_layout;
     float s = L.scale, gap = g_settings.groupGap * s, pad = 12 * s, header = 36 * s;
     float margin = std::max(24 * s, L.width * 0.045f);
@@ -3758,6 +4218,7 @@ void ComputeGroups() {
             geometry.title = {x + pad, top, x + groupWidth - pad, top + header};
             geometry.start = global + offset; geometry.firstInGroup = offset;
             geometry.count = chunk; geometry.columns = columns;
+            geometry.cellWidth=L.cellWidth;geometry.visibleRows=rows;
             geometry.entryOrder = order;
             g_groupGeometry.push_back(geometry);
             for (int i = 0; i < chunk; i++) {
@@ -3785,6 +4246,17 @@ Cell GroupCellAt(int index) {
     c.highlight = ProjectGroupRect(c.highlight);
     return c;
 }
+void EnsureFreeGroupVisible(int index) {
+    if(!g_freeGroupLayout)return;
+    for(const auto& geometry:g_groupGeometry) {
+        int base=geometry.start-geometry.firstInGroup;
+        if(index<base||index>=base+(geometry.group->collapsed?1:(int)geometry.group->apps.size()))continue;
+        int row=(index-base)/geometry.columns;
+        int next=std::clamp(g_groupRows[geometry.group],row-geometry.visibleRows+1,row);
+        if(next!=g_groupRows[geometry.group]){g_groupRows[geometry.group]=next;ComputeGroups();}
+        break;
+    }
+}
 int GroupIndexAt(int x, int y) {
     if (y < g_layout.viewTop || y >= g_layout.viewBottom) return -1;
     for (int i = 0; i < (int)g_groupCells.size(); i++)
@@ -3801,6 +4273,13 @@ void DrawGroupHeaders() {
     for (const auto& geometry : g_groupGeometry) {
         auto area = ProjectGroupRect(geometry.area), title = ProjectGroupRect(geometry.title);
         if (area.bottom < g_layout.viewTop || area.top > g_layout.viewBottom || area.right < 0 || area.left > g_layout.width) continue;
+        if(g_settings.groupOpacity>0){auto color=g_settings.groupColor;color.a=g_settings.groupOpacity;Fill(area,color,12*g_layout.scale);}
+        if(g_groupEditMode) {
+            auto color=g_settings.accent;color.a=0.7f;
+            g_brush->SetColor(color);g_target->DrawRoundedRectangle(D2D1::RoundedRect(area,8*g_layout.scale,8*g_layout.scale),g_brush.Get(),1.5f*g_layout.scale);
+            auto handle=D2D1::RectF(area.right-16*g_layout.scale,area.bottom-16*g_layout.scale,area.right,area.bottom);
+            g_target->FillRectangle(handle,g_brush.Get());
+        }
         if (geometry.group == g_groupDropFolder || geometry.group == g_groupHeaderDragging) {
             auto color = g_settings.accent; color.a = 0.10f;
             Fill(area, color, 12 * g_layout.scale);
@@ -3808,7 +4287,11 @@ void DrawGroupHeaders() {
         float progress=GroupEntryProgress(geometry.entryOrder);
         float shift=(1-progress)*30*g_layout.scale;
         title.left+=shift; title.right+=shift;
-        g_brush->SetColor(D2D1::ColorF(0xCDD6F4,progress));
+        if(g_settings.labelPlateOpacity>0) {
+            auto color=g_settings.labelPlateColor;color.a=g_settings.labelPlateOpacity*progress;
+            Fill({title.left-4*g_layout.scale,title.top+4*g_layout.scale,title.right+4*g_layout.scale,title.bottom-4*g_layout.scale},color,g_settings.labelRadius*g_layout.scale);
+        }
+        auto textColor=g_settings.textColor;textColor.a=progress;g_brush->SetColor(textColor);
         std::wstring name=geometry.group->name;
         if (!geometry.group->unavailable.empty()) name+=L" · "+std::to_wstring(geometry.group->unavailable.size())+Tr(L" unavailable");
         g_target->DrawText(name.c_str(), (UINT32)name.size(), g_groupFormat.Get(), title, g_brush.Get());
@@ -3820,15 +4303,28 @@ void DrawGroupHeaders() {
             PCWSTR text = Tr(g_visible.empty() ? L"Search for an app, then use Move to group" : L"Drop apps here");
             g_target->DrawText(text, (UINT32)wcslen(text), g_tipFormat.Get(), hint, g_brush.Get());
         }
+        if(g_freeGroupLayout && !geometry.group->collapsed && (int)geometry.group->apps.size()>geometry.visibleRows*geometry.columns) {
+            auto hint=area;hint.top=hint.bottom-16*g_layout.scale;
+            std::wstring text=std::to_wstring(geometry.firstInGroup+1)+L"–"+std::to_wstring(geometry.firstInGroup+geometry.count)+L" / "+std::to_wstring(geometry.group->apps.size());
+            g_brush->SetColor(D2D1::ColorF(0xA6ADC8));g_target->DrawText(text.c_str(),(UINT32)text.size(),g_tipFormat.Get(),hint,g_brush.Get());
+        }
         if (geometry.group == g_groupDropFolder && g_groupDropSlot >= geometry.firstInGroup &&
             g_groupDropSlot <= geometry.firstInGroup + geometry.count) {
             int slot = g_groupDropSlot - geometry.firstInGroup;
-            float x = area.left + 12 * g_layout.scale + (slot % geometry.columns) * g_layout.cellWidth;
+            float x = area.left + 12 * g_layout.scale + (slot % geometry.columns) * geometry.cellWidth;
             float y = title.bottom + 12 * g_layout.scale + (slot / geometry.columns) * g_layout.cellHeight;
             auto color = g_settings.accent; color.a=0.9f;
             Fill({x,y,x+3*g_layout.scale,y+g_layout.icon+16*g_layout.scale},color,1.5f*g_layout.scale);
         }
     }
+}
+void DrawGroupEditPreview() {
+    if(!g_groupEditMode||!g_groupGesture.group||!g_groupGesture.moved)return;
+    auto p=g_groupGesture.draft;float s=g_layout.scale;
+    auto r=ProjectGroupRect({p.x*s,g_layout.viewTop+p.y*s,(p.x+p.w)*s,g_layout.viewTop+(p.y+p.h)*s});
+    auto color=D2D1::ColorF(g_groupGesture.valid?0x89DCEB:0xF38BA8,0.18f);
+    Fill(r,color,8*s);color.a=0.95f;g_brush->SetColor(color);
+    g_target->DrawRoundedRectangle(D2D1::RoundedRect(r,8*s,8*s),g_brush.Get(),2*s);
 }
 
 
@@ -5121,6 +5617,18 @@ void DrawTileIcon(const Tile& tile, const D2D1_RECT_F& r, float opacity) {
     if (ID2D1Bitmap* bitmap = GetBitmap(*tile.app)) {
         g_target->DrawBitmap(bitmap, r, opacity,
                              D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+    } else {
+        Fill(r,D2D1::ColorF(0x45475A,0.7f*opacity),side*0.20f);
+        auto center=D2D1::Point2F((r.left+r.right)/2,(r.top+r.bottom)/2);
+        g_brush->SetColor(D2D1::ColorF(0xCDD6F4,opacity));
+        if(IsWebEntry(tile.app->target)) {
+            g_target->DrawEllipse(D2D1::Ellipse(center,side*0.28f,side*0.28f),g_brush.Get(),side*0.04f);
+            g_target->DrawEllipse(D2D1::Ellipse(center,side*0.12f,side*0.28f),g_brush.Get(),side*0.03f);
+            g_target->DrawLine({r.left+side*0.22f,center.y},{r.right-side*0.22f,center.y},g_brush.Get(),side*0.03f);
+        } else {
+            g_target->DrawRectangle({r.left+side*0.2f,r.top+side*0.22f,r.right-side*0.2f,r.bottom-side*0.28f},g_brush.Get(),side*0.04f);
+            g_target->DrawLine({center.x,r.bottom-side*0.28f},{center.x,r.bottom-side*0.15f},g_brush.Get(),side*0.04f);
+        }
     }
 }
 
@@ -5217,6 +5725,8 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
         if (alpha > 0.001f) {
             auto box = c.highlight;
             box.bottom = std::max(box.bottom, c.label.bottom + 6 * s);
+            auto color=i==g_selected?g_settings.selectionColor:g_settings.hoverColor;
+            color.a=alpha*0.16f;Fill(box,color,7*s);
             float radius = 7 * s;
             DrawHoverBox(box, radius, alpha);
         }
@@ -5229,6 +5739,12 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
     }
     float entryAlpha=GroupTileProgress(tile);
     DrawTileIcon(tile, c.icon, (live && i == g_pressed ? 0.6f : 1.0f)*entryAlpha);
+    if(tile.app && tile.app->unavailable) {
+        auto badge=c.icon;badge.left=badge.right-18*s;badge.bottom=badge.top+18*s;
+        Fill(badge,D2D1::ColorF(0xB43B3B,entryAlpha),9*s);
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF,entryAlpha));
+        g_target->DrawText(L"!",1,g_tipFormat.Get(),badge,g_brush.Get());
+    }
     if (g_settings.showLabels && g_labelFormat) {
         // Light shadow so the name reads well over any background.
         const std::wstring& name = TileName(tile);
@@ -5237,8 +5753,16 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
         shadow.bottom += 1 * s;
         g_brush->SetColor(D2D1::ColorF(0, 0, 0, 0.45f*entryAlpha));
         auto text = TileLabel(tile, c.label);
+        if(text&&g_settings.labelPlateOpacity>0) {
+            DWRITE_TEXT_METRICS metrics{};text->GetMetrics(&metrics);
+            auto plate=D2D1::RectF(c.label.left+metrics.left-4*s,c.label.top+metrics.top-2*s,
+                c.label.left+metrics.left+std::min(metrics.width,c.label.right-c.label.left)+4*s,c.label.top+metrics.top+metrics.height+2*s);
+            auto color=g_settings.labelPlateColor;color.a=g_settings.labelPlateOpacity*entryAlpha;
+            Fill(plate,color,g_settings.labelRadius*s);
+        }
+        g_brush->SetColor(D2D1::ColorF(0,0,0,g_settings.labelShadow*entryAlpha));
         if (text) g_target->DrawTextLayout(D2D1::Point2F(shadow.left, shadow.top), text, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        g_brush->SetColor(D2D1::ColorF(0xCDD6F4, 0.98f*entryAlpha));
+        auto labelColor=g_settings.textColor;labelColor.a=0.98f*entryAlpha;g_brush->SetColor(labelColor);
         if (text) g_target->DrawTextLayout(D2D1::Point2F(c.label.left, c.label.top), text, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     if (wiggle) {
@@ -5253,7 +5777,8 @@ void DrawFolder() {
     const Layout& L = g_layout;
     float s = L.scale;
     FolderLayout F = GetFolderLayout();
-    Fill(F.panel, D2D1::ColorF(0x1E1E2E, 0.62f), 24 * s);
+    auto folderColor=g_settings.groupColor;folderColor.a=g_settings.groupOpacity>0?g_settings.groupOpacity:0.62f;
+    Fill(F.panel, folderColor, 24 * s);
     g_brush->SetColor(D2D1::ColorF(0x45475A, 0.35f));
     g_target->DrawRoundedRectangle(
         D2D1::RoundedRect(D2D1::RectF(F.panel.left + 0.5f, F.panel.top + 0.5f,
@@ -5327,10 +5852,12 @@ void DrawGrid() {
         last = std::min((int)g_visible.size(), (lastRow + 1) * L.columns);
     }
     for (int i = first; i < last; i++) {
+        if(GroupedView()&&g_freeGroupLayout&&g_groupCells[i].icon.right<=g_groupCells[i].icon.left)continue;
         Cell cell = AnimatedCell(g_visible[i], CellAt(i));
         if (cell.label.bottom < L.viewTop || cell.icon.top > L.viewBottom || cell.icon.right < 0 || cell.icon.left > L.width) continue;
         DrawTile(g_visible[i], cell, i, !g_openFolder);
     }
+    if(GroupedView())DrawGroupEditPreview();
     g_target->PopAxisAlignedClip();
 
     if (g_settings.pages) {
@@ -5405,6 +5932,7 @@ void Render() {
         }
     }
     Fill(D2D1::RectF(0, 0, W, H), Alpha(g_settings.tint, g_settings.opacity));
+    if(g_settings.backgroundDim>0)Fill(D2D1::RectF(0,0,W,H),D2D1::ColorF(0,0,0,g_settings.backgroundDim));
 
     // When opening, the grid arrives from slightly larger, like in Launchpad.
     float zoom = 1.06f - 0.06f * Ease(g_appear);
@@ -5522,6 +6050,8 @@ void HideNow() {
     if (g_shown) ResetTaskbarStartButtons();
 #endif
     CancelGroupPointer();
+    g_groupEditMode=false;
+    if(!g_freeGroupLayout)g_groupPositions.clear();
     g_groupDropFolder.reset(); g_groupDropSlot = -1;
     FinishMetrics();
     if (g_frameWake) CancelWaitableTimer(g_frameWake);
@@ -5815,7 +6345,7 @@ void Toggle() {
 // target is a silent no-op, so a temporary .lnk aimed at the target carries
 // the elevation instead — the shell brokers that into an elevated launch
 // (verified: the spawned Terminal answers the elevation token query).
-void LaunchTarget(const std::wstring& target, PCWSTR verb);
+void LaunchTarget(const std::wstring& target, PCWSTR verb, const App* entry = nullptr);
 void ElevateViaTempLnk(const std::wstring& target) {
     PWSTR temp = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &temp))) {
@@ -5840,15 +6370,23 @@ void ElevateViaTempLnk(const std::wstring& target) {
     }
 }
 
-void LaunchTarget(const std::wstring& target, PCWSTR verb = nullptr) {
+void LaunchTarget(const std::wstring& target, PCWSTR verb = nullptr, const App* entry) {
     SHELLEXECUTEINFOW sei{sizeof(sei)};
     sei.fMask = SEE_MASK_ASYNCOK;
     sei.lpVerb = verb;
     sei.lpFile = target.c_str();
+    // Normal activations retain arguments and working directory from entry edits.
+    if (entry) {sei.lpParameters=entry->arguments.empty()?nullptr:entry->arguments.c_str();sei.lpDirectory=entry->workingDirectory.empty()?nullptr:entry->workingDirectory.c_str();}
     sei.nShow = SW_SHOWNORMAL;
     AllowSetForegroundWindow(ASFW_ANY);
-    ShellExecuteExW(&sei);
-    Close();
+    if (ShellExecuteExW(&sei)) Close();
+    else {
+        bool previous=g_modal;
+        g_modal=true;
+        MessageBoxW(g_wnd,Tr(L"Could not open this entry. Use Edit entry to repair its target."),Tr(L"Launch failed"),MB_OK|MB_ICONWARNING);
+        g_modal=previous;
+        if(g_shown)ForceForeground(g_wnd);
+    }
 }
 
 // The settings window, from the "..." menu. Its overrides are saved in this
@@ -6007,6 +6545,16 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Number, L"groupSpacing", L"Group spacing", L"Space between groups, in DIP.", L"32", {}, 8, 160, 1, L"Expanded groups"},
 {K::Choice, L"groupFlow", L"Group arrangement", L"Arrange groups in columns or use one full-width group per row.", L"columns", {{L"columns", L"Responsive columns"}, {L"rows", L"Full-width rows"}}, 0, 100, 1, L"Expanded groups"},
 {K::Choice, L"groupNavigation", L"Group navigation", L"Large groups continue on the next page when paging is selected.", L"scroll", {{L"scroll", L"Vertical scrolling"}, {L"pages", L"Horizontal pages"}}, 0, 100, 1, L"Expanded groups"},
+{K::Choice, L"themeMode", L"Theme mode", L"Choose a preset, follow Windows, or keep your own colors.", L"custom", {{L"custom", L"Custom"}, {L"light", L"Light"}, {L"dark", L"Dark"}, {L"system", L"Follow Windows"}}, 0, 100, 2, L"Theme"},
+{K::Color, L"textColor", L"Text color", L"Application and group names in the custom theme.", L"#CDD6F4", {}, 0, 100, 2, L"Theme"},
+{K::Color, L"groupColor", L"Group background color", L"Group and folder background in the custom theme.", L"#1E1E2E", {}, 0, 100, 2, L"Theme"},
+{K::Number, L"groupOpacity", L"Group background opacity", L"0–100 percent. Zero preserves transparent expanded groups.", L"0", {}, 0, 100, 2, L"Theme"},
+{K::Color, L"hoverColor", L"Hover color", L"Background color of the application under the pointer.", L"#89B4FA", {}, 0, 100, 2, L"Theme"},
+{K::Color, L"selectionColor", L"Selection color", L"Background color of the keyboard-selected application.", L"#CBA6F7", {}, 0, 100, 2, L"Theme"},
+{K::Number, L"labelPlateOpacity", L"Name backplate opacity", L"Protect names from bright window glare. Zero turns the backplate off.", L"65", {}, 0, 100, 2, L"Readability"},
+{K::Number, L"labelRadius", L"Name backplate corner radius", L"Corner radius in DIP, independent of icon size.", L"6", {}, 0, 24, 2, L"Readability"},
+{K::Number, L"labelShadow", L"Name shadow strength", L"0–100 percent, combined with the name backplate.", L"45", {}, 0, 100, 2, L"Readability"},
+{K::Number, L"backgroundDim", L"Background dimming", L"Additional darkening of the blurred background, 0–80 percent.", L"0", {}, 0, 80, 2, L"Readability"},
 // Custom settings end
 {K::Choice, L"interfaceLanguage", L"Interface language", L"Follow Windows display language. Save to apply; app names stay unchanged.", L"auto", {{L"auto", L"Automatic (Windows)"}, {L"zh-CN", L"Simplified Chinese"}, {L"en", L"English"}}, 0, 100, 2, L"Language"},
 {K::Choice, L"uiFont", L"Interface font", L"Choose a locally installed font. Applies to text only; symbol icons use their own font.", L"auto", {{L"auto", L"Automatic (language default)"}}, 0, 100, 2, L"Typography"},
@@ -6965,7 +7513,7 @@ static void Set_DrawRail(SetPaint& p, SetWindow& w) {
         float my = (tb.top + tb.bottom) / 2;
         Set_DrawMark(p, w.fIcon.get(), {d.left + 56, my - 13, d.left + 82, my + 13}, textA);
     }
-    p.Text(w.fRailName.get(), L"Seamless", {d.left + 90, d.top + 9, d.left + w.railW - 10, d.top + 33}, mocha::text, textA);
+    p.Text(w.fRailName.get(), L"RYJS", {d.left + 90, d.top + 9, d.left + w.railW - 10, d.top + 33}, mocha::text, textA);
     p.Text(w.fRailName.get(), L"Launchpad", {d.left + 90, d.top + 32, d.left + w.railW - 10, d.top + 56}, mocha::text, textA);
     for (int i = 0; i < kSetPageCount; i++) {
         D2D1_RECT_F r = Set_RailRect(w, i);
@@ -8600,6 +9148,7 @@ void EnsureVisible(int index) {
     }
     const Layout& L = g_layout;
     if (GroupedView() && index < (int)g_groupCells.size()) {
+        EnsureFreeGroupVisible(index);
         auto cell = g_groupCells[index];
         if (g_settings.pages) g_scrollTarget = std::floor(cell.icon.left / L.width) * L.width;
         else {
@@ -8656,6 +9205,83 @@ int IndexOf(const Tiles& tiles, const Tile& tile) {
         }
     }
     return -1;
+}
+
+bool GroupsOverlap(const GroupPosition& a,const GroupPosition& b) {
+    return a.x<b.x+b.w && b.x<a.x+a.w && a.y<b.y+b.h && b.y<a.y+a.h;
+}
+void ToggleGroupEdit() {
+    if(g_groupPositionsReadOnly||g_layoutReadOnly||g_dataReadOnly)return;
+    if(g_groupEditMode) {
+        g_groupGesture={};g_groupEditMode=false;
+        if(!g_freeGroupLayout)g_groupPositions.clear();
+        if(GetCapture()==g_wnd)ReleaseCapture();
+    } else {
+        if(!GroupedView())return;
+        if(!g_freeGroupLayout) {
+            g_groupPositions.clear();
+            for(const auto& geometry:g_groupGeometry)if(!g_groupPositions.count(geometry.group)) {
+                auto r=geometry.area;float s=g_layout.scale;
+                g_groupPositions[geometry.group]={r.left/s,(r.top-g_layout.viewTop)/s,(r.right-r.left)/s,(r.bottom-r.top)/s};
+            }
+        }
+        g_groupEditMode=true;
+    }
+    g_pressed=-1;g_pressedEmpty=false;Render();
+}
+bool FreeGroupPointerDown(HWND hwnd,int x,int y) {
+    if(!g_groupEditMode||!GroupedView())return false;
+    int index=GroupAtPoint(x,y);if(index<0)return y>=g_layout.viewTop&&y<g_layout.viewBottom;
+    auto& geometry=g_groupGeometry[index];auto r=ProjectGroupRect(geometry.area);
+    bool resize=x>=r.right-24*g_layout.scale&&y>=r.bottom-24*g_layout.scale;
+    if(!resize&&!GroupContains(ProjectGroupRect(geometry.title),(float)x,(float)y))return true;
+    g_groupGesture={};g_groupGesture.group=geometry.group;g_groupGesture.original=g_groupPositions[geometry.group];
+    g_groupGesture.draft=g_groupGesture.original;g_groupGesture.start={x,y};g_groupGesture.resize=resize;
+    g_groupGesture.initialScroll=g_scroll;g_groupGesture.valid=true;SetCapture(hwnd);Render();return true;
+}
+bool FreeGroupPointerMove(int x,int y) {
+    auto& gesture=g_groupGesture;if(!gesture.group)return false;
+    float s=g_layout.scale,scroll=g_scroll-gesture.initialScroll;
+    float dx=(x-gesture.start.x+(g_settings.pages?scroll:0))/s,dy=(y-gesture.start.y+(g_settings.pages?0:scroll))/s;
+    if(std::abs(dx)<GetSystemMetrics(SM_CXDRAG)/s&&std::abs(dy)<GetSystemMetrics(SM_CYDRAG)/s&&!gesture.moved)return true;
+    gesture.moved=true;auto p=gesture.original;auto snap=[](float value){return std::round(value/16)*16;};
+    float minWidth=g_layout.icon/s+24,minHeight=(36+24)+(g_layout.cellHeight/s);
+    if(gesture.resize) {
+        p.w=std::clamp(snap(p.w+dx),minWidth,std::max(minWidth,g_layout.width/s-p.x-16));
+        p.h=std::max(minHeight,snap(p.h+dy));
+    } else {
+        p.x=std::clamp(snap(p.x+dx),16.0f,std::max(16.0f,g_layout.width/s-p.w-16));p.y=std::max(0.0f,snap(p.y+dy));
+    }
+    if(g_settings.pages)p.h=std::min(p.h,std::max(minHeight,(g_layout.viewBottom-g_layout.viewTop)/s-p.y));
+    gesture.valid=true;
+    for(const auto& [group,other]:g_groupPositions)if(group!=gesture.group&&GroupsOverlap(p,other)){gesture.valid=false;break;}
+    gesture.draft=p;Render();return true;
+}
+bool FreeGroupPointerUp(HWND hwnd) {
+    if(!g_groupEditMode)return false;
+    auto gesture=g_groupGesture;g_groupGesture={};
+    if(gesture.group&&gesture.moved&&gesture.valid) {
+        bool wasFree=g_freeGroupLayout;
+        g_groupPositions[gesture.group]=gesture.draft;g_freeGroupLayout=true;
+        if(!SaveGroupPositions()) {
+            g_groupPositions[gesture.group]=gesture.original;
+            g_freeGroupLayout=wasFree;
+            MessageBoxW(hwnd,Tr(L"Could not save group geometry."),Tr(L"Edit group layout"),MB_OK|MB_ICONWARNING);
+        }
+        Refresh();
+    }
+    if(GetCapture()==hwnd)ReleaseCapture();Render();return true;
+}
+bool ScrollFreeGroup(HWND hwnd,LPARAM lp,int delta) {
+    if(!g_freeGroupLayout||!GroupedView()||g_groupEditMode||GetKeyState(VK_SHIFT)<0)return false;
+    POINT point{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};ScreenToClient(hwnd,&point);
+    int index=GroupAtPoint(point.x,point.y);if(index<0)return false;
+    auto geometry=g_groupGeometry[index];int rows=((int)geometry.group->apps.size()+geometry.columns-1)/geometry.columns;
+    if(geometry.group->collapsed)return false;
+    if(rows<=geometry.visibleRows)return false;
+    g_wheelDelta+=delta;int step=g_wheelDelta/WHEEL_DELTA;g_wheelDelta%=WHEEL_DELTA;
+    g_groupRows[geometry.group]=std::clamp(g_groupRows[geometry.group]-step,0,rows-geometry.visibleRows);
+    ComputeGroups();g_hover=-1;Render();return true;
 }
 
 // Shared operations for pointer, context-menu and keyboard group editing.
@@ -8763,9 +9389,20 @@ void ShowGroupMenu(HWND hwnd, const std::shared_ptr<Folder>& group, POINT point)
     AppendMenuW(menu, MF_STRING, 3, Tr(L"Move group later"));
     AppendMenuW(menu, MF_STRING, 4, Tr(L"Delete group"));
     AppendMenuW(menu, MF_STRING, 5, Tr(L"New group"));
+    AppendMenuW(menu, MF_STRING, 6, Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
+    AppendMenuW(menu, MF_STRING, 7, Tr(group->collapsed?L"Show as expanded group":L"Show as traditional folder"));
     g_modal = true;
     int command = TrackLaunchpadPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, point.x, point.y, hwnd, nullptr);
     g_modal = false; DestroyMenu(menu);
+    if(command==6){ToggleGroupEdit();return;}
+    if(command==7){
+        if(g_groupPositionsReadOnly||g_layoutReadOnly||g_dataReadOnly)return;
+        bool wasEditing=g_groupEditMode;
+        if(!g_freeGroupLayout){if(!g_groupEditMode)ToggleGroupEdit();g_freeGroupLayout=true;g_groupEditMode=wasEditing;}
+        group->collapsed=!group->collapsed;
+        if(!SaveGroupPositions())group->collapsed=!group->collapsed;
+        Refresh();return;
+    }
     if (command == 1) {
         auto name = PromptGroupName(hwnd, group->name);
         if (!name.empty()) group->name = std::move(name);
@@ -8791,7 +9428,7 @@ void GroupDragMove(int x, int y) {
     auto area = ProjectGroupRect(geometry.area);
     float relativeX = x - area.left - 12 * g_layout.scale;
     float relativeY = y - area.top - 48 * g_layout.scale;
-    int col = std::clamp((int)std::floor(relativeX / g_layout.cellWidth), 0, geometry.columns - 1);
+    int col = std::clamp((int)std::floor(relativeX / geometry.cellWidth), 0, geometry.columns - 1);
     int row = std::max(0, (int)std::floor(relativeY / g_layout.cellHeight));
     g_groupDropSlot = std::clamp(geometry.firstInGroup + row * geometry.columns + col, 0, (int)geometry.group->apps.size());
 }
@@ -8802,12 +9439,15 @@ POINT g_groupHeaderAt{};
 double g_groupHeaderEdgeTime=0;
 int g_groupHeaderEdge=0;
 bool GroupPointerDown(HWND hwnd, int x, int y) {
+    if(g_groupEditMode)return FreeGroupPointerDown(hwnd,x,y);
     int index = GroupAtPoint(x, y, true);
     if (index < 0) return false;
     g_groupHeaderPressed = g_groupGeometry[index].group;
     g_groupHeaderStart = g_groupHeaderAt = {x,y}; SetCapture(hwnd); return true;
 }
 bool GroupPointerMove(int x, int y) {
+    if(g_groupGesture.group)return FreeGroupPointerMove(x,y);
+    if(!g_groupEditMode&&g_groupHeaderPressed)return true;
     if (!g_groupHeaderPressed) return false;
     if (std::abs(x-g_groupHeaderStart.x) > GetSystemMetrics(SM_CXDRAG) || std::abs(y-g_groupHeaderStart.y) > GetSystemMetrics(SM_CYDRAG))
         g_groupHeaderDragging = g_groupHeaderPressed;
@@ -8827,10 +9467,12 @@ void GroupHeaderTick() {
     g_groupDropFolder=index<0?nullptr:g_groupGeometry[index].group;
 }
 void CancelGroupPointer() {
+    g_groupGesture={};
     g_groupHeaderPressed.reset(); g_groupHeaderDragging.reset(); g_groupDropFolder.reset();
     g_groupHeaderEdge=0;
 }
 bool GroupPointerUp(HWND hwnd) {
+    if(g_groupEditMode)return FreeGroupPointerUp(hwnd);
     if (!g_groupHeaderPressed) return false;
     if (g_groupHeaderDragging && g_groupDropFolder && g_groupHeaderDragging != g_groupDropFolder) {
         MoveGroup(g_groupHeaderDragging, IndexOf(g_tiles, {nullptr,g_groupDropFolder}));
@@ -8965,7 +9607,7 @@ void ActivateItem(int index) {
     if (items[index].folder) {
         OpenFolder(items[index].folder);
     } else {
-        LaunchTarget(items[index].app->target);
+        LaunchTarget(items[index].app->target,nullptr,items[index].app.get());
     }
 }
 
@@ -9331,9 +9973,10 @@ bool PickIconFile(HWND hwnd, std::wstring& path) {
     ofn.lpstrTitle = Tr(L"Choose a picture for the icon");
     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
                 OFN_NOCHANGEDIR;
+    bool previousModal = g_modal;
     g_modal = true;
     BOOL ok = GetOpenFileNameW(&ofn);
-    g_modal = false;
+    g_modal = previousModal;
     if (g_shown && !g_closing) {
         ForceForeground(hwnd);
     }
@@ -9415,6 +10058,314 @@ bool IsPackagedTarget(const std::wstring& target) {
     return ToLower(target).rfind(ToLower(kAppsFolder), 0) == 0;
 }
 
+// Fetch only for an explicit add/update. No periodic networking or third-party proxy.
+struct WebHandle {
+    HINTERNET value=nullptr;
+    WebHandle(HINTERNET h=nullptr):value(h){}
+    ~WebHandle(){if(value)WinHttpCloseHandle(value);}
+    operator HINTERNET() const{return value;}
+};
+struct WebIconResult {std::wstring key,url,path;};
+[[clang::no_destroy]] std::vector<HANDLE> g_webWorkers;
+std::atomic<bool> g_webStop=false;
+constexpr UINT kWebIconReady=WM_APP+64;
+std::wstring WebWide(const std::string& bytes) {
+    int n=MultiByteToWideChar(CP_UTF8,0,bytes.data(),(int)bytes.size(),nullptr,0);
+    std::wstring value(n,L'\0');if(n)MultiByteToWideChar(CP_UTF8,0,bytes.data(),(int)bytes.size(),value.data(),n);return value;
+}
+bool DownloadWeb(const std::wstring& url,std::string& bytes,std::wstring& finalUrl) {
+    if (g_webStop || !IsWebEntry(url)) return false;
+    URL_COMPONENTS parts{sizeof(parts)};
+    parts.dwHostNameLength=parts.dwUrlPathLength=parts.dwExtraInfoLength=parts.dwUserNameLength=parts.dwPasswordLength=(DWORD)-1;
+    if (!WinHttpCrackUrl(url.c_str(),0,0,&parts) || !parts.dwHostNameLength || parts.dwUserNameLength || parts.dwPasswordLength) return false;
+    std::wstring host(parts.lpszHostName,parts.dwHostNameLength),path(parts.lpszUrlPath,parts.dwUrlPathLength);
+    path+=std::wstring(parts.lpszExtraInfo?parts.lpszExtraInfo:L"",parts.dwExtraInfoLength);
+    if(path.empty())path=L"/";
+    WebHandle session(WinHttpOpen(L"RYJSLaunchpad/0.1",WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));
+    if(!session)return false;
+    WinHttpSetTimeouts(session,3000,3000,3000,3000);
+    WebHandle connection(WinHttpConnect(session,host.c_str(),parts.nPort,0));if(!connection)return false;
+    WebHandle request(WinHttpOpenRequest(connection,L"GET",path.c_str(),nullptr,WINHTTP_NO_REFERER,WINHTTP_DEFAULT_ACCEPT_TYPES,parts.nScheme==INTERNET_SCHEME_HTTPS?WINHTTP_FLAG_SECURE:0));
+    if(!request)return false;
+    DWORD disabled=WINHTTP_DISABLE_COOKIES;WinHttpSetOption(request,WINHTTP_OPTION_DISABLE_FEATURE,&disabled,sizeof(disabled));
+    DWORD logon=WINHTTP_AUTOLOGON_SECURITY_LEVEL_HIGH;WinHttpSetOption(request,WINHTTP_OPTION_AUTOLOGON_POLICY,&logon,sizeof(logon));
+    DWORD policy=WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP;WinHttpSetOption(request,WINHTTP_OPTION_REDIRECT_POLICY,&policy,sizeof(policy));
+    DWORD redirects=5;WinHttpSetOption(request,WINHTTP_OPTION_MAX_HTTP_AUTOMATIC_REDIRECTS,&redirects,sizeof(redirects));
+    if(!WinHttpSendRequest(request,WINHTTP_NO_ADDITIONAL_HEADERS,0,WINHTTP_NO_REQUEST_DATA,0,0,0)||!WinHttpReceiveResponse(request,nullptr))return false;
+    DWORD code=0,size=sizeof(code);
+    if(!WinHttpQueryHeaders(request,WINHTTP_QUERY_STATUS_CODE|WINHTTP_QUERY_FLAG_NUMBER,nullptr,&code,&size,nullptr)||code!=200)return false;
+    bytes.clear();char buffer[16384];DWORD count=0;
+    ULONGLONG began=GetTickCount64();
+    while(!g_webStop) {
+        if(GetTickCount64()-began>15000)return false;
+        if(!WinHttpReadData(request,buffer,sizeof(buffer),&count))return false;
+        if(!count)break;
+        if(bytes.size()+count>2*1024*1024)return false;
+        bytes.append(buffer,count);
+    }
+    if(g_webStop||bytes.empty())return false;
+    DWORD needed=0;WinHttpQueryOption(request,WINHTTP_OPTION_URL,nullptr,&needed);
+    finalUrl.resize(needed/sizeof(WCHAR));
+    if(needed&&WinHttpQueryOption(request,WINHTTP_OPTION_URL,finalUrl.data(),&needed))finalUrl.resize(wcslen(finalUrl.c_str()));
+    else finalUrl=url;
+    return true;
+}
+std::wstring WebAttribute(const std::wstring& tag,const std::wstring& name) {
+    // Require an attribute boundary so data-href is not mistaken for href.
+    std::wregex pattern(L"(?:^|\\s)"+name+LR"attr(\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))attr",std::regex::icase);
+    std::wsmatch match;
+    if(!std::regex_search(tag,match,pattern))return {};
+    std::wstring value=match[1].matched?match[1].str():match[2].matched?match[2].str():match[3].str();
+    for(size_t pos=0;(pos=value.find(L"&amp;",pos))!=std::wstring::npos;)value.replace(pos,5,L"&");
+    return value;
+}
+std::vector<std::wstring> WebsiteIconCandidates(const std::wstring& html,const std::wstring& base) {
+    std::vector<std::wstring> result;
+    auto resolve=[&](const std::wstring& relative) {
+        WCHAR url[32768]{};
+        DWORD n=ARRAYSIZE(url);
+        if(SUCCEEDED(UrlCombineW(base.c_str(),relative.c_str(),url,&n,0))&&IsWebEntry(url)&&std::find(result.begin(),result.end(),url)==result.end())
+            result.emplace_back(url);
+    };
+    std::wregex links(LR"(<link\b[^>]{0,4096}>)",std::regex::icase);
+    for(std::wsregex_iterator it(html.begin(),html.end(),links),end;it!=end&&result.size()<5;++it) {
+        auto tag=it->str(),rel=ToLower(WebAttribute(tag,L"rel"));
+        if(rel.find(L"icon")!=std::wstring::npos)resolve(WebAttribute(tag,L"href"));
+    }
+    resolve(L"/favicon.ico");return result;
+}
+DWORD WINAPI WebIconWorker(void* argument) {
+    std::unique_ptr<WebIconResult> result((WebIconResult*)argument);
+    CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
+    std::string bytes;std::wstring base;
+    std::vector<std::wstring> candidates;
+    if(DownloadWeb(result->url,bytes,base))candidates=WebsiteIconCandidates(WebWide(bytes),base);
+    else candidates=WebsiteIconCandidates(L"",result->url);
+    auto temp=result->path+L"."+std::to_wstring(GetCurrentThreadId())+L".download";
+    for(const auto& url:candidates) {
+        if(g_webStop)break;
+        if(!DownloadWeb(url,bytes,base))continue;
+        HANDLE file=CreateFileW(temp.c_str(),GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
+        if(file==INVALID_HANDLE_VALUE)continue;
+        DWORD written=0;bool saved=WriteFile(file,bytes.data(),(DWORD)bytes.size(),&written,nullptr)&&written==bytes.size();CloseHandle(file);
+        App decoded;
+        ComPtr<IWICImagingFactory> factory;ComPtr<IWICBitmapDecoder> decoder;
+        bool image=saved&&SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&factory)))&&
+            SUCCEEDED(factory->CreateDecoderFromFilename(temp.c_str(),nullptr,GENERIC_READ,WICDecodeMetadataCacheOnLoad,&decoder));
+        bool decodedImage=image?LoadIconFile(temp,128,decoded):LoadSvgIcon(temp,128,decoded);
+        if(decodedImage && MoveFileExW(temp.c_str(),result->path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)) {
+            HWND window=g_wnd;
+            if(!g_webStop&&window&&PostMessageW(window,kWebIconReady,0,(LPARAM)result.get()))result.release();
+            break;
+        }
+        DeleteFileW(temp.c_str());
+    }
+    DeleteFileW(temp.c_str());CoUninitialize();return 0;
+}
+void StartWebIconFetch(const std::wstring& key,const std::wstring& url) {
+    if(g_webStop || !IsWebEntry(url))return;
+    for(auto it=g_webWorkers.begin();it!=g_webWorkers.end();) {
+        if(WaitForSingleObject(*it,0)==WAIT_OBJECT_0) {
+            CloseHandle(*it);
+            it=g_webWorkers.erase(it);
+        } else ++it;
+    }
+    if(g_webWorkers.size()>=4)return;
+    auto result=std::make_unique<WebIconResult>();result->key=key;result->url=url;result->path=WebIconPath(key+L"|"+url);
+    SHCreateDirectoryExW(nullptr,std::filesystem::path(result->path).parent_path().c_str(),nullptr);
+    HANDLE worker=CreateThread(nullptr,0,WebIconWorker,result.get(),0,nullptr);
+    if(worker){g_webWorkers.push_back(worker);result.release();}
+}
+void OnWebIconReady(WebIconResult* payload) {
+    std::unique_ptr<WebIconResult> result(payload);
+    if(g_customIcons.count(result->key))return;
+    for(const auto& app:g_apps)if(AppKey(*app)==result->key&&app->target==result->url){LoadIconFile(result->path,IconPixels(),*app);Render();break;}
+}
+void StopWebIcons() {
+    g_webStop=true;
+    for(HANDLE worker:g_webWorkers){WaitForSingleObject(worker,INFINITE);CloseHandle(worker);}g_webWorkers.clear();
+    MSG message{};while(PeekMessageW(&message,nullptr,kWebIconReady,kWebIconReady,PM_REMOVE))delete (WebIconResult*)message.lParam;
+}
+
+// One native dialog for files, shortcuts, URLs, Store apps and existing aliases.
+struct EntryEditor {
+    HWND fields[5]{},groups{};
+    std::vector<std::shared_ptr<Folder>> destinations;
+    std::shared_ptr<App> app;
+    bool done=false,accepted=false;
+};
+constexpr WCHAR kEntryEditorClass[]=L"RYJSLaunchpadEntryEditor";
+std::wstring EntryText(HWND field) {
+    std::wstring value(GetWindowTextLengthW(field)+1,L'\0');
+    value.resize(GetWindowTextW(field,value.data(),(int)value.size())); return value;
+}
+bool PickEntryFile(HWND owner,std::wstring& path,bool icon=false) {
+    if (icon) return PickIconFile(owner,path);
+    WCHAR file[32768]{};
+    OPENFILENAMEW dialog{sizeof(dialog)}; dialog.hwndOwner=owner;
+    dialog.lpstrFilter=L"Programs, shortcuts and Remote Desktop\0*.exe;*.lnk;*.rdp\0All files\0*.*\0\0";
+    dialog.lpstrFile=file; dialog.nMaxFile=ARRAYSIZE(file);
+    dialog.Flags=OFN_EXPLORER|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
+    if (!GetOpenFileNameW(&dialog)) return false;
+    path=file; return true;
+}
+LRESULT CALLBACK EntryEditorProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp) {
+    auto* state=(EntryEditor*)GetWindowLongPtrW(hwnd,GWLP_USERDATA);
+    if (msg==WM_NCCREATE) {state=(EntryEditor*)((CREATESTRUCTW*)lp)->lpCreateParams; SetWindowLongPtrW(hwnd,GWLP_USERDATA,(LONG_PTR)state);}
+    if (state && msg==WM_COMMAND) {
+        auto id=LOWORD(wp);
+        if (id==IDCANCEL) {state->done=true;return 0;}
+        if (id==IDOK) {
+            auto target=EntryText(state->fields[1]),name=EntryText(state->fields[0]);
+            if (target.empty() || name.empty() || name.find_first_of(L"\t\r\n")!=std::wstring::npos) {
+                MessageBoxW(hwnd,Tr(L"Enter a name and a valid target."),Tr(L"Add or edit entry"),MB_OK|MB_ICONINFORMATION);return 0;
+            }
+            if (!IsWebEntry(target) && !ToLower(target).starts_with(L"shell:AppsFolder\\") && GetFileAttributesW(target.c_str())==INVALID_FILE_ATTRIBUTES) {
+                if (MessageBoxW(hwnd,Tr(L"The target is missing. Keep it so you can repair it later?"),Tr(L"Add or edit entry"),MB_YESNO|MB_ICONQUESTION)!=IDYES) return 0;
+            }
+            state->accepted=state->done=true;return 0;
+        }
+        if (id==30 || id==31) {
+            std::wstring path;
+            if (PickEntryFile(hwnd,path,id==31)) {
+                SetWindowTextW(state->fields[id==30?1:4],path.c_str());
+                if (id==30 && EntryText(state->fields[0]).empty()) SetWindowTextW(state->fields[0],std::filesystem::path(path).stem().c_str());
+            }
+            return 0;
+        }
+        if (id==32) {
+            AppList installed; AddStartApps(IconPixels(),installed);
+            HMENU menu=CreatePopupMenu(); AppList packaged;
+            for (const auto& app:installed) if (IsPackagedTarget(app->target)) {
+                packaged.push_back(app); AppendMenuW(menu,MF_STRING,(UINT_PTR)packaged.size(),MenuText(app->name).c_str());
+            }
+            RECT r{};GetWindowRect(GetDlgItem(hwnd,32),&r);
+            int choice=TrackLaunchpadPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY,r.left,r.bottom,hwnd,nullptr);
+            DestroyMenu(menu);
+            if (choice>0 && choice<=(int)packaged.size()) {
+                auto app=packaged[choice-1];SetWindowTextW(state->fields[0],app->name.c_str());SetWindowTextW(state->fields[1],app->target.c_str());
+            }
+            return 0;
+        }
+    }
+    if (state && msg==WM_CLOSE) {state->done=true;return 0;}
+    return DefWindowProcW(hwnd,msg,wp,lp);
+}
+void EditEntry(HWND owner,const std::shared_ptr<App>& existing=nullptr,const std::shared_ptr<Folder>& destination=nullptr) {
+    if (g_entriesReadOnly || g_layoutReadOnly || g_dataReadOnly) {
+        MessageBoxW(owner,Tr(L"Data is read-only. Resolve the load error before editing."),Tr(L"Add or edit entry"),MB_OK|MB_ICONWARNING);return;
+    }
+    EntryEditor state;state.app=existing;
+    WNDCLASSEXW wc{sizeof(wc)};wc.lpfnWndProc=EntryEditorProc;wc.hInstance=(HINSTANCE)&__ImageBase;
+    wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hbrBackground=(HBRUSH)(COLOR_WINDOW+1);wc.lpszClassName=kEntryEditorClass;
+    RegisterClassExW(&wc);
+    UINT dpi=GetDpiForWindow(owner);auto px=[&](int dip){return MulDiv(dip,dpi,96);};
+    RECT bounds{};GetWindowRect(owner,&bounds);
+    HWND window=CreateWindowExW(WS_EX_DLGMODALFRAME|WS_EX_CONTROLPARENT,kEntryEditorClass,Tr(L"Add or edit entry"),WS_CAPTION|WS_SYSMENU,
+        (bounds.left+bounds.right-px(650))/2,(bounds.top+bounds.bottom-px(420))/2,px(650),px(420),owner,nullptr,wc.hInstance,&state);
+    if (!window) return;
+    HFONT font=CreateFontW(-px(14),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,g_settings.font.c_str());
+    auto control=[&](PCWSTR cls,PCWSTR text,DWORD style,int x,int y,int w,int h,int id) {
+        HWND c=CreateWindowExW(wcscmp(cls,L"EDIT")==0?WS_EX_CLIENTEDGE:0,cls,text,WS_CHILD|WS_VISIBLE|style,px(x),px(y),px(w),px(h),window,(HMENU)(INT_PTR)id,wc.hInstance,nullptr);
+        SendMessageW(c,WM_SETFONT,(WPARAM)font,TRUE);return c;
+    };
+    PCWSTR labels[]={L"Display name",L"File or web address",L"Launch arguments",L"Working directory",L"Custom icon (optional)"};
+    std::wstring values[5];
+    if (existing) {
+        values[0]=existing->name;
+        values[1]=existing->target;
+        values[2]=existing->arguments;
+        values[3]=existing->workingDirectory;
+        auto it=g_customIcons.find(AppKey(*existing));
+        if(it!=g_customIcons.end())values[4]=it->second;
+    }
+    for (int i=0;i<5;i++) {
+        control(L"STATIC",Tr(labels[i]),0,18,18+i*46,160,24,0);
+        state.fields[i]=control(L"EDIT",values[i].c_str(),WS_TABSTOP|ES_AUTOHSCROLL,182,14+i*46,(i==1||i==4)?346:432,30,10+i);
+        SendMessageW(state.fields[i],EM_SETLIMITTEXT,i==0?160:32760,0);
+    }
+    control(L"BUTTON",Tr(L"Browse…"),WS_TABSTOP,536,60,78,30,30);
+    control(L"BUTTON",Tr(L"Browse…"),WS_TABSTOP,536,198,78,30,31);
+    control(L"STATIC",Tr(L"Destination group"),0,18,250,160,24,0);
+    state.groups=control(L"COMBOBOX",L"",WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL,182,246,432,180,20);
+    int selected=0;
+    if (g_settings.groups) for (const auto& tile:g_tiles) if (tile.folder) {
+        if (tile.folder==destination) selected=(int)state.destinations.size();
+        state.destinations.push_back(tile.folder);SendMessageW(state.groups,CB_ADDSTRING,0,(LPARAM)tile.folder->name.c_str());
+    }
+    if (state.destinations.empty()) SendMessageW(state.groups,CB_ADDSTRING,0,(LPARAM)Tr(L"End of current grid"));
+    SendMessageW(state.groups,CB_SETCURSEL,selected,0); EnableWindow(state.groups,!existing);
+    control(L"BUTTON",Tr(L"Choose Store app…"),WS_TABSTOP,18,302,190,32,32);
+    control(L"BUTTON",Tr(L"Save"),WS_TABSTOP|BS_DEFPUSHBUTTON,422,302,90,32,IDOK);
+    control(L"BUTTON",Tr(L"Cancel"),WS_TABSTOP,524,302,90,32,IDCANCEL);
+    bool previousModal=g_modal;g_modal=true;
+    EnableWindow(owner,FALSE);ShowWindow(window,SW_SHOW);SetForegroundWindow(window);SetFocus(state.fields[existing?0:1]);
+    MSG message{};
+    while (!state.done) {
+        int result=GetMessageW(&message,nullptr,0,0);
+        if(result<=0){if(!result)PostQuitMessage((int)message.wParam);break;}
+        if(!IsDialogMessageW(window,&message)) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+    std::wstring name,target,args,dir,icon;int group=0;
+    if (state.accepted) {
+        name=EntryText(state.fields[0]);
+        target=EntryText(state.fields[1]);
+        args=EntryText(state.fields[2]);
+        dir=EntryText(state.fields[3]);
+        icon=EntryText(state.fields[4]);
+        group=(int)SendMessageW(state.groups,CB_GETCURSEL,0,0);
+    }
+    EnableWindow(owner,TRUE);DestroyWindow(window);DeleteObject(font);g_modal=previousModal;
+    if (g_shown) ForceForeground(owner);
+    if (!state.accepted) return;
+    std::shared_ptr<App> app=existing;
+    if (!app) {
+        // Same launch target and options reuse the existing identity.
+        auto found=std::find_if(g_apps.begin(),g_apps.end(),[&](const auto& a){return (IsWebEntry(target)?a->target==target:ToLower(a->target)==ToLower(target))&&a->arguments==args&&ToLower(a->workingDirectory)==ToLower(dir);});
+        if (found!=g_apps.end()) app=*found;
+    }
+    std::wstring key;
+    bool created=!app;
+    if (app) key=AppKey(*app);
+    else {
+        GUID guid{};
+        CoCreateGuid(&guid);
+        WCHAR id[40]{};
+        StringFromGUID2(guid,id,ARRAYSIZE(id));
+        key=ToLower(L"ryjs-entry:"+std::wstring(id));
+        app=std::make_shared<App>();
+    }
+    EntryRecord record{created||app->manual,target,name,args,dir};
+    bool alreadyPlaced=false;
+    for(const auto& tile:g_tiles)if(tile.app==app || (tile.folder&&IndexOf(tile.folder->apps,{app,nullptr})>=0))alreadyPlaced=true;
+    auto old=g_entries;g_entries[key]=record;
+    if (!SaveEntries()) {g_entries=std::move(old);MessageBoxW(owner,Tr(L"Could not save entry."),Tr(L"Add or edit entry"),MB_OK|MB_ICONERROR);return;}
+    ApplyEntryRecord(*app,key,record,IconPixels());
+    if (created) g_apps.push_back(app);
+    if (!icon.empty()) {if(LoadIconFile(icon,IconPixels(),*app)){g_customIcons[key]=icon;SaveCustomIcons();}}
+    else if (g_customIcons.erase(key)) {SaveCustomIcons();}
+    if (!existing && !alreadyPlaced) {
+        if (g_settings.groups && group>=0 && group<(int)state.destinations.size()) MoveAppToGroup({app,nullptr},state.destinations[group],(int)state.destinations[group]->apps.size());
+        else {g_hidden.erase(key);if(PinnedOnly()){g_pins.insert(key);SavePins();}if(IndexOf(g_tiles,{app,nullptr})<0)g_tiles.push_back({app,nullptr});}
+        SaveTiles();
+    }
+    g_labelCache.clear();Refresh();
+    if (IsWebEntry(target)&&!g_customIcons.count(key)) StartWebIconFetch(key,target);
+}
+void DeleteManualEntry(const std::shared_ptr<App>& app) {
+    if (!app || !app->manual || g_entriesReadOnly || g_dataReadOnly || g_layoutReadOnly) return;
+    auto key=AppKey(*app);auto previous=g_entries;g_entries.erase(key);
+    if (!SaveEntries()) {g_entries=std::move(previous);return;}
+    for(auto& tile:g_tiles)if(tile.folder)std::erase_if(tile.folder->apps,[&](const Tile& t){return t.app==app;});
+    std::erase_if(g_tiles,[&](const Tile& t){return t.app==app;});
+    std::erase(g_apps,app);g_pins.erase(key);g_hidden.erase(key);g_customIcons.erase(key);
+    SavePins();SaveCustomIcons();SaveTiles();Refresh();
+}
+
+
 void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     enum {
         kOpen = 1,
@@ -9449,6 +10400,9 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             AppendMenuW(menu, MF_POPUP, (UINT_PTR)groups, Tr(L"Move to group"));
             AppendMenuW(menu, MF_STRING, 91, Tr(L"Remove from group"));
         }
+        AppendMenuW(menu, MF_STRING, 92, Tr(L"Edit entry…"));
+        if (tile.app->manual) AppendMenuW(menu, MF_STRING, 93, Tr(L"Delete manual entry"));
+        if (IsWebEntry(tile.app->target)) AppendMenuW(menu, MF_STRING, 94, Tr(L"Refresh website icon"));
         // Anything with a launchable file can be elevated: a classic .exe,
         // any Start-menu shortcut, or a packaged app through a temporary
         // .lnk aimed at its AppsFolder target.
@@ -9498,6 +10452,9 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     DestroyMenu(menu);
 
     int size = g_appsKey & 0xFFFF;
+    if (tile.app && command==92) {EditEntry(hwnd,tile.app);return;}
+    if (tile.app && command==93) {DeleteManualEntry(tile.app);return;}
+    if (tile.app && command==94) {g_customIcons.erase(AppKey(*tile.app));SaveCustomIcons();StartWebIconFetch(AppKey(*tile.app),tile.app->target);return;}
     if (g_settings.groups && tile.app && (command == 91 || (command >= 1000 && command < 1000 + (int)g_tiles.size()))) {
         auto destination = command == 91 ? InboxGroup() : g_tiles[command - 1000].folder;
         MoveAppToGroup(tile, destination, destination ? (int)destination->apps.size() : 0);
@@ -9510,7 +10467,7 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             if (tile.folder) {
                 OpenFolder(tile.folder);
             } else {
-                LaunchTarget(tile.app->target);
+                LaunchTarget(tile.app->target,nullptr,tile.app.get());
             }
             break;
         case kUngroup:
@@ -9523,7 +10480,7 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             if (IsPackagedTarget(tile.app->target)) {
                 ElevateViaTempLnk(tile.app->target);
             } else {
-                LaunchTarget(linkOrFile, L"runas");
+                LaunchTarget(linkOrFile, L"runas",tile.app.get());
             }
             break;
         case kFileLocation:
@@ -9564,10 +10521,15 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             RemoveApp(tile.app);
             break;
         case kPin:
-            g_pins.insert(key);
-            SavePins();
-            g_hidden.erase(key);
-            g_tiles.push_back(tile);  // At the end of the grid.
+            if(g_settings.groups) {
+                auto destination=InboxGroup();
+                MoveAppToGroup(tile,destination,(int)destination->apps.size());
+            } else {
+                g_pins.insert(key);
+                SavePins();
+                g_hidden.erase(key);
+                g_tiles.push_back(tile);
+            }
             SaveTiles();
             Refresh();
             break;
@@ -9606,6 +10568,8 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     AppendMenuW(menu, MF_STRING, 90, Tr(L"Exit preview"));
 #endif
     AppendMenuW(menu, MF_STRING, kOpenSettings, Tr(L"Open settings"));
+    AppendMenuW(menu, MF_STRING, 54, Tr(L"Add entry…"));
+    if(g_settings.groups)AppendMenuW(menu,MF_STRING,55,Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
     if (g_settings.groups) AppendMenuW(menu, MF_STRING, 50, Tr(L"New group"));
     AppendMenuW(menu, MF_STRING, 51, Tr(L"Restore layout backup"));
     AppendMenuW(menu, MF_STRING, 52, Tr(L"Import layout file"));
@@ -9637,6 +10601,8 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     if (command == 50) { CreateGroup(hwnd); return; }
     if (command == 51 || command == 52) { ImportOrRestoreLayout(hwnd, command == 51); return; }
     if (command == 53) { ExportLayout(hwnd); return; }
+    if (command == 54) { EditEntry(hwnd); return; }
+    if (command == 55) { ToggleGroupEdit(); return; }
     if (command == kOpenSettings) {
         HideNow();
         OpenSettingsWindow();
@@ -9650,7 +10616,7 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
         } else {
             g_hidden.erase(AppKey(*removed[command - kRestoreFirst]));
         }
-        ArrangeTiles(ArrangementLines());  // They come back at the end.
+        ArrangeTiles(ArrangementLines(),true);  // Explicit restore puts them at the end.
         DropGoneFolder();
         SaveTiles();
         Refresh();
@@ -9830,6 +10796,14 @@ void MoveGroupSelection(WPARAM key) {
 }
 
 void OnKeyDown(WPARAM key) {
+    if(key==VK_ESCAPE&&g_groupEditMode) {
+        if(g_groupGesture.group) {
+            g_groupGesture={};
+            if(GetCapture()==g_wnd)ReleaseCapture();
+            Render();
+        } else ToggleGroupEdit();
+        return;
+    }
     if (key == VK_ESCAPE && g_groupHeaderPressed) {
         CancelGroupPointer(); if (GetCapture() == g_wnd) ReleaseCapture(); Render(); return;
     }
@@ -10295,6 +11269,7 @@ void OnAppsLoaded(AppList* list, int key) {
     delete list;
     g_appsLoaded = true;
     g_appsKey = key;
+    ApplyEntries(key & 0xFFFF);
     LoadTiles();
     ApplyCustomIcons(key & 0xFFFF);
     if (key != AppsKey()) {
@@ -10480,6 +11455,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_APP_APPS:
             OnAppsLoaded((AppList*)lParam, (int)wParam);
             return 0;
+        case kWebIconReady: OnWebIconReady((WebIconResult*)lParam); return 0;
 
         case WM_APP_RELOAD:
             if (g_shown) HideNow(); // Save an edited folder using the previous layout mode.
@@ -10816,6 +11792,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_MOUSEWHEEL:
         case WM_MOUSEHWHEEL:
+            if(msg==WM_MOUSEWHEEL&&!g_openFolder&&ScrollFreeGroup(hwnd,lParam,GET_WHEEL_DELTA_WPARAM(wParam)))return 0;
             if (g_openFolder) {
                 if (msg == WM_MOUSEWHEEL) {
                     g_wheelDelta += GET_WHEEL_DELTA_WPARAM(wParam);
@@ -10892,6 +11869,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_DISPLAYCHANGE:
         case WM_SETTINGCHANGE:
             RefreshSystemAnimations();
+            if(msg==WM_SETTINGCHANGE&&g_settings.theme==L"system")PostMessageW(hwnd,WM_APP_RELOAD,0,0);
             if (g_shown && (msg == WM_DISPLAYCHANGE || wParam == SPI_SETWORKAREA)) {
                 HideNow();
             }
@@ -11018,6 +11996,7 @@ DWORD WINAPI StartThread(void*) {
 #endif
 
     g_workerStop = true;
+    StopWebIcons();
     if (g_worker) {
         WaitForSingleObject(g_worker, INFINITE);
         CloseHandle(g_worker);
@@ -11059,6 +12038,7 @@ DWORD WINAPI StartThread(void*) {
     UnregisterClassW(kWindowClass, instance);
     UnregisterClassW(kBackdropClass, instance);
     UnregisterClassW(kGroupNameClass, instance);
+    UnregisterClassW(kEntryEditorClass, instance);
     OleUninitialize();
     return 0;
 }

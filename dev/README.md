@@ -28,6 +28,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File dev/Check-Library.ps1
 
 生成的网格 PNG 使用固定深色背景以便比较布局，不截取桌面。正常打开预览时走原来的屏幕快照模糊代码。日志与 `render-baseline.csv` 位于 `build/preview-data`；CSV 对比兼容路径和 GPU 路径的绘制/提交耗时，不代表显示帧率。运行时的 `performance.csv` 另行记录阶段延迟、帧间隔和可用的呈现统计。
 
-展开分组默认开启，在应用布局中可切回旧文件夹模式。标题右键管理分组，标题拖动排序，应用拖动或右键跨组移动。组布局使用独立 `groups-v1-*.txt`，不会替换旧 `layout-*.txt`。“…”提供导入与备份恢复。正式模块内置设置使用私有 `ui-settings.ini`，无需 CLI；后续 Windhawk 同键修改会优先采用。预览仍使用自身隔离的 `settings.ini`。
+展开分组默认开启，可切回旧文件夹模式。标题右键管理分组；进入编辑模式后拖动标题移动、右下角调整尺寸。原成员文件 `groups-v1-*.txt` 与可选几何文件 `group-geometry-layout-*.txt` 分离。“…”提供入口添加及布局导入/导出。正式模块内置设置使用私有 `ui-settings.ini`，无需 CLI；后续 Windhawk 同键修改会优先采用。预览仍使用自身隔离的 `settings.ini`。
+
+`dev/Test-Features.ps1` 检查新入口、动画、几何和主题；`dev/Test-Phase1.ps1 -SkipBuild` 默认生成虚构布局夹具验证存储和输入，不需要用户数据快照。新增验证图包括 `free-group-edit-zh-CN.png`、`readability-white-background.png` 和 `readability-dark-background.png`，都使用隔离数据与合成背景。
 
 Esc/点击空白区域隐藏网格，托盘右键可重新打开；网格 `…` 菜单或托盘右键中的“退出预览”完全退出进程。布局与设置不会因重新编译删除。备份时先退出预览，再复制 `build/preview-data` 中的 `settings.ini`、`state.ini` 和所有 `.txt` 文件；恢复时退出预览再放回同一目录。不要将 `validation-state` 中的测试数据当作个人布局。
