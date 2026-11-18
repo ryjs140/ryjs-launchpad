@@ -32,4 +32,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File dev/Check-Library.ps1
 
 `dev/Test-Features.ps1` 检查新入口、动画、几何和主题；`dev/Test-Phase1.ps1 -SkipBuild` 默认生成虚构布局夹具验证存储和输入，不需要用户数据快照。新增验证图包括 `free-group-edit-zh-CN.png`、`readability-white-background.png` 和 `readability-dark-background.png`，都使用隔离数据与合成背景。
 
+`dev/Test-FullBackup.ps1` 验证 GUI 调用链、内嵌 Windows PowerShell 5.1 导出/导入、旧 ZIP 兼容、设置及图标还原、原数据保留，以及损坏/不支持的备份被拒绝时数据不变。只写 `build/` 下的虚构数据。编辑 `dev/full_backup_worker.ps1` 后重新构建，生成器会将脚本和设置默认值一并内嵌到单文件源码。
+
 Esc/点击空白区域隐藏网格，托盘右键可重新打开；网格 `…` 菜单或托盘右键中的“退出预览”完全退出进程。布局与设置不会因重新编译删除。备份时先退出预览，再复制 `build/preview-data` 中的 `settings.ini`、`state.ini` 和所有 `.txt` 文件；恢复时退出预览再放回同一目录。不要将 `validation-state` 中的测试数据当作个人布局。

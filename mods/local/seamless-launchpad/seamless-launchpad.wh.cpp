@@ -4,7 +4,7 @@
 // @name:zh-CN      RYJS Launchpad
 // @description     A bilingual fullscreen app launcher with expanded groups, folders, local font selection, GPU composition, search and configurable motion
 // @description:zh-CN 支持中英文、展开分组、文件夹、拖放、本机字体、GPU 合成和动画自定义的全屏应用启动器
-// @version         0.2.0
+// @version         0.2.1
 // @author          ryjs
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
@@ -1004,6 +1004,7 @@ int g_appsKey;  // AppsKey() of the loaded list.
 
 HANDLE g_worker;
 std::atomic<bool> g_workerStop;
+std::atomic<bool> g_fullImportBusy=false,g_fullBackupBusy=false;
 std::atomic<HWND> g_wnd;
 
 // Bounds of the pixels whose alpha is over a threshold, optionally inside a
@@ -1651,6 +1652,7 @@ int AppsKey() {
 }
 
 void StartLoadingApps() {
+    if (g_fullImportBusy) return;
     if (g_worker) {
         if (WaitForSingleObject(g_worker, 0) == WAIT_TIMEOUT) {
             return;  // Already reading.
@@ -2038,6 +2040,7 @@ void ArrangeTiles(const std::vector<std::wstring>& lines,bool appendNew=false) {
 }
 
 bool SaveTiles(bool explicitImport = false) {
+    if (g_fullImportBusy) return false;
     if (g_entriesReadOnly) return false;
     if (g_layoutReadOnly || g_dataReadOnly) { Wh_Log(L"Layout is read-only; keeping original file unchanged"); return false; }
     auto path = StoragePath(LayoutFile());
@@ -4767,8 +4770,9 @@ void Render() {
     DrawSearchBox();
     DrawMenuButton();
     DrawClearButton();
-    if (g_layoutReadOnly) {
+    if (g_layoutReadOnly || g_fullBackupBusy) {
         PCWSTR warning=Tr(L"Layout data is unreadable or unsupported: changes are read-only. Restore a verified backup.");
+        if(g_fullBackupBusy)warning=Tr(L"Complete backup/import in progress…");
         g_brush->SetColor(D2D1::ColorF(0xFAB387));
         g_target->DrawText(warning,(UINT32)wcslen(warning),g_tipFormat.Get(),
             {20*L.scale,L.search.bottom,(float)L.width-20*L.scale,L.viewTop},g_brush.Get());
@@ -5073,6 +5077,7 @@ void PlaceWindows() {
 }
 
 void Open() {
+    if (g_fullImportBusy) return;
     double requested = Now();
     if (g_shown) {
         if (g_closing) {  // Reopened in the middle of closing.
@@ -7952,6 +7957,7 @@ DWORD WINAPI SettingsThread(void*) {
  Settings_Close(); UnregisterClassW(kSettingsClass,(HINSTANCE)&__ImageBase); Set_ReleaseFactories(); CoUninitialize(); return 0;
 }
 void OpenSettingsWindow() {
+ if(g_fullImportBusy)return;
  if (HWND hwnd=g_settingsWnd) { PostMessageW(hwnd,WM_APP_SETTINGS_ACTIVATE,0,0); return; }
  if(g_settingsThread) { if(WaitForSingleObject(g_settingsThread,0)==WAIT_TIMEOUT) return; CloseHandle(g_settingsThread); }
  g_settingsStop=false; g_settingsThread=CreateThread(nullptr,0,SettingsThread,nullptr,0,nullptr);
@@ -8544,6 +8550,7 @@ bool IsPackagedTarget(const std::wstring& target) {
 
 #include "launchpad_web_icons.inc"
 #include "launchpad_entry_editor.inc"
+#include "launchpad_full_backup.inc"
 
 void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     enum {
@@ -8748,6 +8755,8 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
 #endif
     AppendMenuW(menu, MF_STRING, kOpenSettings, Tr(L"Open settings"));
     AppendMenuW(menu, MF_STRING, 54, Tr(L"Add entry…"));
+    AppendMenuW(menu, MF_STRING, 56, Tr(L"Create complete backup…"));
+    AppendMenuW(menu, MF_STRING, 57, Tr(L"Import complete backup…"));
     if(g_settings.groups)AppendMenuW(menu,MF_STRING,55,Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
     if (g_settings.groups) AppendMenuW(menu, MF_STRING, 50, Tr(L"New group"));
     AppendMenuW(menu, MF_STRING, 51, Tr(L"Restore layout backup"));
@@ -8782,6 +8791,7 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     if (command == 53) { ExportLayout(hwnd); return; }
     if (command == 54) { EditEntry(hwnd); return; }
     if (command == 55) { ToggleGroupEdit(); return; }
+    if (command == 56 || command == 57) { ShowFullBackupDialog(hwnd,command==57); return; }
     if (command == kOpenSettings) {
         HideNow();
         OpenSettingsWindow();
@@ -9247,6 +9257,7 @@ HRESULT WINAPI XamlLauncher_ShowStartView_Hook(void* pThis,
 
 
 void OnAppsLoaded(AppList* list, int key) {
+    if (g_fullImportBusy) { delete list; return; }
     if (g_drag.active || g_modal || g_groupHeaderPressed) {
         // Not under a dragged icon or an open menu: read again on the next
         // open.
@@ -9450,8 +9461,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             OnAppsLoaded((AppList*)lParam, (int)wParam);
             return 0;
         case kWebIconReady: OnWebIconReady((WebIconResult*)lParam); return 0;
+        case kFullBackupDone: OnFullBackupDone(hwnd); return 0;
 
         case WM_APP_RELOAD:
+            if (g_fullImportBusy) return 0;
             if (g_shown) HideNow(); // Save an edited folder using the previous layout mode.
             LoadSettings();
             g_labelFormat.Reset();
@@ -9467,6 +9480,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_APP_RUN:
+            if (g_fullImportBusy) return 0;
 #ifndef SEAMLESS_PREVIEW
             ResetTaskbarStartButtons(true);
 #endif
@@ -9985,6 +9999,7 @@ DWORD WINAPI StartThread(void*) {
         }
     }
     g_wnd = nullptr;
+    StopFullBackupJob();
 #ifndef SEAMLESS_PREVIEW
     StartButtonHooksStop();
 #endif

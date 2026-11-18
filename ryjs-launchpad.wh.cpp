@@ -4,7 +4,7 @@
 // @name:zh-CN      RYJS Launchpad
 // @description     A bilingual fullscreen app launcher with expanded groups, folders, local font selection, GPU composition, search and configurable motion
 // @description:zh-CN 支持中英文、展开分组、文件夹、拖放、本机字体、GPU 合成和动画自定义的全屏应用启动器
-// @version         0.2.0
+// @version         0.2.1
 // @author          ryjs
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
@@ -674,6 +674,7 @@ inline constexpr Resource resources[] = {
     {L"24 to 192 (Suggested: 72). Pixels at 100% scaling.", L"范围 24–192，单位为 100% 缩放下的像素（建议：72）。"},
     {L"4 to 40 (Suggested: 14). How far a glow spreads, in DIP at 100% scaling.", L"范围 4–40（建议：14），单位为设备无关像素 DIP。"},
     {L"A Launchpad icon in the system tray. Click it to open these settings, right-click it for a menu.", L"在系统托盘显示启动器图标。点击打开设置，右键打开菜单。"},
+    {L"A backup or import is already running.", L"正在备份或导入，请等待完成。"},
     {L"About", L"关于"},
     {L"Accent color", L"强调色"},
     {L"Add entry…", L"添加入口…"},
@@ -701,6 +702,8 @@ inline constexpr Resource resources[] = {
     {L"Background color of the keyboard-selected application.", L"键盘选中应用的背景色。"},
     {L"Background dimming", L"背景压暗"},
     {L"Background opacity (%)", L"背景不透明度（%）"},
+    {L"Backup and restore", L"备份与恢复"},
+    {L"Backup verified:", L"备份已通过校验："},
     {L"Based on Fullscreen Start by Rafael Mendes", L"基于 Rafael Mendes 的 Fullscreen Start"},
     {L"Blur strength", L"模糊强度"},
     {L"Blur, colors, glow, search bar and this window.", L"调整模糊、颜色、光晕、搜索栏和设置窗口。"},
@@ -725,7 +728,13 @@ inline constexpr Resource resources[] = {
     {L"Click again to sign out", L"再次点击以注销"},
     {L"Click again to sleep", L"再次点击以睡眠"},
     {L"Close duration (ms)", L"关闭动画时长（毫秒）"},
+    {L"Close the settings window and try importing again.", L"请关闭设置窗口后重新导入。"},
     {L"Columns", L"每行图标数量"},
+    {L"Complete Launchpad backups", L"Launchpad 完整备份"},
+    {L"Complete backup imported:", L"完整备份已导入："},
+    {L"Complete backup saved and verified:", L"完整备份已保存并通过校验："},
+    {L"Complete backup/import failed:", L"备份或导入失败："},
+    {L"Complete backup/import in progress…", L"正在备份或导入，请稍候…"},
     {L"Corner radius in DIP, independent of icon size.", L"底衬圆角大小，不影响图标尺寸。"},
     {L"Could not back up the current layout. Import was cancelled.", L"无法备份当前布局，已取消导入。"},
     {L"Could not export the layout. Use a full backup to preserve unreadable data.", L"当前布局无法导出。请使用完整备份工具保留不可读数据。"},
@@ -733,11 +742,15 @@ inline constexpr Resource resources[] = {
     {L"Could not save entry.", L"入口保存失败。"},
     {L"Could not save group geometry.", L"分组位置和尺寸保存失败，已保留原状态。"},
     {L"Could not save private settings. The previous file was kept.", L"无法保存模块设置，已保留原设置文件。"},
+    {L"Could not save the current layout before backup.", L"备份前无法保存当前布局。"},
     {L"Could not save the layout. The previous layout was kept.", L"布局保存失败，原有布局已保留。"},
+    {L"Could not start the backup helper.", L"无法启动备份助手。"},
     {L"Couldn't find windhawk-cli.exe, so nothing was saved", L"未找到 windhawk-cli.exe，设置未保存。"},
     {L"Couldn't start windhawk-cli (error %lu)", L"无法启动 windhawk-cli（错误 %lu）"},
     {L"Couldn't write settings-save.txt", L"无法写入 settings-save.txt"},
     {L"Cover the whole screen", L"覆盖整个屏幕"},
+    {L"Create complete backup", L"完整备份"},
+    {L"Create complete backup…", L"完整备份…"},
     {L"Credits", L"致谢"},
     {L"Cubic ease-out", L"三次方减速"},
     {L"Custom", L"自定义"},
@@ -795,6 +808,8 @@ inline constexpr Resource resources[] = {
     {L"How the grid is arranged.", L"选择应用排列和浏览方式。"},
     {L"Icon labels", L"显示应用名称"},
     {L"Icon size", L"图标大小"},
+    {L"Import complete backup", L"导入完整备份"},
+    {L"Import complete backup…", L"导入完整备份…"},
     {L"Import layout file", L"导入布局文件"},
     {L"In hexadecimal, like #1E1E2E.", L"使用十六进制颜色，例如 #1E1E2E。"},
     {L"In hexadecimal, like #89B4FA. Tints the glows and highlights.", L"使用十六进制颜色，例如 #89B4FA。用于光晕和高亮。"},
@@ -870,6 +885,7 @@ inline constexpr Resource resources[] = {
     {L"Press the keys you want. Esc cancels, Backspace clears.", L"请按所需快捷键。Esc 取消，Backspace 清空。"},
     {L"Preview settings could not be saved.", L"无法保存预览设置。"},
     {L"Preview: power actions are disabled.", L"独立预览：电源操作已禁用。"},
+    {L"Previous data:", L"替换前的数据："},
     {L"Program", L"程序"},
     {L"Project", L"项目"},
     {L"Project page on GitHub", L"GitHub 项目主页"},
@@ -887,6 +903,7 @@ inline constexpr Resource resources[] = {
     {L"Remove from this grid", L"从启动器中移除"},
     {L"Rename group", L"重命名分组"},
     {L"Rendering", L"渲染"},
+    {L"Replace the current layout, icons and settings? The previous data will be kept for rollback.", L"要替换当前布局、图标和设置吗？原数据将保留，便于回退。"},
     {L"Report a problem", L"报告问题"},
     {L"Reset to suggested", L"恢复建议值"},
     {L"Responsive columns", L"自适应多列"},
@@ -927,6 +944,7 @@ inline constexpr Resource resources[] = {
     {L"Take the apps out", L"解散文件夹"},
     {L"Text color", L"文字颜色"},
     {L"Text size in DIP. Display scaling is applied automatically.", L"使用设备无关像素 DIP，自动适应显示缩放。"},
+    {L"The backup helper did not return a result.", L"备份助手未返回结果。"},
     {L"The kind of blur behind the grid.", L"选择启动器的背景模糊方式。"},
     {L"The layout file is empty, unreadable, or uses a newer version.", L"布局文件为空、无法读取，或使用了较新的版本。"},
     {L"The monitor with the mouse", L"鼠标所在显示器"},
@@ -1736,6 +1754,7 @@ int g_appsKey;  // AppsKey() of the loaded list.
 
 HANDLE g_worker;
 std::atomic<bool> g_workerStop;
+std::atomic<bool> g_fullImportBusy=false,g_fullBackupBusy=false;
 std::atomic<HWND> g_wnd;
 
 // Bounds of the pixels whose alpha is over a threshold, optionally inside a
@@ -2383,6 +2402,7 @@ int AppsKey() {
 }
 
 void StartLoadingApps() {
+    if (g_fullImportBusy) return;
     if (g_worker) {
         if (WaitForSingleObject(g_worker, 0) == WAIT_TIMEOUT) {
             return;  // Already reading.
@@ -2770,6 +2790,7 @@ void ArrangeTiles(const std::vector<std::wstring>& lines,bool appendNew=false) {
 }
 
 bool SaveTiles(bool explicitImport = false) {
+    if (g_fullImportBusy) return false;
     if (g_entriesReadOnly) return false;
     if (g_layoutReadOnly || g_dataReadOnly) { Wh_Log(L"Layout is read-only; keeping original file unchanged"); return false; }
     auto path = StoragePath(LayoutFile());
@@ -5941,8 +5962,9 @@ void Render() {
     DrawSearchBox();
     DrawMenuButton();
     DrawClearButton();
-    if (g_layoutReadOnly) {
+    if (g_layoutReadOnly || g_fullBackupBusy) {
         PCWSTR warning=Tr(L"Layout data is unreadable or unsupported: changes are read-only. Restore a verified backup.");
+        if(g_fullBackupBusy)warning=Tr(L"Complete backup/import in progress…");
         g_brush->SetColor(D2D1::ColorF(0xFAB387));
         g_target->DrawText(warning,(UINT32)wcslen(warning),g_tipFormat.Get(),
             {20*L.scale,L.search.bottom,(float)L.width-20*L.scale,L.viewTop},g_brush.Get());
@@ -6247,6 +6269,7 @@ void PlaceWindows() {
 }
 
 void Open() {
+    if (g_fullImportBusy) return;
     double requested = Now();
     if (g_shown) {
         if (g_closing) {  // Reopened in the middle of closing.
@@ -9126,6 +9149,7 @@ DWORD WINAPI SettingsThread(void*) {
  Settings_Close(); UnregisterClassW(kSettingsClass,(HINSTANCE)&__ImageBase); Set_ReleaseFactories(); CoUninitialize(); return 0;
 }
 void OpenSettingsWindow() {
+ if(g_fullImportBusy)return;
  if (HWND hwnd=g_settingsWnd) { PostMessageW(hwnd,WM_APP_SETTINGS_ACTIVATE,0,0); return; }
  if(g_settingsThread) { if(WaitForSingleObject(g_settingsThread,0)==WAIT_TIMEOUT) return; CloseHandle(g_settingsThread); }
  g_settingsStop=false; g_settingsThread=CreateThread(nullptr,0,SettingsThread,nullptr,0,nullptr);
@@ -10365,6 +10389,596 @@ void DeleteManualEntry(const std::shared_ptr<App>& app) {
     SavePins();SaveCustomIcons();SaveTiles();Refresh();
 }
 
+// Windows supplies PowerShell and ZipArchive. The worker is embedded in the
+// single-file mod, launched without a console, and never executes archive code.
+// Generated from dev/full_backup_worker.ps1 and the settings schema.
+constexpr wchar_t kFullBackupScript[] = LR"RYJS_BACKUP(param([Parameter(Mandatory=$true)][string]$JobPath)
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression
+$utf8 = New-Object Text.UTF8Encoding($false, $true)
+$maxBytes = 256MB
+$job = [IO.File]::ReadAllText($JobPath, $utf8) | ConvertFrom-Json
+$work = Split-Path -Parent $JobPath
+
+function Encode-Value([string]$value) {
+    return -join ([Text.Encoding]::BigEndianUnicode.GetBytes($value) | ForEach-Object { $_.ToString('X2') })
+}
+function Decode-Value([string]$value) {
+    if ($value -notmatch '^(?:[0-9A-Fa-f]{4})*$') { throw 'Invalid encoded setting.' }
+    $bytes = New-Object byte[] ($value.Length / 2)
+    for ($i=0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [Convert]::ToByte($value.Substring($i*2,2),16) }
+    return [Text.Encoding]::BigEndianUnicode.GetString($bytes)
+}
+function Hash-Bytes([byte[]]$bytes) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return -join ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) }
+    finally { $sha.Dispose() }
+}
+function Object-Map($value) {
+    if ($null -eq $value -or $value -is [Array] -or $value -is [string]) { throw 'Expected an object.' }
+    $map = @{}
+    foreach ($p in $value.PSObject.Properties) { $map[$p.Name] = $p.Value }
+    return $map
+}
+function Decode-Entry([string]$value) {
+    if ($value -cmatch '%(?!(25|09|0A|0D))') { throw 'Invalid entry encoding.' }
+    return $value.Replace('%09',"`t").Replace('%0A',"`n").Replace('%0D',"`r").Replace('%25','%')
+}
+function Read-Ini([byte[]]$bytes) {
+    $text = if ($bytes.Length -ge 2 -and $bytes[0] -eq 255 -and $bytes[1] -eq 254) {
+        [Text.Encoding]::Unicode.GetString($bytes,2,$bytes.Length-2)
+    } else { $utf8.GetString($bytes).TrimStart([char]0xFEFF) }
+    $ini = @{}
+    $section = ''
+    foreach ($line in ($text -split '\r?\n')) {
+        if ($line -match '^\[([^\]]+)\]$') { $section=$matches[1]; $ini[$section]=@{} }
+        elseif ($line -match '^([^=]+)=(.*)$' -and $section) { $ini[$section][$matches[1]]=$matches[2] }
+    }
+    return $ini
+}
+function Read-HostSettings {
+    if ($job.preview) { return Object-Map $job.host_settings }
+    $location = 'SOFTWARE\Windhawk\Engine\Mods\' + $job.mod_id + '\Settings'
+    $script:registryHive='HKLM'
+    $key = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($location)
+    if (!$key) { $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($location); $script:registryHive='HKCU' }
+    if (!$key) { throw 'Windhawk settings could not be read.' }
+    try {
+        $values=@{}
+        foreach ($name in $key.GetValueNames()) {
+            $kind=$key.GetValueKind($name)
+            if ($kind -notin @('String','ExpandString','DWord')) { throw 'Unsupported registry setting type.' }
+            $values[$name]=[string]$key.GetValue($name,$null,[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        }
+        return $values
+    } finally { $key.Dispose() }
+}
+function Read-Tree([string]$root) {
+    $root=[IO.Path]::GetFullPath($root).TrimEnd('\')
+    $result=@{}
+    $queue=New-Object 'Collections.Generic.Queue[string]'
+    $queue.Enqueue($root)
+    [long]$total=0
+    while ($queue.Count) {
+        $directory=$queue.Dequeue()
+        if ((Get-Item -LiteralPath $directory -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Linked data directories are unsupported.' }
+        foreach ($entry in (Get-ChildItem -LiteralPath $directory -Force)) {
+            if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Linked data files are unsupported.' }
+            if ($entry.PSIsContainer) { $queue.Enqueue($entry.FullName); continue }
+            if ($entry.Name.StartsWith('performance') -or $entry.Extension -in @('.tmp','.download')) { continue }
+            $total += $entry.Length
+            if ($total -gt $maxBytes -or $result.Count -ge 4096) { throw 'Backup exceeds the size or file-count limit.' }
+            $name='data/' + $entry.FullName.Substring($root.Length+1).Replace('\','/')
+            $result[$name]=[IO.File]::ReadAllBytes($entry.FullName)
+        }
+    }
+    if (!$result.Count) { throw 'No layout data was found.' }
+    return $result
+}
+function Same-Files($a,$b) {
+    if ($a.Count -ne $b.Count) { return $false }
+    foreach ($name in $a.Keys) {
+        if (!$b.ContainsKey($name) -or (Hash-Bytes $a[$name]) -ne (Hash-Bytes $b[$name])) { return $false }
+    }
+    return $true
+}
+function Same-Settings($a,$b) {
+    if ($a.Count -ne $b.Count) { return $false }
+    foreach ($name in $a.Keys) { if (!$b.ContainsKey($name) -or [string]$a[$name] -cne [string]$b[$name]) { return $false } }
+    return $true
+}
+function Safe-Entry([string]$name) {
+    if (!$name -or $name.Length -gt 1024 -or $name.Contains('\') -or $name.Contains(':') -or $name.Contains([string][char]0)) { throw 'Unsafe archive path.' }
+    $parts=$name.Split('/')
+    if ($parts[0] -notin @('data','assets','source','binary','metadata')) { throw 'Unknown archive entry category.' }
+    foreach ($part in $parts) {
+        if (!$part -or $part -in @('.','..') -or $part.EndsWith('.') -or $part.EndsWith(' ') -or $part -match '[<>"|?*\x00-\x1F]' -or $part -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)') { throw 'Unsafe archive filename.' }
+    }
+}
+function Validate-Data($manifest,$files) {
+    $effective=Object-Map $manifest.effective_settings
+    foreach ($p in $effective.GetEnumerator()) { if ($p.Value -isnot [string]) { throw 'Invalid effective setting.' } }
+    $source=$effective['appSource']
+    if ($source -notin @('allApps','desktop','both','pinned')) { throw 'Unsupported application source.' }
+    $prefix=if ($effective['gridLayout'] -eq 'groups') { 'groups-v1-' } else { 'layout-' }
+    if (!$files.ContainsKey('data/'+$prefix+$source+'.txt')) { throw 'Active layout is missing.' }
+    if ($source -eq 'pinned' -and !$files.ContainsKey('data/pins.txt')) { throw 'Pinned-app data is missing.' }
+    foreach ($name in $files.Keys) {
+        if ($name -match '^data/groups-' -and $name -notmatch '^data/groups-v1-') { throw 'Unsupported group layout version.' }
+        if ($name -eq 'data/ryjs-storage.ini') {
+            $marker=Read-Ini $files[$name]
+            if ($marker['storage']['schema'] -ne '1') { throw 'Unsupported storage version.' }
+        }
+        if ($name -eq 'data/ui-settings.ini') {
+            $ini=Read-Ini $files[$name]
+            if ($ini['meta'] -and $ini['meta']['version'] -ne '1') { throw 'Unsupported private-settings version.' }
+        }
+        if ($name -notmatch '^data/(groups-v1-|layout-|group-geometry-|entries-v1|pins\.txt|icons\.txt)' -or !$name.EndsWith('.txt')) { continue }
+        $text=$utf8.GetString($files[$name]).TrimStart([char]0xFEFF)
+        if ($text.Contains([string][char]0)) { throw 'Invalid text data.' }
+        $rows=@($text -split '\r?\n' | Where-Object { $_ -ne '' })
+        $leaf=$name.Substring(5)
+        if ($leaf -match '^(groups-v1-|layout-)' -and !$rows.Count) { throw 'Empty layout file.' }
+        $folder=$false
+        $entryKeys=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+        $geometry=@{}
+        for ($i=0; $i -lt $rows.Count; $i++) {
+            $f=$rows[$i].Split("`t")
+            if ($leaf.StartsWith('groups-v1-') -or $leaf.StartsWith('layout-')) {
+                if ($i -eq 0 -and $leaf.StartsWith('groups-v1-')) {
+                    if ($rows[$i] -ne "schema`t1`tgroups") { throw 'Unsupported group layout version.' }
+                    continue
+                }
+                if ($f.Count -lt 2 -or !$f[1]) { throw 'Invalid layout record.' }
+                if ($f[0] -eq 'folder') {
+                    if ($f.Count -ne 2 -and !($f.Count -eq 3 -and $f[2] -eq 'inbox')) { throw 'Invalid folder record.' }
+                    $folder=$true
+                } elseif ($f[0] -eq 'in' -and $folder -and $f.Count -eq 2) { }
+                elseif ($f[0] -in @('app','hidden') -and $f.Count -eq 2) { if ($f[0] -eq 'app') { $folder=$false } }
+                else { throw 'Unsupported layout record.' }
+            } elseif ($leaf -eq 'entries-v1.txt') {
+                if ($i -eq 0) { if ($rows[$i] -ne "schema`t1`tentries") { throw 'Unsupported entry version.' }; continue }
+                if ($f.Count -ne 7 -or $f[0] -ne 'entry' -or $f[2] -notin @('0','1') -or !$f[1] -or !$f[3] -or !$f[4]) { throw 'Invalid application entry.' }
+                foreach ($value in $f) { $null=Decode-Entry $value }
+                if (!$entryKeys.Add((Decode-Entry $f[1]))) { throw 'Duplicate application identity.' }
+            } elseif ($leaf.StartsWith('group-geometry-')) {
+                if ($i -eq 0) { if ($rows[$i] -ne "schema`t1`tgroup-geometry") { throw 'Unsupported geometry version.' }; continue }
+                if ($f.Count -ne 8 -or $f[0] -ne 'group' -or $f[1] -notmatch '^\d+$' -or !$f[2] -or $f[7] -notin @('group','folder')) { throw 'Invalid group geometry.' }
+                foreach ($value in $f[3..6]) {
+                    $number=0.0
+                    if (![double]::TryParse($value,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$number) -or [double]::IsNaN($number) -or [double]::IsInfinity($number) -or $number -lt 0 -or $number -gt 1000000) { throw 'Invalid group dimensions.' }
+                }
+                if ([double]::Parse($f[5],[Globalization.CultureInfo]::InvariantCulture) -lt 48 -or [double]::Parse($f[6],[Globalization.CultureInfo]::InvariantCulture) -lt 60) { throw 'Group dimensions are too small.' }
+                $ordinal=0
+                if (![int]::TryParse($f[1],[ref]$ordinal) -or $geometry.ContainsKey($ordinal)) { throw 'Duplicate or invalid group ordinal.' }
+                $geometry[$ordinal]=Decode-Entry $f[2]
+            } elseif ($leaf -eq 'pins.txt') {
+                if ($f.Count -ne 2 -or $f[0] -ne 'pin' -or !$f[1]) { throw 'Invalid pin.' }
+            } elseif ($leaf -eq 'icons.txt') {
+                if ($f.Count -ne 3 -or $f[0] -ne 'icon' -or !$f[1] -or !$f[2]) { throw 'Invalid icon mapping.' }
+            }
+        }
+        if ($leaf -in @('entries-v1.txt') -or $leaf.StartsWith('group-geometry-')) { if (!$rows.Count) { throw 'Empty versioned data.' } }
+        if ($leaf.StartsWith('group-geometry-')) {
+            $layout='data/'+$leaf.Substring('group-geometry-'.Length)
+            if ($effective['gridLayout'] -eq 'groups') { $layout=$layout.Replace('data/layout-','data/groups-v1-') }
+            if (!$files.ContainsKey($layout)) { throw 'Group geometry has no matching layout.' }
+            $ordinal=0
+            $folders=@{}
+            foreach ($line in ($utf8.GetString($files[$layout]).TrimStart([char]0xFEFF) -split '\r?\n')) {
+                $record=$line.Split("`t")
+                if ($record[0] -eq 'folder') { $folders[$ordinal]=$record[1]; $ordinal++ }
+                elseif ($record[0] -eq 'app') { $ordinal++ }
+            }
+            if ($folders.Count -ne $geometry.Count) { throw 'Group geometry is incomplete.' }
+            foreach ($index in $folders.Keys) {
+                if (!$geometry.ContainsKey($index) -or $geometry[$index] -cne $folders[$index]) { throw 'Group geometry does not match its layout.' }
+            }
+        }
+    }
+    $icons=Object-Map $manifest.icons
+    foreach ($asset in $icons.Values) { if ($asset -isnot [string] -or !$asset.StartsWith('assets/') -or !$files.ContainsKey($asset)) { throw 'Custom icon asset is missing.' } }
+    if ($files.ContainsKey('data/icons.txt')) {
+        foreach ($line in ($utf8.GetString($files['data/icons.txt']) -split '\r?\n')) {
+            if (!$line) { continue }
+            $f=$line.Split("`t")
+            if (!$icons.ContainsKey($f[2])) { throw 'Custom icon was not included in the backup.' }
+        }
+    }
+}
+function Read-Archive([string]$path) {
+    if ((Get-Item -LiteralPath $path).Length -gt 320MB) { throw 'Archive exceeds size limit.' }
+    $zip=[IO.Compression.ZipFile]::OpenRead($path)
+    try {
+        $names=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+        [long]$total=0
+        if ($zip.Entries.Count -gt 4096) { throw 'Too many archive entries.' }
+        $files=@{}
+        foreach ($entry in $zip.Entries) {
+            if (!$names.Add($entry.FullName)) { throw 'Duplicate or case-conflicting archive path.' }
+            if ($entry.FullName -ne 'manifest.json') { Safe-Entry $entry.FullName }
+            if ((($entry.ExternalAttributes -shr 16) -band 61440) -eq 40960) { throw 'Linked archive entries are unsupported.' }
+            $total += $entry.Length
+            if ($entry.Length -gt $maxBytes -or $total -gt $maxBytes) { throw 'Expanded backup exceeds size limit.' }
+            $stream=$entry.Open()
+            $buffer=New-Object IO.MemoryStream
+            try {
+                $chunk=New-Object byte[] 16384
+                while (($read=$stream.Read($chunk,0,$chunk.Length)) -gt 0) {
+                    if ($buffer.Length+$read -gt $entry.Length -or $buffer.Length+$read -gt $maxBytes) { throw 'Expanded entry exceeds its declared size.' }
+                    $buffer.Write($chunk,0,$read)
+                }
+                if ($buffer.Length -ne $entry.Length) { throw 'Archive entry length mismatch.' }
+                $files[$entry.FullName]=$buffer.ToArray()
+            } finally { $stream.Dispose(); $buffer.Dispose() }
+        }
+        if (!$files.ContainsKey('manifest.json')) { throw 'This is not a complete Launchpad backup.' }
+        $manifest=$utf8.GetString($files['manifest.json']) | ConvertFrom-Json
+        if ($manifest.schema -ne 1) { throw 'Unsupported backup version.' }
+        if ($manifest.source_mod -notin @('local@ryjs-launchpad','ryjs-launchpad','local@seamless-launchpad-custom','seamless-launchpad-custom','local@seamless-launchpad','seamless-launchpad','local@fullscreen-start-plus','fullscreen-start-plus')) { throw 'Backup belongs to a different application.' }
+        $expected=Object-Map $manifest.files
+        if ($expected.Count+1 -ne $files.Count) { throw 'Archive entries differ from manifest.' }
+        foreach ($name in $expected.Keys) {
+            Safe-Entry $name
+            if (!$files.ContainsKey($name) -or $files[$name].Length -ne $expected[$name].size -or (Hash-Bytes $files[$name]) -cne $expected[$name].sha256) { throw 'Backup checksum mismatch.' }
+        }
+        $files.Remove('manifest.json')
+        Validate-Data $manifest $files
+        return @{ manifest=$manifest; files=$files; hash=(Hash-Bytes ([IO.File]::ReadAllBytes($path))) }
+    } finally { $zip.Dispose() }
+}
+function Export-Complete {
+    $archivePath=[IO.Path]::GetFullPath($job.archive)
+    $storagePath=[IO.Path]::GetFullPath($job.storage).TrimEnd('\')+'\'
+    if ($archivePath.StartsWith($storagePath,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetExtension($archivePath) -ne '.zip') { throw 'Choose a ZIP file outside application data.' }
+    $files=Read-Tree $job.storage
+    $snapshot=@{} + $files
+    $hostSettings=Read-HostSettings
+    $effective=Object-Map $job.defaults
+    foreach ($key in $hostSettings.Keys) { $effective[$key]=[string]$hostSettings[$key] }
+    if ($files.ContainsKey('data/ui-settings.ini')) {
+        $ini=Read-Ini $files['data/ui-settings.ini']
+        if ($ini['meta']['version'] -ne '1') { throw 'Unsupported private-settings version.' }
+        foreach ($key in $ini['present'].Keys) {
+            if ($ini['present'][$key] -ne '1') { continue }
+            $baseline=if ($hostSettings.ContainsKey($key)) { [string]$hostSettings[$key] } else { '' }
+            if ((Decode-Value $ini['host'][$key]) -ceq $baseline) { $effective[$key]=Decode-Value $ini['values'][$key] }
+        }
+    }
+    $icons=@{}
+    if ($files.ContainsKey('data/icons.txt')) {
+        foreach ($line in ($utf8.GetString($files['data/icons.txt']) -split '\r?\n')) {
+            if (!$line) { continue }
+            $f=$line.Split("`t")
+            if ($f.Count -ne 3 -or $f[0] -ne 'icon') { throw 'Invalid custom icon mapping.' }
+            $blob=[IO.File]::ReadAllBytes($f[2])
+            $name='assets/'+(Hash-Bytes $blob)+[IO.Path]::GetExtension($f[2]).ToLowerInvariant()
+            $files[$name]=$blob
+            $icons[$f[2]]=$name
+        }
+    }
+    foreach ($item in @(@('source',$job.source),@('binary',$job.binary))) {
+        if (!$item[1] -or !(Test-Path -LiteralPath $item[1] -PathType Leaf)) { throw 'Installed source or module could not be found.' }
+        $files[$item[0]+'/'+[IO.Path]::GetFileName($item[1])]=[IO.File]::ReadAllBytes($item[1])
+    }
+    if (!$job.preview) {
+        $regFile=Join-Path $work 'settings.reg'
+        & "$env:SystemRoot\System32\reg.exe" export ($script:registryHive+'\SOFTWARE\Windhawk\Engine\Mods\'+$job.mod_id+'\Settings') $regFile /y | Out-Null
+        if ($LASTEXITCODE) { throw 'Could not export Windhawk settings.' }
+        $files['metadata/settings.reg']=[IO.File]::ReadAllBytes($regFile)
+    }
+    $instructions=@'
+RYJS Launchpad 完整备份
+在启动器菜单选择“导入完整备份”，选中本 ZIP，校验后确认即可。
+导入仅恢复布局、设置和图标；source/binary 用于保留当前安装文件，不会执行或安装。
+替换前的数据保留在原 data-v1 同级的 .before-import-* 目录。
+'@
+    $files['metadata/恢复说明.txt']=$utf8.GetBytes($instructions)
+    $manifest=[ordered]@{schema=1; producer='ryjs-native-1'; source_mod=$job.mod_id; version=$job.version; created=[DateTimeOffset]::Now.ToString('o'); host_settings=$hostSettings; effective_settings=$effective; icons=$icons; files=@{}}
+    foreach ($name in $files.Keys) { $manifest.files[$name]=@{size=$files[$name].Length;sha256=(Hash-Bytes $files[$name])} }
+    Validate-Data ($manifest | ConvertTo-Json -Depth 8 | ConvertFrom-Json) $files
+    if (!(Same-Files $snapshot (Read-Tree $job.storage)) -or !(Same-Settings $hostSettings (Read-HostSettings))) { throw 'Layout or settings changed during backup. Please retry.' }
+    $temporary=$job.archive+'.pending-'+[Guid]::NewGuid().ToString('N')
+    try {
+        $stream=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew)
+        $zip=$null
+        try {
+            $zip=New-Object IO.Compression.ZipArchive($stream,[IO.Compression.ZipArchiveMode]::Create)
+            $files['manifest.json']=$utf8.GetBytes(($manifest | ConvertTo-Json -Depth 8))
+            foreach ($name in ($files.Keys | Sort-Object)) {
+                $entry=$zip.CreateEntry($name,[IO.Compression.CompressionLevel]::Optimal)
+                $output=$entry.Open()
+                try { $output.Write($files[$name],0,$files[$name].Length) } finally { $output.Dispose() }
+            }
+        } finally { if($zip){$zip.Dispose()}; $stream.Dispose() }
+        $verified=Read-Archive $temporary
+        if (Test-Path -LiteralPath $job.archive) { [IO.File]::Replace($temporary,$job.archive,$null) }
+        else { [IO.File]::Move($temporary,$job.archive) }
+        return @{ summary=$job.archive; hash=$verified.hash; previous='' }
+    } finally { if (Test-Path -LiteralPath $temporary) { try { Remove-Item -LiteralPath $temporary -Force } catch {} } }
+}
+function Import-Complete($checked) {
+    if (!$job.expected_hash -or $checked.hash -cne $job.expected_hash) { throw 'Archive changed after confirmation.' }
+    $destination=[IO.Path]::GetFullPath($job.storage).TrimEnd('\')
+    if (!$job.preview) {
+        $parent=Split-Path -Parent $destination
+        if ([IO.Path]::GetFileName($destination) -ne 'data-v1' -or [IO.Path]::GetFileName($parent) -notin @('local@ryjs-launchpad','ryjs-launchpad')) { throw 'Import is restricted to RYJS storage.' }
+        if (!(Test-Path -LiteralPath (Join-Path $destination 'ryjs-storage.ini'))) { throw 'Existing RYJS storage marker is missing.' }
+    }
+    $ancestor=$destination
+    while ($ancestor) {
+        if ((Test-Path -LiteralPath $ancestor) -and ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Import destination contains a link.' }
+        $ancestor=Split-Path -Parent $ancestor
+    }
+    $hostSettings=Read-HostSettings
+    $stage=$destination+'.restore-'+[Guid]::NewGuid().ToString('N')
+    [IO.Directory]::CreateDirectory($stage) | Out-Null
+    foreach ($name in $checked.files.Keys) {
+        if ($name.StartsWith('data/')) { $relative=$name.Substring(5) }
+        elseif ($name.StartsWith('assets/')) { $relative=$name }
+        else { continue } # Source, DLLs and registry exports are never installed or executed.
+        $target=[IO.Path]::GetFullPath((Join-Path $stage $relative))
+        if (!$target.StartsWith($stage+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Import path escaped staging.' }
+        [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
+        [IO.File]::WriteAllBytes($target,$checked.files[$name])
+    }
+    $icons=Object-Map $checked.manifest.icons
+    if ($icons.Count) {
+        $iconFile=Join-Path $stage 'icons.txt'
+        $lines=foreach ($line in ([IO.File]::ReadAllText($iconFile,$utf8) -split '\r?\n')) {
+            if (!$line) { continue }
+            $f=$line.Split("`t")
+            if ($icons.ContainsKey($f[2])) { $f[2]=Join-Path $destination $icons[$f[2]] }
+            $f -join "`t"
+        }
+        [IO.File]::WriteAllText($iconFile,($lines -join "`r`n")+"`r`n",$utf8)
+    }
+    $effective=Object-Map $checked.manifest.effective_settings
+    $ui=Join-Path $stage 'ui-settings.ini'
+    if (Test-Path -LiteralPath $ui) { [IO.File]::Copy($ui,(Join-Path $stage 'import-original-ui-settings.ini'),$true) }
+    $text="[meta]`r`nversion=1`r`n"
+    foreach ($section in @('host','values','present')) {
+        $text+='['+$section+"]`r`n"
+        foreach ($key in ($effective.Keys | Sort-Object)) {
+            if ($key -match '[\r\n=\[\]]') { throw 'Invalid setting name.' }
+            $value=if ($section -eq 'present') { '1' } elseif ($section -eq 'values') { Encode-Value ([string]$effective[$key]) } else { Encode-Value ([string]$hostSettings[$key]) }
+            $text+=$key+'='+$value+"`r`n"
+        }
+    }
+    [IO.File]::WriteAllText($ui,$text,[Text.Encoding]::Unicode)
+    [IO.File]::WriteAllText((Join-Path $stage 'ryjs-storage.ini'),"[storage]`r`nschema=1`r`n",[Text.Encoding]::Unicode)
+    if (!(Same-Settings $hostSettings (Read-HostSettings))) { throw 'Windhawk settings changed during import.' }
+    $previous=$destination+'.before-import-'+[DateTime]::Now.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N')
+    $hadPrevious=Test-Path -LiteralPath $destination
+    if ($hadPrevious) { [IO.Directory]::Move($destination,$previous) }
+    try { [IO.Directory]::Move($stage,$destination) }
+    catch {
+        if ($hadPrevious -and !(Test-Path -LiteralPath $destination)) { [IO.Directory]::Move($previous,$destination) }
+        throw
+    }
+    return @{summary=$destination; hash=$checked.hash; previous=$(if($hadPrevious){$previous}else{''})}
+}
+try {
+    if ($job.mode -eq 'export') { $result=Export-Complete }
+    elseif ($job.mode -in @('inspect','import')) {
+        $checked=Read-Archive $job.archive
+        if ($job.mode -eq 'import') { $result=Import-Complete $checked }
+        else {
+            $source=[string]$checked.manifest.source_mod
+            $version=[string]$checked.manifest.version
+            $result=@{summary=($source+' '+$version+"`r`n"+$checked.files.Count+' files');hash=$checked.hash;previous=''}
+        }
+    } else { throw 'Unknown backup operation.' }
+    $resultText="[result]`r`nstatus=ok`r`nsummary="+(Encode-Value $result.summary)+"`r`nhash="+$result.hash+"`r`nprevious="+(Encode-Value $result.previous)+"`r`n"
+} catch {
+    $resultText="[result]`r`nstatus=error`r`nsummary="+(Encode-Value $_.Exception.Message)+"`r`n"
+}
+[IO.File]::WriteAllText((Join-Path $work 'result.ini'),$resultText,[Text.Encoding]::Unicode)
+)RYJS_BACKUP";
+constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "accentColor": "#89B4FA", "glowStrength": "60", "glowSize": "14", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "1", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "textColor": "#CDD6F4", "groupColor": "#1E1E2E", "groupOpacity": "0", "hoverColor": "#89B4FA", "selectionColor": "#CBA6F7", "labelPlateOpacity": "65", "labelRadius": "6", "labelShadow": "45", "backgroundDim": "0"})RYJS_DEFAULTS";
+
+constexpr UINT kFullBackupDone=WM_APP+65;
+struct FullBackupJob {
+    HANDLE process=nullptr,thread=nullptr;
+    std::wstring work,mode,archive;
+};
+[[clang::no_destroy]] std::unique_ptr<FullBackupJob> g_fullBackupJob;
+
+std::wstring BackupJsonString(const std::wstring& value) {
+    std::wstring out=L"\"";
+    for(WCHAR c:value) {
+        if(c==L'"'||c==L'\\'){out+=L'\\';out+=c;}
+        else if(c<32){WCHAR escaped[8]{};swprintf_s(escaped,L"\\u%04x",(unsigned)c);out+=escaped;}
+        else out+=c;
+    }
+    return out+L"\"";
+}
+bool BackupWriteUtf8(const std::wstring& path,const std::wstring& text) {
+    int size=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),(int)text.size(),nullptr,0,nullptr,nullptr);
+    if(size<=0)return false;
+    std::string bytes(size,'\0');
+    WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),(int)text.size(),bytes.data(),size,nullptr,nullptr);
+    HANDLE file=CreateFileW(path.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr);
+    if(file==INVALID_HANDLE_VALUE)return false;
+    DWORD written=0;
+    bool ok=WriteFile(file,bytes.data(),(DWORD)bytes.size(),&written,nullptr)&&written==bytes.size();
+    CloseHandle(file);return ok;
+}
+std::wstring BackupReadResult(const std::wstring& work,PCWSTR key,bool encoded=true) {
+    auto value=launchpad_settings_store::Read(work+L"\\result.ini",L"result",key);
+    if(!encoded)return value;
+    std::wstring decoded;
+    return launchpad_settings_store::Decode(value,decoded)?decoded:L"";
+}
+void BackupDeleteWork(const std::wstring& work) {
+    WCHAR temporary[32768]{};GetTempPathW(ARRAYSIZE(temporary),temporary);
+    auto parent=std::filesystem::path(work).parent_path().lexically_normal().wstring();
+    auto temp=std::filesystem::path(temporary).lexically_normal().wstring();
+    while(!temp.empty()&&(temp.back()==L'\\'||temp.back()==L'/'))temp.pop_back();
+    if(_wcsicmp(parent.c_str(),temp.c_str())||!std::filesystem::path(work).filename().wstring().starts_with(L"RYJSBackup-"))return;
+    std::error_code error;
+    std::filesystem::remove_all(work,error);
+}
+DWORD WINAPI FullBackupWait(void* parameter) {
+    auto* job=(FullBackupJob*)parameter;
+    WaitForSingleObject(job->process,INFINITE);
+    HWND window=g_wnd;
+    if(window)PostMessageW(window,kFullBackupDone,0,0);
+    return 0;
+}
+void StopFullBackupJob() {
+    if(!g_fullBackupJob)return;
+    WaitForSingleObject(g_fullBackupJob->process,INFINITE);
+    if(g_fullBackupJob->thread){WaitForSingleObject(g_fullBackupJob->thread,INFINITE);CloseHandle(g_fullBackupJob->thread);}
+    CloseHandle(g_fullBackupJob->process);
+    BackupDeleteWork(g_fullBackupJob->work);
+    g_fullBackupJob.reset();g_fullBackupBusy=false;
+}
+bool StartFullBackupJob(const std::wstring& mode,const std::wstring& archive,const std::wstring& expected=L"") {
+    if(g_fullBackupJob)return false;
+    auto job=std::make_unique<FullBackupJob>();job->mode=mode;job->archive=archive;
+    WCHAR temporary[32768]{},id[40]{},module[32768]{},storage[32768]{},system[32768]{};
+    GUID guid{};if(FAILED(CoCreateGuid(&guid)))return false;
+    StringFromGUID2(guid,id,ARRAYSIZE(id));
+    if(!GetTempPathW(ARRAYSIZE(temporary),temporary)||!GetModuleFileNameW((HINSTANCE)&__ImageBase,module,ARRAYSIZE(module))||
+        !Wh_GetModStoragePath(storage,ARRAYSIZE(storage))||!GetSystemDirectoryW(system,ARRAYSIZE(system)))return false;
+    job->work=std::wstring(temporary)+L"RYJSBackup-"+id;
+    if(!CreateDirectoryW(job->work.c_str(),nullptr))return false;
+    auto modRoot=std::filesystem::path(storage);
+    auto modId=modRoot.filename().wstring();
+    auto source=modRoot.parent_path().parent_path().parent_path().parent_path()/L"ModsSource"/(modId+L".wh.cpp");
+    std::wstring preview=L"false";
+#ifdef SEAMLESS_PREVIEW
+    preview=L"true";modId=L"ryjs-launchpad";
+    source=std::filesystem::path(module).parent_path().parent_path()/L"ryjs-launchpad.wh.cpp";
+#endif
+    std::wstring config=L"{\"mode\":"+BackupJsonString(mode)+L",\"archive\":"+BackupJsonString(archive)+
+        L",\"expected_hash\":"+BackupJsonString(expected)+L",\"storage\":"+BackupJsonString(DataRoot())+
+        L",\"mod_id\":"+BackupJsonString(modId)+L",\"version\":"+BackupJsonString(WH_MOD_VERSION)+
+        L",\"source\":"+BackupJsonString(source.wstring())+L",\"binary\":"+BackupJsonString(module)+L",\"preview\":"+preview;
+    std::wstring host=L"{";
+    bool first=true;
+    for(const auto& field:Set_MakeFields()) {
+        if(!first)host+=L",";
+        first=false;
+#ifdef SEAMLESS_PREVIEW
+        auto baseline=Preview::Setting(field.key);
+#else
+        std::wstring baseline=WindhawkUtils::StringSetting::make(field.key).get();
+#endif
+        host+=BackupJsonString(field.key)+L":"+BackupJsonString(baseline);
+    }
+    config+=L",\"defaults\":"+std::wstring(kFullBackupDefaults)+L",\"host_settings\":"+host+L"}}";
+    auto script=job->work+L"\\worker.ps1",jobFile=job->work+L"\\job.json";
+    if(!BackupWriteUtf8(script,L"\uFEFF"+std::wstring(kFullBackupScript))||!BackupWriteUtf8(jobFile,config)) {
+        BackupDeleteWork(job->work);return false;
+    }
+    auto executable=std::wstring(system)+L"\\WindowsPowerShell\\v1.0\\powershell.exe";
+    auto command=L"\""+executable+L"\" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \""+script+L"\" -JobPath \""+jobFile+L"\"";
+    STARTUPINFOW startup{sizeof(startup)};startup.dwFlags=STARTF_USESHOWWINDOW;startup.wShowWindow=SW_HIDE;
+    PROCESS_INFORMATION process{};
+    if(!CreateProcessW(executable.c_str(),command.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,job->work.c_str(),&startup,&process)) {
+        BackupDeleteWork(job->work);return false;
+    }
+    CloseHandle(process.hThread);job->process=process.hProcess;
+    job->thread=CreateThread(nullptr,0,FullBackupWait,job.get(),0,nullptr);
+    if(!job->thread) {
+        WaitForSingleObject(job->process,INFINITE);CloseHandle(job->process);BackupDeleteWork(job->work);return false;
+    }
+    g_fullBackupJob=std::move(job);g_fullBackupBusy=true;
+    if(g_shown)Render();return true;
+}
+void BackupResumeAfterImport(bool succeeded) {
+    g_fullImportBusy=false;g_workerStop=false;g_webStop=false;
+    if(succeeded) {
+        WritePrivateProfileStringW(nullptr,nullptr,nullptr,(DataRoot()+L"\\ui-settings.ini").c_str());
+#ifdef SEAMLESS_PREVIEW
+        for(const auto& field:Set_MakeFields()) {
+            auto stored=launchpad_settings_store::Read(DataRoot()+L"\\ui-settings.ini",L"values",field.key);
+            std::wstring value;if(!stored.empty()&&launchpad_settings_store::Decode(stored,value))Preview::PutSetting(field.key,value);
+        }
+#endif
+        g_dataReadOnly=g_layoutReadOnly=g_entriesReadOnly=false;
+        g_appsKey=-1;g_appsLoaded=false;g_appsTime=0;
+        LoadSettings();g_labelFormat.Reset();StartLoadingApps();Open();
+    }
+}
+bool BackupCloseSettings() {
+    g_settingsStop=true;
+    if(HWND window=g_settingsWnd)PostMessageW(window,WM_CLOSE,0,0);
+    if(g_settingsThread) {
+        if(WaitForSingleObject(g_settingsThread,15000)!=WAIT_OBJECT_0)return false;
+        CloseHandle(g_settingsThread);g_settingsThread=nullptr;
+    }
+    return true;
+}
+void OnFullBackupDone(HWND owner) {
+    if(!g_fullBackupJob)return;
+    auto mode=g_fullBackupJob->mode,archive=g_fullBackupJob->archive;
+    bool ok=BackupReadResult(g_fullBackupJob->work,L"status",false)==L"ok";
+    auto summary=BackupReadResult(g_fullBackupJob->work,L"summary");
+    auto hash=BackupReadResult(g_fullBackupJob->work,L"hash",false);
+    auto previous=BackupReadResult(g_fullBackupJob->work,L"previous");
+    StopFullBackupJob();
+    if(summary.empty())summary=Tr(L"The backup helper did not return a result.");
+    bool oldModal=g_modal;g_modal=true;
+    if(!ok) {
+        MessageBoxW(owner,(std::wstring(Tr(L"Complete backup/import failed:"))+L"\n\n"+summary).c_str(),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);
+        if(mode==L"import")BackupResumeAfterImport(false);
+    } else if(mode==L"inspect") {
+        auto message=std::wstring(Tr(L"Backup verified:"))+L"\n"+summary+L"\n\n"+
+            Tr(L"Replace the current layout, icons and settings? The previous data will be kept for rollback.");
+        if(MessageBoxW(owner,message.c_str(),Tr(L"Import complete backup"),MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2)==IDYES) {
+            if(!BackupCloseSettings()) {
+                MessageBoxW(owner,Tr(L"Close the settings window and try importing again."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);
+                g_modal=oldModal;return;
+            }
+            HideNow();g_fullImportBusy=true;
+            WritePrivateProfileStringW(nullptr,nullptr,nullptr,(DataRoot()+L"\\ui-settings.ini").c_str());
+            g_workerStop=true;
+            if(g_worker){WaitForSingleObject(g_worker,INFINITE);CloseHandle(g_worker);g_worker=nullptr;}
+            MSG queued{};
+            while(PeekMessageW(&queued,nullptr,WM_APP_APPS,WM_APP_APPS,PM_REMOVE))delete (AppList*)queued.lParam;
+            StopWebIcons();
+            if(!StartFullBackupJob(L"import",archive,hash)) {
+                BackupResumeAfterImport(false);
+                MessageBoxW(owner,Tr(L"Could not start the backup helper."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);
+            }
+        }
+    } else {
+        auto message=std::wstring(Tr(mode==L"export"?L"Complete backup saved and verified:":L"Complete backup imported:"))+L"\n\n"+summary;
+        if(!previous.empty())message+=L"\n\n"+std::wstring(Tr(L"Previous data:"))+L"\n"+previous;
+        MessageBoxW(owner,message.c_str(),Tr(L"Backup and restore"),MB_OK|MB_ICONINFORMATION);
+        if(mode==L"import")BackupResumeAfterImport(true);
+    }
+    g_modal=oldModal;if(g_shown)Render();
+}
+void ShowFullBackupDialog(HWND owner,bool importing) {
+    if(g_fullBackupJob) {
+        MessageBoxW(owner,Tr(L"A backup or import is already running."),Tr(L"Backup and restore"),MB_OK|MB_ICONINFORMATION);return;
+    }
+    WCHAR file[32768]{};
+    if(!importing) {
+        SYSTEMTIME now{};GetLocalTime(&now);
+        swprintf_s(file,L"RYJS-Launchpad-%04u%02u%02u-%02u%02u%02u.ryjs.zip",now.wYear,now.wMonth,now.wDay,now.wHour,now.wMinute,now.wSecond);
+    }
+    PWSTR desktop=nullptr;SHGetKnownFolderPath(FOLDERID_Desktop,0,nullptr,&desktop);
+    auto filter=std::wstring(Tr(L"Complete Launchpad backups"))+L'\0'+L"*.zip"+L'\0'+L'\0';
+    OPENFILENAMEW dialog{sizeof(dialog)};dialog.hwndOwner=owner;dialog.lpstrFile=file;dialog.nMaxFile=ARRAYSIZE(file);
+    dialog.lpstrFilter=filter.c_str();dialog.lpstrDefExt=L"zip";dialog.lpstrInitialDir=desktop;
+    dialog.lpstrTitle=Tr(importing?L"Import complete backup":L"Create complete backup");
+    dialog.Flags=OFN_NOCHANGEDIR|OFN_EXPLORER|(importing?OFN_FILEMUSTEXIST:OFN_OVERWRITEPROMPT);
+    bool oldModal=g_modal;g_modal=true;
+    BOOL selected=importing?GetOpenFileNameW(&dialog):GetSaveFileNameW(&dialog);
+    CoTaskMemFree(desktop);g_modal=oldModal;
+    if(!selected)return;
+    if(!importing && !g_layoutReadOnly && !g_dataReadOnly && !SaveTiles()) {
+        MessageBoxW(owner,Tr(L"Could not save the current layout before backup."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);return;
+    }
+    if(!StartFullBackupJob(importing?L"inspect":L"export",file))MessageBoxW(owner,Tr(L"Could not start the backup helper."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);
+}
+
 
 void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     enum {
@@ -10569,6 +11183,8 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
 #endif
     AppendMenuW(menu, MF_STRING, kOpenSettings, Tr(L"Open settings"));
     AppendMenuW(menu, MF_STRING, 54, Tr(L"Add entry…"));
+    AppendMenuW(menu, MF_STRING, 56, Tr(L"Create complete backup…"));
+    AppendMenuW(menu, MF_STRING, 57, Tr(L"Import complete backup…"));
     if(g_settings.groups)AppendMenuW(menu,MF_STRING,55,Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
     if (g_settings.groups) AppendMenuW(menu, MF_STRING, 50, Tr(L"New group"));
     AppendMenuW(menu, MF_STRING, 51, Tr(L"Restore layout backup"));
@@ -10603,6 +11219,7 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     if (command == 53) { ExportLayout(hwnd); return; }
     if (command == 54) { EditEntry(hwnd); return; }
     if (command == 55) { ToggleGroupEdit(); return; }
+    if (command == 56 || command == 57) { ShowFullBackupDialog(hwnd,command==57); return; }
     if (command == kOpenSettings) {
         HideNow();
         OpenSettingsWindow();
@@ -11253,6 +11870,7 @@ HRESULT WINAPI XamlLauncher_ShowStartView_Hook(void* pThis,
 
 
 void OnAppsLoaded(AppList* list, int key) {
+    if (g_fullImportBusy) { delete list; return; }
     if (g_drag.active || g_modal || g_groupHeaderPressed) {
         // Not under a dragged icon or an open menu: read again on the next
         // open.
@@ -11456,8 +12074,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             OnAppsLoaded((AppList*)lParam, (int)wParam);
             return 0;
         case kWebIconReady: OnWebIconReady((WebIconResult*)lParam); return 0;
+        case kFullBackupDone: OnFullBackupDone(hwnd); return 0;
 
         case WM_APP_RELOAD:
+            if (g_fullImportBusy) return 0;
             if (g_shown) HideNow(); // Save an edited folder using the previous layout mode.
             LoadSettings();
             g_labelFormat.Reset();
@@ -11473,6 +12093,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_APP_RUN:
+            if (g_fullImportBusy) return 0;
 #ifndef SEAMLESS_PREVIEW
             ResetTaskbarStartButtons(true);
 #endif
@@ -11991,6 +12612,7 @@ DWORD WINAPI StartThread(void*) {
         }
     }
     g_wnd = nullptr;
+    StopFullBackupJob();
 #ifndef SEAMLESS_PREVIEW
     StartButtonHooksStop();
 #endif

@@ -11,6 +11,7 @@ def literal(text):
     return 'L' + json.dumps(text, ensure_ascii=False)
 
 def main():
+    worker = (ROOT / 'dev/full_backup_worker.ps1').read_text(encoding='utf-8-sig')
     version = json.loads((ROOT / 'ryjs-project.json').read_text(encoding='utf-8'))['version']
     (ROOT / 'dev/mod_build.h').write_text('#pragma once\n#define WH_MOD_ID L"ryjs-launchpad"\n#define WH_MOD_VERSION L"' + version + '"\n',encoding='utf-8')
     preview_header = ROOT / 'dev/preview/preview_api.h'
@@ -75,6 +76,11 @@ def main():
                 if isinstance(value, list): collect_defaults(value, name + '.')
                 else: defaults[name] = ('1' if value else '0') if isinstance(value, bool) else str(value)
     collect_defaults(schema)
+    (MOD / 'launchpad_backup_script.inc').write_text(
+        '// Generated from dev/full_backup_worker.ps1 and the settings schema.\n'
+        'constexpr wchar_t kFullBackupScript[] = LR"RYJS_BACKUP(' + worker + ')RYJS_BACKUP";\n'
+        'constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS(' +
+        json.dumps(defaults, ensure_ascii=False) + ')RYJS_DEFAULTS";\n', encoding='utf-8')
     (ROOT / 'dev/settings-defaults.json').write_text(json.dumps(defaults, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     localized = yaml.safe_dump(schema, allow_unicode=True, sort_keys=False, width=110)
     source.write_text(text[:begin] + localized.rstrip() + text[end:], encoding='utf-8')
@@ -88,7 +94,7 @@ def main():
     packed = packed.replace('#include "launchpad_settings_store.h"', (MOD / 'launchpad_settings_store.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
     packed = packed.replace('#include "launchpad_start_button.h"', (MOD / 'launchpad_start_button.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
     packed = packed.replace('#include \"ryjs_data.h\"', (MOD / 'ryjs_data.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
-    for fragment in ['launchpad_groups_layout.inc', 'launchpad_groups_actions.inc', 'launchpad_svg.inc', 'launchpad_entries.inc', 'launchpad_group_positions.inc', 'launchpad_group_edit.inc', 'launchpad_web_icons.inc', 'launchpad_entry_editor.inc']:
+    for fragment in ['launchpad_groups_layout.inc', 'launchpad_groups_actions.inc', 'launchpad_svg.inc', 'launchpad_entries.inc', 'launchpad_group_positions.inc', 'launchpad_group_edit.inc', 'launchpad_web_icons.inc', 'launchpad_entry_editor.inc', 'launchpad_full_backup.inc', 'launchpad_backup_script.inc']:
         if (MOD / fragment).exists(): packed = packed.replace('#include "' + fragment + '"', (MOD / fragment).read_text(encoding='utf-8'))
     output = ROOT / 'build'
     output.mkdir(exist_ok=True)

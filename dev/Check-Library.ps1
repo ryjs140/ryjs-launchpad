@@ -15,6 +15,7 @@ $scriptDir = Join-Path $stage 'tools\library-check'
 $modDir = Join-Path $stage 'mods\local\ryjs-launchpad'
 New-Item -ItemType Directory -Path $scriptDir,$modDir -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'tools\library-check\check.py') -Destination $scriptDir
+Copy-Item -LiteralPath (Join-Path $root 'tools\library-check\compile_isolated.py') -Destination $scriptDir
 Copy-Item -LiteralPath (Join-Path $root 'build\ryjs-launchpad.wh.cpp') -Destination $modDir
 # The official validator uses Python 3.12 syntax. Reuse the installed YAML
 # package's pure Python fallback; nothing is installed globally.
@@ -30,7 +31,8 @@ try {
         & py -3.12 (Join-Path $scriptDir 'check.py') validate --upstream $upstream --only ryjs-launchpad --label ryjs-0.1-metadata | Tee-Object -FilePath (Join-Path $root 'build\library-validation.log')
         if ($LASTEXITCODE) { throw '官方元数据检查存在问题，请查看 build/library-validation.log' }
     }
-    & py -3.12 (Join-Path $scriptDir 'check.py') compile --upstream $upstream --windhawk (Join-Path $env:ProgramFiles 'Windhawk') --only ryjs-launchpad --label ryjs-0.1-official-compile | Tee-Object -FilePath (Join-Path $root 'build\library-compile.log')
+    # Local verification must never install into the user's Windhawk instance.
+    & py -3.12 (Join-Path $scriptDir 'check.py') compile --compile-script --upstream $upstream --windhawk (Join-Path $env:ProgramFiles 'Windhawk') --only ryjs-launchpad --label ryjs-official-compile | Tee-Object -FilePath (Join-Path $root 'build\library-compile.log')
     if ($LASTEXITCODE) { throw '官方编译检查存在问题，请查看 build/library-compile.log' }
 } finally {
     Pop-Location

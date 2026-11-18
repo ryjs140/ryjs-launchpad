@@ -1,5 +1,14 @@
 # Changes
 
+## 0.2.1 — GUI complete backup and import
+
+- Native menu actions and ZIP file dialogs export complete layout/entry/geometry/settings/icon data, plus installed source/module and registry settings for reference. The embedded worker uses Windows PowerShell and .NET; Python is not required for users.
+- Import validates paths, checksums, schemas, assets, entry identities and geometry bindings before confirmation. The confirmed archive hash is rechecked; only data/settings/assets are restored. Imported source, binaries and registry exports are never installed or executed.
+- App/icon workers and settings are paused before replacement. Staged import preserves previous data in a sibling directory, rolls back a failed commit and reloads on success. Existing schema-1 legacy ZIP backups remain compatible.
+- Preview and Windhawk x64 builds, bilingual offscreen smoke, 21 native bridge assertions, 7 worker tests (including 10 invalid-archive cases), 45 feature assertions, 26 storage assertions, 28 Start-button assertions and 5 legacy-backup tests passed. The previously created desktop ZIP passed read-only validation. No live installation or layout changes were performed.
+- Local official checks explicitly use the upstream compile script, keeping outputs in the workspace rather than invoking the installed Windhawk CLI's install command.
+- Official metadata and x64 compile checks passed. A small adapter accepts the installed Windhawk alpha version label; the upstream compiler implementation is unchanged.
+
 ## 0.2.0 — Phases 3–5
 
 - Manual `.exe`, `.lnk`, `.rdp`, Store app and HTTP/HTTPS entries; native add/edit dialog, aliases, arguments, working directory, custom icons and explicit destination group. Missing targets stay repairable. File launching uses the original file and its Windows association.

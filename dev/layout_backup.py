@@ -144,7 +144,7 @@ def verify(archive_path):
         data = {}
         for name, meta in manifest['files'].items():
             parts = PurePosixPath(name)
-            if '\\' in name or ':' in name or parts.is_absolute() or '..' in parts.parts or parts.parts[0] not in ('data', 'assets'):
+            if '\\' in name or ':' in name or parts.is_absolute() or '..' in parts.parts or parts.parts[0] not in ('data', 'assets', 'source', 'binary', 'metadata'):
                 raise ValueError(f'Unsafe backup entry: {name}')
             blob = archive.read(name)
             if len(blob) != meta['size'] or digest(blob) != meta['sha256']:
@@ -176,6 +176,8 @@ def restore(archive, destination, replace=False):
     stage.mkdir(parents=True)
     for name, blob in files.items():
         relative = PurePosixPath(name)
+        if relative.parts[0] not in ('data', 'assets'):
+            continue
         relative = PurePosixPath(*relative.parts[1:]) if relative.parts[0] == 'data' else relative
         target = (stage / str(relative)).resolve()
         if not target.is_relative_to(stage.resolve()):

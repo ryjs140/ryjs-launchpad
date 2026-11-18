@@ -3,7 +3,7 @@
   "name": "RYJS Launchpad",
   "maintainer": "ryjs",
   "repository": "https://github.com/ryjs140/ryjs-launchpad",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "phase": 5,
   "deliverySource": "ryjs-launchpad.wh.cpp",
   "developmentSource": "mods/local/seamless-launchpad/seamless-launchpad.wh.cpp",

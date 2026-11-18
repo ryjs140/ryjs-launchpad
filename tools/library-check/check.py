@@ -83,7 +83,7 @@ def compile_mods(args, work):
     legacy = Path(args.upstream).resolve() / 'scripts' / 'compile_mod.py'
     for mod_id, path in mods(args.only):
         staged = stage(work, mod_id, path)
-        if cli.exists():
+        if cli.exists() and not args.compile_script:
             code, out, err = run(
                 [str(cli), '--json', 'mod', 'install', '--disabled', '--arch', 'all',
                  '--strict', '--file', str(staged)],
@@ -105,7 +105,7 @@ def compile_mods(args, work):
         else:
             outputs = [str(work / f'mod_{a}.dll') for a in ('32', '64', 'arm64')]
             code, out, err = run(
-                [sys.executable, str(legacy), '-w', str(windhawk), '-f', str(staged),
+                [sys.executable, str(Path(__file__).with_name('compile_isolated.py')), str(legacy), '-w', str(windhawk), '-f', str(staged),
                  '-o32', outputs[0], '-o64', outputs[1], '-oarm64', outputs[2]],
                 work,
             )
@@ -121,6 +121,8 @@ def main():
     parser.add_argument('mode', choices=['validate', 'compile'])
     parser.add_argument('--upstream', required=True)
     parser.add_argument('--windhawk')
+    parser.add_argument('--compile-script', action='store_true',
+                        help='Use the upstream compile script with workspace output; never install a mod')
     parser.add_argument('--label', default='')
     parser.add_argument('--only', default='')
     args = parser.parse_args()
