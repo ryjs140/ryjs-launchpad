@@ -31,7 +31,13 @@
 py -3.12 dev/generate_resources.py
 ```
 
-生成器对交付文件固定使用 LF 写入（`newline='\n'`）。原因：Git 在 Windows 上把文本按 LF 存库，若工作副本是 CRLF，则"本地文件哈希"与"GitHub 上的文件哈希"不一致，`release/` 中记录的 SHA256 就无法从 GitHub 复核。现在两者相同。
+生成器对交付文件固定使用 LF 写入（`newline='\n'`）。原因：Git 在 Windows 上按 LF 存库，若工作副本是 CRLF，"本地文件哈希"与"GitHub 上的文件哈希"就会不一致，本记录里的 SHA256 无法从 GitHub 复核。现在工作副本、提交 blob 与 GitHub 上的文件是同一串字节。
+
+注意：在 `core.autocrlf=true` 的机器上重新 clone 时，工作副本会被 Git 转成 CRLF，`sha256sum` 会得到另一个值——那是换行规范化，不是内容差异。要核对请以 GitHub 上该文件的原始字节为准：
+
+```bash
+curl -sL https://raw.githubusercontent.com/ryjs140/ryjs-launchpad/main/ryjs-launchpad.wh.cpp | sha256sum
+```
 
 等价入口（额外编译预览与 x64 模块）：
 
