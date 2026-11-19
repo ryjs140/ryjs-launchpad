@@ -4,6 +4,23 @@
 
 Version 1.0.0 marks the first submission to the Windhawk mod library.
 
+### Rejected by the library check (fourth push)
+
+The submitted file failed the repository's "Manual review" job with
+`Failed to extract symbols, manual inspection required`. The cause was the
+preview harness: the `ExperienceToggleButton` symbol block and the
+`ShowStartView` symbol block were wrapped in `#ifndef SEAMLESS_PREVIEW`, and
+the library's symbol extractor only resolves architecture macros, so it refused
+the file.
+
+- `dev/generate_resources.py` now resolves the preview conditionals when it
+  packs the single file, exactly as a Windhawk build does, and fails if any
+  `SEAMLESS_PREVIEW` mention survives. `dev/preview` still compiles the full
+  source with the macro, so the offscreen harness is unchanged.
+- Checked with the library's own `pr_validation.validate_mod_file` and
+  `extract_mod_symbols.get_mod_symbols`: 0 errors, symbols extracted for
+  `amd64` and `arm64`, 0 review items.
+
 ### Review hardening (third push)
 
 - **Migration no longer reads Windhawk's registry.** Only the layout, group,

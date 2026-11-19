@@ -7,8 +7,84 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 MOD = ROOT / 'mods/local/ryjs-launchpad'
 
+PREVIEW_ONLY = re.compile(r'^[ \t]*#if(n?)def[ \t]+SEAMLESS_PREVIEW[ \t]*$')
+OTHER_DIRECTIVE = re.compile(r'^[ \t]*#(?:if|ifdef|ifndef|elif|else|endif)\b')
+
+
 def literal(text):
     return 'L' + json.dumps(text, ensure_ascii=False)
+
+
+def _matching_directive(lines, start):
+    """The index of the #else or #endif which closes the block at start."""
+    depth = 0
+    for index in range(start, len(lines)):
+        if not OTHER_DIRECTIVE.match(lines[index]):
+            continue
+        keyword = lines[index].strip().split()[0]
+        if keyword in ('#if', '#ifdef', '#ifndef'):
+            depth += 1
+        elif keyword == '#endif':
+            depth -= 1
+            if depth == 0:
+                return index, 'endif'
+        elif keyword == '#else' and depth == 1:
+            return index, 'else'
+    raise ValueError('Unbalanced preview conditional: ' + lines[start].strip())
+
+
+def _matching_endif(lines, start):
+    """The index of the #endif which closes the block at start."""
+    depth = 0
+    for index in range(start, len(lines)):
+        if not OTHER_DIRECTIVE.match(lines[index]):
+            continue
+        keyword = lines[index].strip().split()[0]
+        if keyword in ('#if', '#ifdef', '#ifndef'):
+            depth += 1
+        elif keyword == '#endif':
+            depth -= 1
+            if depth == 0:
+                return index
+    raise ValueError('Unbalanced conditional: ' + lines[start].strip())
+
+
+def strip_preview(text):
+    """Resolve the preview branches the way a build without the macro does.
+
+    The submitted file is read by the library's symbol extractor, which only
+    resolves architecture macros: a symbol block under `#ifndef
+    SEAMLESS_PREVIEW` is an unresolved condition and fails that check. The
+    preview build keeps compiling the full source, so nothing is lost.
+    """
+    lines = text.splitlines(keepends=True)
+    out = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        match = PREVIEW_ONLY.match(line.rstrip('\r\n'))
+        if not match:
+            out.append(line)
+            index += 1
+            continue
+        boundary, kind = _matching_directive(lines, index)
+        if match.group(1) == 'n':
+            # #ifndef SEAMLESS_PREVIEW: the body is the real code.
+            body = ''.join(lines[index + 1:boundary])
+            out.extend(strip_preview(body).splitlines(keepends=True))
+            # A block with #else keeps its alternative out of the build.
+            end = _matching_endif(lines, index)
+            index = end + 1
+            continue
+        if kind == 'else':
+            end = _matching_endif(lines, index)
+            body = ''.join(lines[boundary + 1:end])
+            out.extend(strip_preview(body).splitlines(keepends=True))
+            index = end + 1
+        else:
+            index = boundary + 1
+    return ''.join(out)
+
 
 def main():
     worker = (ROOT / 'dev/full_backup_worker.ps1').read_text(encoding='utf-8-sig')
@@ -107,6 +183,12 @@ def main():
     remaining = includes - {'preview_api.h'}  # Only used by SEAMLESS_PREVIEW.
     if remaining:
         raise ValueError('Standalone Windhawk source still includes: ' + ', '.join(sorted(remaining)))
+    # Resolve the preview branches the way a Windhawk build does, so the
+    # submitted file carries no condition the library's symbol extractor
+    # cannot evaluate. dev/preview still compiles the full source.
+    packed = strip_preview(packed)
+    if 'SEAMLESS_PREVIEW' in packed:
+        raise ValueError('Standalone source still mentions SEAMLESS_PREVIEW')
     output = ROOT / 'build'
     output.mkdir(exist_ok=True)
     # Write LF on every platform: this file is submitted verbatim, and Git

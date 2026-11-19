@@ -403,8 +403,7 @@ int wmain(int argc,wchar_t** argv) {
     });
     Check(requested==std::vector<std::wstring>{L"Probe 0",L"Probe 1",L"Probe 2"},"batch sends requests in selection order");
     Check(launchFailures==std::vector<std::wstring>{L"Probe 1"},"batch reports the failed entry individually");
-    Check(waitForMarker(L"0.txt")&&waitForMarker(L"2.txt"),"both valid native requests launch across an intervening failure");
-    std::filesystem::remove(cases/L"0.txt");std::filesystem::remove(cases/L"2.txt");
+    Check(waitForMarker(L"0.txt")&&waitForMarker(L"2.txt"),"both valid native requests launch across an intervening failure");    std::filesystem::remove(cases/L"0.txt");std::filesystem::remove(cases/L"2.txt");
     click(2,MK_CONTROL);click(0,0);
     int openX=(int)bar.right-20;
     send(WM_LBUTTONDOWN,MK_LBUTTON,openX,cancelY);send(WM_LBUTTONUP,0,openX,cancelY);
