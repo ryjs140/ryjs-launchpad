@@ -6,7 +6,12 @@
 // Hook the WinRT ABI setter: pThis is an actual COM interface, so identifying
 // the element requires no implementation offsets or foreign memory writes.
 std::atomic<bool> g_nativeStartPassthrough{false};
+// The checked-state latch was diagnosed with this trace. Writing it runs on
+// the taskbar's UI thread on every press, release and pointer move, so it is
+// compiled out of normal builds; set this to true only for that diagnosis.
+constexpr bool kStartStateTrace = false;
 void StartStateTrace(PCWSTR event,int checked=-2,int pressed=-2,int hover=-2,int focus=-2) {
+    if(!kStartStateTrace)return;
     auto path=StoragePath(L"start-state-trace.log");
     HANDLE file=CreateFileW(path.c_str(),FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file==INVALID_HANDLE_VALUE)return;
@@ -184,10 +189,21 @@ bool HookXamlStartVisibility() {
     auto module=GetModuleHandleW(L"Taskbar.View.dll");
     if(!module)module=GetModuleHandleW(L"ExplorerExtensions.dll");
     if(!module){
-        if(!g_xamlLoadLibraryOriginal)Wh_SetFunctionHook((void*)LoadLibraryExW,(void*)XamlTaskbarLoadHook,(void**)&g_xamlLoadLibraryOriginal);
+        // Hook the kernelbase export, not the kernel32 thunk: a call that goes
+        // straight to kernelbase (WinRT activation of Taskbar.View.dll) never
+        // reaches a hook placed on the kernel32 import.
+        auto kernelbase=GetModuleHandleW(L"kernelbase.dll");
+        auto loadLibrary=kernelbase
+            ?reinterpret_cast<XamlLoadLibrary_t>(GetProcAddress(kernelbase,"LoadLibraryExW"))
+            :nullptr;
+        if(loadLibrary&&!g_xamlLoadLibraryOriginal){
+            WindhawkUtils::SetFunctionHook(loadLibrary,XamlTaskbarLoadHook,
+                                           &g_xamlLoadLibraryOriginal);
+            Wh_ApplyHookOperations();
+        }
         Wh_Log(L"XAML taskbar not loaded; waiting for its module load.");return false;
     }
-    // Taskbar.View.dll
+    // Taskbar.View.dll, ExplorerExtensions.dll
     WindhawkUtils::SYMBOL_HOOK taskbarViewHooks[]={
         {{LR"(public: virtual int __cdecl winrt::impl::produce<struct winrt::Taskbar::implementation::ExperienceToggleButton,struct winrt::Windows::UI::Xaml::Controls::Primitives::IToggleButtonOverrides>::OnToggle(void))"},
             &g_xamlStartToggleOriginal,XamlStartToggleHook,true},

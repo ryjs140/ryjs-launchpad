@@ -34,14 +34,18 @@ std::wstring BackupReadResult(const std::wstring& work,PCWSTR key,bool encoded=t
     std::wstring decoded;
     return launchpad_settings_store::Decode(value,decoded)?decoded:L"";
 }
+std::wstring BackupWorkRoot() {
+    return ModTempPath();
+}
 void BackupDeleteWork(const std::wstring& work) {
-    WCHAR temporary[32768]{};GetTempPathW(ARRAYSIZE(temporary),temporary);
-    auto parent=std::filesystem::path(work).parent_path().lexically_normal().wstring();
-    auto temp=std::filesystem::path(temporary).lexically_normal().wstring();
-    while(!temp.empty()&&(temp.back()==L'\\'||temp.back()==L'/'))temp.pop_back();
-    if(_wcsicmp(parent.c_str(),temp.c_str())||!std::filesystem::path(work).filename().wstring().starts_with(L"RYJSBackup-"))return;
+    auto root = BackupWorkRoot();
+    if (root.empty() || work.empty()) return;
+    auto parent = std::filesystem::path(work).parent_path().lexically_normal().wstring();
+    auto expected = std::filesystem::path(root).lexically_normal().wstring();
+    if (_wcsicmp(parent.c_str(), expected.c_str()) ||
+        !std::filesystem::path(work).filename().wstring().starts_with(L"RYJSBackup-")) return;
     std::error_code error;
-    std::filesystem::remove_all(work,error);
+    std::filesystem::remove_all(work, error);
 }
 DWORD WINAPI FullBackupWait(void* parameter) {
     auto* job=(FullBackupJob*)parameter;
@@ -61,25 +65,28 @@ void StopFullBackupJob() {
 bool StartFullBackupJob(const std::wstring& mode,const std::wstring& archive,const std::wstring& expected=L"") {
     if(g_fullBackupJob)return false;
     auto job=std::make_unique<FullBackupJob>();job->mode=mode;job->archive=archive;
-    WCHAR temporary[32768]{},id[40]{},module[32768]{},storage[32768]{},system[32768]{};
+    WCHAR id[40]{},system[32768]{};
     GUID guid{};if(FAILED(CoCreateGuid(&guid)))return false;
     StringFromGUID2(guid,id,ARRAYSIZE(id));
-    if(!GetTempPathW(ARRAYSIZE(temporary),temporary)||!GetModuleFileNameW((HINSTANCE)&__ImageBase,module,ARRAYSIZE(module))||
-        !Wh_GetModStoragePath(storage,ARRAYSIZE(storage))||!GetSystemDirectoryW(system,ARRAYSIZE(system)))return false;
-    job->work=std::wstring(temporary)+L"RYJSBackup-"+id;
+    auto workRoot=BackupWorkRoot();
+    if(workRoot.empty()||!GetSystemDirectoryW(system,ARRAYSIZE(system)))return false;
+    SHCreateDirectoryExW(nullptr,workRoot.c_str(),nullptr);
+    job->work=workRoot+L"\\RYJSBackup-"+id;
     if(!CreateDirectoryW(job->work.c_str(),nullptr))return false;
-    auto modRoot=std::filesystem::path(storage);
-    auto modId=modRoot.filename().wstring();
-    auto source=modRoot.parent_path().parent_path().parent_path().parent_path()/L"ModsSource"/(modId+L".wh.cpp");
-    std::wstring preview=L"false";
 #ifdef SEAMLESS_PREVIEW
-    preview=L"true";modId=L"ryjs-launchpad";
-    source=std::filesystem::path(module).parent_path().parent_path()/L"ryjs-launchpad.wh.cpp";
+    std::wstring preview=L"true";
+    std::wstring modId=L"ryjs-launchpad";
+#else
+    std::wstring preview=L"false";
+    std::wstring modId=L"ryjs-launchpad";
+    WCHAR storage[32768]{};
+    if (Wh_GetModStoragePath(storage, ARRAYSIZE(storage)))
+        modId = std::filesystem::path(storage).filename().wstring();
 #endif
     std::wstring config=L"{\"mode\":"+BackupJsonString(mode)+L",\"archive\":"+BackupJsonString(archive)+
         L",\"expected_hash\":"+BackupJsonString(expected)+L",\"storage\":"+BackupJsonString(DataRoot())+
         L",\"mod_id\":"+BackupJsonString(modId)+L",\"version\":"+BackupJsonString(WH_MOD_VERSION)+
-        L",\"source\":"+BackupJsonString(source.wstring())+L",\"binary\":"+BackupJsonString(module)+L",\"preview\":"+preview;
+        L",\"preview\":"+preview;
     std::wstring host=L"{";
     bool first=true;
     for(const auto& field:Set_MakeFields()) {
@@ -92,6 +99,15 @@ bool StartFullBackupJob(const std::wstring& mode,const std::wstring& archive,con
 #endif
         host+=BackupJsonString(field.key)+L":"+BackupJsonString(baseline);
     }
+    // A legacy density setting the built-in window hides: the backup still
+    // carries it so an imported profile keeps its saved column count.
+    if(!first)host+=L",";
+#ifdef SEAMLESS_PREVIEW
+    std::wstring columns=Preview::Setting(L"gridColumns");
+#else
+    std::wstring columns=WindhawkUtils::StringSetting::make(L"gridColumns").get();
+#endif
+    host+=BackupJsonString(L"gridColumns")+L":"+BackupJsonString(columns);
     config+=L",\"defaults\":"+std::wstring(kFullBackupDefaults)+L",\"host_settings\":"+host+L"}}";
     auto script=job->work+L"\\worker.ps1",jobFile=job->work+L"\\job.json";
     if(!BackupWriteUtf8(script,L"\uFEFF"+std::wstring(kFullBackupScript))||!BackupWriteUtf8(jobFile,config)) {

@@ -2,8 +2,58 @@
 
 ## 1.0.0 — first public release
 
-Version 1.0.0 marks the first submission to the Windhawk mod library. The code
-is the 0.2.1 feature set; no behaviour changed.
+Version 1.0.0 marks the first submission to the Windhawk mod library.
+
+### Review hardening (second push)
+
+Changes made in response to the repository's AI review of the submitted file:
+
+- **Unload is clean.** The power thread is stored in a global handle and joined
+  in `Wh_ModUninit`; the `GetModuleHandleExW` / `FreeLibraryAndExitThread` pair
+  is gone, so Windhawk's single `FreeLibrary` can no longer be defeated by a
+  running thread.
+- **The settings thread cannot outlive the DLL.** `CloseSettingsWindow` sets the
+  stop flag, posts `WM_QUIT` to the thread, and joins it; the thread checks the
+  flag right after building its window, so a close that races the build still
+  leaves it. Teardown lives in one place (`SettingsThreadTeardown`).
+- **The popup-menu window class is per image.** `MenuClassName()` appends the
+  image base and process tick to the class name, so an in-place update never
+  reuses a window procedure from the previous image; the class is unregistered
+  in the UI thread's teardown.
+- **The Monitor dropdown owns its labels.** `SetField::options` holds
+  `std::wstring`, and the per-call monitor list is moved into the field instead
+  of pointing into a growing function-local static.
+- **COM/GPU lifetimes.** `MakeLayout` returns a `ComPtr`; the label shadow hands
+  over its bitmap with `std::move` instead of `Detach`; the shadow device
+  context is a global reset by `ResetTarget()`; the menu's text formats and the
+  group-title render cache are released at teardown; both label caches are
+  dropped when the device is recreated.
+- **Dead settings removed**, so the Windhawk settings page only lists settings
+  that do something: `accentColor`, `glowSize`, `groupColor`, `groupOpacity`,
+  `hoverColor` and `selectionColor`. The undeclared `labelRadius` read is gone
+  with them. `performanceLogging` now defaults to off.
+- **Settings precedence is documented** at the top of the readme: the built-in
+  settings window overrides the Windhawk page until the same setting is changed
+  in Windhawk again.
+- **XAML taskbar hooks.** `LoadLibraryExW` is hooked on `kernelbase.dll` through
+  `WindhawkUtils::SetFunctionHook`, so WinRT activation of `Taskbar.View.dll` is
+  seen too; the 1 s polling timer is removed. The symbol table is declared for
+  both `Taskbar.View.dll` and `ExplorerExtensions.dll`.
+- **No files outside the mod's storage.** "Run as administrator" for a Store app
+  uses a uniquely named shortcut in the mod's `tmp` folder and deletes it after
+  the launch; `Export-StartLayout` output and the backup worker also live there.
+- **No Windhawk internals.** Migration treats a missing legacy settings key as
+  non-fatal (layout is still copied, settings keep their defaults); the backup
+  worker takes settings from the mod instead of `reg.exe export`, and no longer
+  packs the installed source or DLL, so portable Windhawk works.
+- **A bad data file no longer disables the mod.** An empty legacy layout is a
+  valid empty list, a stale `data-v1.pending` is removed and retried, and a data
+  folder that fails validation opens read-only instead of refusing to load.
+- **Smaller fixes.** `StripIconFrame` cannot walk a side past its opposite; the
+  readme has a screenshot, the network section states that icons may come from
+  another host, and the start-state trace is compiled out.
+
+### First submission
 
 - `@version` is now `1.0.0`.
 - `@author` is `Fangyu Guo (ryjs)`, the developer and maintainer. The two

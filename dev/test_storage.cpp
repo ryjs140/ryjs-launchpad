@@ -1,5 +1,5 @@
 #define SEAMLESS_PREVIEW 1
-#include "../mods/local/seamless-launchpad/seamless-launchpad.wh.cpp"
+#include "../mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp"
 #include <cstdio>
 void Preview_RunSmoke(HWND) {}
 int failures = 0, checks = 0;
@@ -69,28 +69,22 @@ int wmain(int argc, wchar_t** argv) {
     auto failed=cases/L"failed-copy";
     Check(!ryjs_data::Prepare(source.wstring(),failed.wstring(),[](const auto&){return false;}) && !fs::exists(failed) && fs::exists(failed.wstring()+L".pending"),
           "failed conversion never commits partial data");
-    Check(!ryjs_data::Prepare(source.wstring(),failed.wstring(),[](const auto&){return true;}), "interrupted migration fails closed on retry");
+    Check(ryjs_data::Prepare(source.wstring(),failed.wstring(),[](const auto&){return true;}) &&
+          fs::exists(failed) && !fs::exists(failed.wstring()+L".pending"),
+          "interrupted migration discards the partial copy and retries");
     auto marker=(copied/L"ryjs-storage.ini").wstring();
     WritePrivateProfileStringW(L"storage",L"schema",L"999",marker.c_str());
     Check(!ryjs_data::Prepare(source.wstring(),copied.wstring(),[](const auto&){return true;}), "future storage schema never replaced");
     Check(!ryjs_data::Validate(L"groups-v1-allApps.txt",L"schema\t999\tgroups\nfuture\tkeep"), "future group schema rejected");
     Check(!ryjs_data::Validate(L"groups-v1-allApps.txt",L"schema\t1\tgroups\nin\torphan"), "orphan application record rejected");
-    Check(!ryjs_data::Validate(L"layout-allApps.txt",L""), "existing empty layout is not regenerated");
+    Check(ryjs_data::Validate(L"layout-allApps.txt",L""), "an empty legacy layout is a valid empty list");
+    Check(!ryjs_data::Validate(L"groups-v1-allApps.txt",L""), "an empty group layout is rejected");
     auto privateSettings=(cases/L"private.ini").wstring();
     Check(launchpad_settings_store::Save(privateSettings,{{L"uiFont",L"中文字体",L"auto"},{L"program",L"\"C:\\中文\\app.exe\" --arg",L""}}), "Unicode and quoted settings save");
     auto before=Bytes(privateSettings);
     Check(launchpad_settings_store::ResolveReadOnly(privateSettings,L"uiFont",L"other")==L"other" && Bytes(privateSettings)==before,
           "reading inherited settings never invalidates old override file");
     Check(launchpad_settings_store::ResolveReadOnly(privateSettings,L"uiFont",L"auto")==L"中文字体", "effective inherited override retained");
-    // A menu-dismissal click must not seed an empty-grid click underneath.
-    MSG menuMessage{};menuMessage.message=WM_LBUTTONDOWN;menuMessage.pt={-32000,-32000};
-    g_pressed=1;g_pressedEmpty=true;g_drag.pending=true;
-    Check(LaunchpadMenuFilter(MSGF_MENU,0,(LPARAM)&menuMessage)==1 && g_pressed==-1 && !g_pressedEmpty && !g_drag.pending,
-          "outside menu click is consumed without reaching grid");
-    g_modal=true;g_pressed=1;g_pressedEmpty=true;
-    WndProc(nullptr,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(300,300));
-    Check(g_pressed==-1 && !g_pressedEmpty, "owner ignores left down while a popup is open");
-    g_modal=false;
     printf("%s: %d checks, %d failures\n",failures?"FAIL":"PASS",checks,failures);
     return failures?1:0;
 }

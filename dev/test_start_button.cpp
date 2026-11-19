@@ -29,7 +29,7 @@ void RemoveWindowSubclassFromAnyThread(HWND w, Proc p) {
     RemoveWindowSubclass(w, Wrapper, (UINT_PTR)p);
 }
 }
-#include "../mods/local/seamless-launchpad/launchpad_start_button.h"
+#include "../mods/local/ryjs-launchpad/launchpad_start_button.h"
 
 int failures, checks, nativeDown, nativeUp, rightClicks, toggles, runs;
 bool nativeChecked;

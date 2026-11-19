@@ -45,21 +45,9 @@ function Read-Ini([byte[]]$bytes) {
     return $ini
 }
 function Read-HostSettings {
-    if ($job.preview) { return Object-Map $job.host_settings }
-    $location = 'SOFTWARE\Windhawk\Engine\Mods\' + $job.mod_id + '\Settings'
-    $script:registryHive='HKLM'
-    $key = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($location)
-    if (!$key) { $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($location); $script:registryHive='HKCU' }
-    if (!$key) { throw 'Windhawk settings could not be read.' }
-    try {
-        $values=@{}
-        foreach ($name in $key.GetValueNames()) {
-            $kind=$key.GetValueKind($name)
-            if ($kind -notin @('String','ExpandString','DWord')) { throw 'Unsupported registry setting type.' }
-            $values[$name]=[string]$key.GetValue($name,$null,[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
-        }
-        return $values
-    } finally { $key.Dispose() }
+    # The mod hands over the values it already reads through Windhawk's API.
+    # This works on portable Windhawk too, and never touches its registry.
+    return Object-Map $job.host_settings
 }
 function Read-Tree([string]$root) {
     $root=[IO.Path]::GetFullPath($root).TrimEnd('\')
@@ -88,11 +76,6 @@ function Same-Files($a,$b) {
     foreach ($name in $a.Keys) {
         if (!$b.ContainsKey($name) -or (Hash-Bytes $a[$name]) -ne (Hash-Bytes $b[$name])) { return $false }
     }
-    return $true
-}
-function Same-Settings($a,$b) {
-    if ($a.Count -ne $b.Count) { return $false }
-    foreach ($name in $a.Keys) { if (!$b.ContainsKey($name) -or [string]$a[$name] -cne [string]$b[$name]) { return $false } }
     return $true
 }
 function Safe-Entry([string]$name) {
@@ -304,27 +287,17 @@ function Export-Complete {
             $icons[$f[2]]=$name
         }
     }
-    foreach ($item in @(@('source',$job.source),@('binary',$job.binary))) {
-        if (!$item[1] -or !(Test-Path -LiteralPath $item[1] -PathType Leaf)) { throw 'Installed source or module could not be found.' }
-        $files[$item[0]+'/'+[IO.Path]::GetFileName($item[1])]=[IO.File]::ReadAllBytes($item[1])
-    }
-    if (!$job.preview) {
-        $regFile=Join-Path $work 'settings.reg'
-        & "$env:SystemRoot\System32\reg.exe" export ($script:registryHive+'\SOFTWARE\Windhawk\Engine\Mods\'+$job.mod_id+'\Settings') $regFile /y | Out-Null
-        if ($LASTEXITCODE) { throw 'Could not export Windhawk settings.' }
-        $files['metadata/settings.reg']=[IO.File]::ReadAllBytes($regFile)
-    }
     $instructions=@'
 RYJS Launchpad 完整备份
 在启动器菜单选择“导入完整备份”，选中本 ZIP，校验后确认即可。
-导入仅恢复布局、设置和图标；source/binary 用于保留当前安装文件，不会执行或安装。
+导入仅恢复布局、设置和图标；source/binary 仅用于兼容旧备份，不会安装或执行。
 替换前的数据保留在原 data-v1 同级的 .before-import-* 目录。
 '@
     $files['metadata/恢复说明.txt']=$utf8.GetBytes($instructions)
     $manifest=[ordered]@{schema=1; producer='ryjs-native-1'; source_mod=$job.mod_id; version=$job.version; created=[DateTimeOffset]::Now.ToString('o'); host_settings=$hostSettings; effective_settings=$effective; icons=$icons; files=@{}}
     foreach ($name in $files.Keys) { $manifest.files[$name]=@{size=$files[$name].Length;sha256=(Hash-Bytes $files[$name])} }
     Validate-Data ($manifest | ConvertTo-Json -Depth 8 | ConvertFrom-Json) $files
-    if (!(Same-Files $snapshot (Read-Tree $job.storage)) -or !(Same-Settings $hostSettings (Read-HostSettings))) { throw 'Layout or settings changed during backup. Please retry.' }
+    if (!(Same-Files $snapshot (Read-Tree $job.storage))) { throw 'Layout changed during backup. Please retry.' }
     $temporary=$job.archive+'.pending-'+[Guid]::NewGuid().ToString('N')
     try {
         $stream=[IO.File]::Open($temporary,[IO.FileMode]::CreateNew)
@@ -394,7 +367,6 @@ function Import-Complete($checked) {
     }
     [IO.File]::WriteAllText($ui,$text,[Text.Encoding]::Unicode)
     [IO.File]::WriteAllText((Join-Path $stage 'ryjs-storage.ini'),"[storage]`r`nschema=1`r`n",[Text.Encoding]::Unicode)
-    if (!(Same-Settings $hostSettings (Read-HostSettings))) { throw 'Windhawk settings changed during import.' }
     $previous=$destination+'.before-import-'+[DateTime]::Now.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N')
     $hadPrevious=Test-Path -LiteralPath $destination
     if ($hadPrevious) { [IO.Directory]::Move($destination,$previous) }
@@ -422,4 +394,4 @@ try {
 }
 [IO.File]::WriteAllText((Join-Path $work 'result.ini'),$resultText,[Text.Encoding]::Unicode)
 )RYJS_BACKUP";
-constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "globalColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "accentColor": "#89B4FA", "glowStrength": "60", "glowSize": "14", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "1", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "groupColor": "#1E1E2E", "groupOpacity": "0", "hoverColor": "#89B4FA", "selectionColor": "#CBA6F7", "backgroundDim": "0", "launchpadAnimation": "iconFlyIn"})RYJS_DEFAULTS";
+constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "globalColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "glowStrength": "60", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "0", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "backgroundDim": "0", "launchpadAnimation": "iconFlyIn"})RYJS_DEFAULTS";

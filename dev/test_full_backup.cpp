@@ -1,5 +1,5 @@
 #define SEAMLESS_PREVIEW 1
-#include "../mods/local/seamless-launchpad/seamless-launchpad.wh.cpp"
+#include "../mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp"
 #include <cstdio>
 void Preview_RunSmoke(HWND) {}
 int checks=0,failures=0;

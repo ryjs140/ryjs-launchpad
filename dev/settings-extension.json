@@ -11,7 +11,7 @@
   {
     "key": "performanceLogging",
     "type": "Check",
-    "default": true,
+    "default": false,
     "label": "Record performance",
     "description": "Record opening latency, frame intervals and rendering cost in the mod storage folder.",
     "page": 1,
@@ -190,44 +190,6 @@
       "dark": "Dark",
       "system": "Follow Windows"
     },
-    "page": 2,
-    "group": "Theme"
-  },
-  {
-    "key": "groupColor",
-    "type": "Color",
-    "default": "#1E1E2E",
-    "label": "Group background color",
-    "description": "Group and folder background in the custom theme.",
-    "page": 2,
-    "group": "Theme"
-  },
-  {
-    "key": "groupOpacity",
-    "type": "Number",
-    "default": 0,
-    "label": "Group background opacity",
-    "description": "0–100 percent. Zero preserves transparent expanded groups.",
-    "min": 0,
-    "max": 100,
-    "page": 2,
-    "group": "Theme"
-  },
-  {
-    "key": "hoverColor",
-    "type": "Color",
-    "default": "#89B4FA",
-    "label": "Hover color",
-    "description": "Background color of the application under the pointer.",
-    "page": 2,
-    "group": "Theme"
-  },
-  {
-    "key": "selectionColor",
-    "type": "Color",
-    "default": "#CBA6F7",
-    "label": "Selection color",
-    "description": "Background color of the keyboard-selected application.",
     "page": 2,
     "group": "Theme"
   },

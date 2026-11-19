@@ -28,10 +28,6 @@ class FullBackupTests(unittest.TestCase):
         self.host = {'appSource': 'pinned', 'gridLayout': 'groups', 'interfaceLanguage': 'zh-CN', 'backgroundDim': '10'}
         self.icon = self.root / '自定义图标.ico'
         self.icon.write_bytes(b'fixture-icon')
-        self.source = self.root / 'installed.wh.cpp'
-        self.source.write_text('// fixture source 0.2.1', encoding='utf-8')
-        self.binary = self.root / 'installed.dll'
-        self.binary.write_bytes(b'fixture-module-never-executed')
         self.files = {
             'groups-v1-pinned.txt': 'schema\t1\tgroups\nfolder\t工作\nin\tmanual:rdp\nfolder\t网页\nin\tmanual:web\n',
             'layout-pinned.txt': 'folder\t工作\nin\tmanual:rdp\nfolder\t网页\nin\tmanual:web\n',
@@ -54,7 +50,7 @@ class FullBackupTests(unittest.TestCase):
         work = self.root / f'job-{self.job_number}'
         work.mkdir()
         job = dict(mode=mode, archive=str(self.archive), storage=str(self.storage), mod_id='local@ryjs-launchpad',
-                   version='0.2.1', source=str(self.source), binary=str(self.binary), preview=True,
+                   version='0.2.1', preview=True,
                    defaults=self.host, host_settings=self.host, expected_hash='')
         job.update(overrides)
         config = work / 'job.json'
@@ -104,8 +100,12 @@ class FullBackupTests(unittest.TestCase):
         exported = self.exported()
         manifest, files = layout_backup.verify(self.archive)
         self.assertEqual(manifest['effective_settings']['backgroundDim'], '35')
-        self.assertIn('source/installed.wh.cpp', files)
-        self.assertIn('binary/installed.dll', files)
+        # Portable Windhawk and plain settings: no installed source, DLL or
+        # registry export is packed any more.
+        self.assertNotIn('source/installed.wh.cpp', files)
+        self.assertNotIn('binary/installed.dll', files)
+        self.assertNotIn('metadata/settings.reg', files)
+        self.assertIn('metadata/恢复说明.txt', files)
         checked = self.run_job('inspect')
         self.assertEqual(checked['status'], 'ok', checked)
         self.assertEqual(checked['hash'], exported['hash'])

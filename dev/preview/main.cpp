@@ -1,5 +1,5 @@
 #define SEAMLESS_PREVIEW 1
-#include "../../mods/local/seamless-launchpad/seamless-launchpad.wh.cpp"
+#include "../../mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp"
 #include <cstdio>
 #include <numeric>
 
@@ -240,13 +240,14 @@ void Preview_RunSmoke(HWND hwnd) {
                 [](HMONITOR, HDC, LPRECT, LPARAM p) -> BOOL { (*(int*)p)++; return TRUE; },
                 (LPARAM)&connected);
             bool listed = !f.options.empty() &&
-                          wcscmp(f.options[0].first, L"mouse") == 0 &&
+                          wcscmp(f.options[0].first.c_str(), L"mouse") == 0 &&
                           (int)f.options.size() == connected + 1 &&
                           f.options.back().first == std::to_wstring(connected);
             Preview::Log(L"smoke: monitor dropdown: %d connected display(s), %zu options: %ls",
                          connected, f.options.size(), listed ? L"PASS" : L"FAIL");
             for (auto& o : f.options)
-                Preview::Log(L"smoke:   monitor option %ls = %ls", o.first, o.second);
+                Preview::Log(L"smoke:   monitor option %ls = %ls", o.first.c_str(),
+                             o.second.c_str());
             ok = listed && ok;
         }
         for (int page = 0; page < kSetPageCount; page++)

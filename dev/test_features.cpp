@@ -1,5 +1,5 @@
 #define SEAMLESS_PREVIEW 1
-#include "../mods/local/seamless-launchpad/seamless-launchpad.wh.cpp"
+#include "../mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp"
 #include <cstdio>
 void Preview_RunSmoke(HWND) {}
 int failures=0, checks=0;
@@ -437,6 +437,60 @@ int wmain(int argc,wchar_t** argv) {
     Check(LoadGroupPositions()&&g_wholeCellLayout&&g_groupPositions[topRight].gridX==rightGrid.gridX&&
           g_groupPositions[bottomLeft].gridY==bottomGrid.gridY,
           "the whole-cell draft survives a fresh geometry load");
+    // The custom popup menu has to keep a submenu alive while the pointer
+    // walks from the row that owns it to the submenu itself. That path stays
+    // inside the parent panel from start to finish, so closing on any move
+    // there made "Move to group" impossible to use.
+    {
+        using namespace LaunchpadMenu;
+        Reset();
+        State& menu = g_menu;
+        menu.scale = 1;
+        menu.work = RECT{0, 0, 1920, 1080};
+        Node open, moveToGroup, rename, tools, remote;
+        open.text = L"Open"; open.id = 1;
+        moveToGroup.text = L"Move to group"; moveToGroup.id = 2;
+        rename.text = L"Rename"; rename.id = 3;
+        tools.text = L"Tools"; tools.id = 1000;
+        remote.text = L"Remote"; remote.id = 1001;
+        moveToGroup.sub = {tools, remote};
+        menu.root = {open, moveToGroup, rename};
+        Panel root;
+        root.items = &menu.root;
+        MeasurePanel(menu, root);
+        root.rect = D2D1::RectF(100, 100, 100 + root.width,
+                                100 + root.contentHeight);
+        menu.rootTop = root.rect.top;
+        menu.panels.push_back(root);
+        OpenSubmenu(0, 1);
+        Check(menu.panels.size() == 2 && menu.panels[1].parentItem == 1,
+              "a row with a submenu opens the next level");
+        const float rowY =
+            RowTop(menu.panels[0], 1) + RowHeight(menu.root[1], 1) * 0.5f;
+        const float edgeX = menu.panels[0].rect.right - 2.5f;
+        const int edgeItem = HitTest(menu.panels[0], edgeX, rowY);
+        Check(PanelAt(edgeX, rowY) == 0 && edgeItem == 1,
+              "the row that owns the submenu stays hittable up to the shared edge");
+        Check(DeeperLevelsAction(edgeItem, menu.panels[1].parentItem, true) ==
+                  DeeperAction::Keep,
+              "walking along the owner row keeps the submenu open");
+        Check(PanelAt(menu.panels[1].rect.left + 4, rowY) == 1,
+              "the submenu begins at the parent edge without a dead gap");
+        Check(DeeperLevelsAction(2, 1, true) == DeeperAction::CloseNow &&
+                  DeeperLevelsAction(2, 1, false) == DeeperAction::CloseSoon &&
+                  DeeperLevelsAction(-1, 1, false) == DeeperAction::CloseSoon,
+              "only the owner row keeps the submenu; other rows close or wait");
+        // A class left by an earlier build must never be reused: the name is
+        // unique to the loaded image, so an in-place update always registers
+        // its own window procedure.
+        const WCHAR* className = MenuClassName();
+        Check(className && wcslen(className) > wcslen(kMenuClass) &&
+                  wcsncmp(className, kMenuClass, wcslen(kMenuClass)) == 0,
+              "the menu class name is unique per loaded image");
+        Check(wcscmp(className, MenuClassName()) == 0,
+              "the menu class name is stable within one image");
+        Reset();
+    }
     DestroyWindow(g_wnd);g_wnd=nullptr;
     Check(WriteLines(GroupPositionFile(),{L"schema\t999\tgroup-geometry"}),"future geometry fixture saved");
     ClearGroupPositions();Check(!LoadGroupPositions()&&g_layoutReadOnly&&!SaveGroupPositions(),"unknown group geometry blocks layout writes");

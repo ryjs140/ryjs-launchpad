@@ -31,7 +31,10 @@ inline bool Validate(const std::wstring& name, const std::wstring& text) {
     bool layout = name.starts_with(L"layout-") || name.starts_with(L"groups-v1-");
     bool groups = name.starts_with(L"groups-v1-");
     if (!layout && name != L"pins.txt" && name != L"icons.txt") return true;
-    if (layout && text.empty()) return false; // Existing empty/corrupt layouts must not regenerate.
+    // An empty legacy layout is a valid empty list: unpinning the last app
+    // writes one, and refusing it used to make the whole mod load disabled.
+    // Group layouts always carry their schema header, so an empty one is bad.
+    if (layout && text.empty()) return !groups;
     size_t pos = 0, rows = 0;
     bool folder = false;
     while (pos < text.size()) {
@@ -65,7 +68,7 @@ inline bool Validate(const std::wstring& name, const std::wstring& text) {
         } else return false;
         ++rows;
     }
-    return !layout || rows > 0;
+    return !layout || !groups || rows > 0;
 }
 
 inline bool ValidateDirectory(const std::wstring& directory, const std::wstring& skip = {}) {
@@ -95,7 +98,14 @@ inline bool Prepare(const std::wstring& source, const std::wstring& target,
                    ValidateDirectory(target);
         }
         auto stage = target + L".pending";
-        if (fs::exists(stage)) return false; // Keep interrupted work for inspection.
+        if (fs::exists(stage)) {
+            // Explorer was killed, or a copy failed, during an earlier first
+            // run. The user's real data is still in the old folder, so drop
+            // the partial copy and start over instead of refusing to load.
+            std::error_code error;
+            fs::remove_all(stage, error);
+            if (error || fs::exists(stage)) return false;
+        }
         if (!source.empty() && !ValidateDirectory(source)) return false;
         fs::create_directories(stage);
         if (!source.empty()) {
