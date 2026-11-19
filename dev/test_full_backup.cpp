@@ -29,6 +29,8 @@ int wmain() {
     Check(WriteLines(StoragePath(L"groups-v1-pinned.txt"),layout),"native Unicode layout fixture written");
     Check(WriteLines(StoragePath(L"pins.txt"),{L"pin\tryjs-entry:fixture"}),"native pins fixture written");
     Check(WriteLines(StoragePath(L"entries-v1.txt"),{L"schema\t1\tentries",L"entry\tryjs-entry:fixture\t1\thttps://example.org/\t自定义名称\t\t"}),"native alias fixture written");
+    Check(WriteLines(StoragePath(L"display-names-v1.txt"),{L"schema\t1\tdisplay-names",L"name\tryjs-entry:fixture\tSource name\t备份别名"}),"display name fixture written");
+    Check(WriteLines(StoragePath(L"group-geometry-layout-pinned.txt"),{L"schema\t2\tgroup-geometry",L"group\t0\t备份测试\t24\t0\t300\t280\tgroup\t3\t2"}),"integer geometry v2 fixture written");
     auto archive=(root/L"完整备份.ryjs.zip").wstring();
     Check(StartFullBackupJob(L"export",archive),"GUI bridge starts embedded export worker");
     Finish("GUI bridge exports a verified complete archive");
@@ -52,6 +54,9 @@ int wmain() {
     Check(!previous.empty()&&std::filesystem::exists(previous),"previous data retained for rollback");
     Check(ReadLines(StoragePath(L"groups-v1-pinned.txt"))==std::vector<std::vector<std::wstring>>{{L"schema",L"1",L"groups"},{L"folder",L"备份测试"},{L"in",L"ryjs-entry:fixture"}},"Unicode layout survives native export and import");
     Check(!std::filesystem::exists(root/L"data-v1"/L"binary"),"archived executable is never installed");
+    Check(ReadLines(StoragePath(L"display-names-v1.txt"))[1][3]==L"备份别名","local display names survive native full backup restore");
+    auto restoredGeometry=ReadLines(StoragePath(L"group-geometry-layout-pinned.txt"));
+    Check(restoredGeometry[0][1]==L"2"&&restoredGeometry[1][8]==L"3"&&restoredGeometry[1][9]==L"2","integer cell counts survive native full backup restore");
     printf("Native full-backup checks: %d, failures: %d\n",checks,failures);
     return failures?1:0;
 }

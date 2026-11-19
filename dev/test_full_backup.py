@@ -87,6 +87,19 @@ class FullBackupTests(unittest.TestCase):
                 archive.writestr(name, data)
             archive.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False))
 
+    def test_sparse_half_grid_geometry_roundtrip(self):
+        leaf = 'group-geometry-layout-pinned.txt'
+        data = 'schema\t3\tgroup-geometry\ngroup\t1\t网页\t0\t0\t310\t270\tgroup\t0\t0\t0\t0\t5\t6\n'
+        (self.storage / leaf).write_text(data, encoding='utf-8')
+        self.exported()
+        checked = self.run_job('inspect')
+        self.assertEqual(checked['status'], 'ok', checked)
+        destination = self.root / 'sparse-destination'
+        destination.mkdir()
+        result = self.run_job('import', storage=str(destination), expected_hash=checked['hash'])
+        self.assertEqual(result['status'], 'ok', result)
+        self.assertEqual((destination / leaf).read_text(encoding='utf-8'), data)
+
     def test_complete_roundtrip_preserves_layout_aliases_geometry_settings_and_icons(self):
         exported = self.exported()
         manifest, files = layout_backup.verify(self.archive)
@@ -124,6 +137,46 @@ class FullBackupTests(unittest.TestCase):
         self.assertEqual(checked['status'], 'ok', checked)
         result = self.run_job('import', storage=str(self.root / 'legacy-destination'), expected_hash=checked['hash'])
         self.assertEqual(result['status'], 'ok', result)
+
+    def test_geometry_v4_round_trip(self):
+        path = self.storage / 'group-geometry-layout-pinned.txt'
+        geometry = (
+            'schema\t4\tgroup-geometry\n'
+            'group\t0\t工作\t20.25\t10.5\t400\t240\tgroup\t0\t0\t0\t0\t4\t8\t2\t0\t400.125\t240.75\n'
+            'group\t1\t网页\t460\t10\t300\t180\tfolder\t3\t2\t8\t0\t0\t0\t3\t1\t0\t0\n'
+        ).encode('utf-8')
+        path.write_bytes(geometry)
+        exported = self.exported()
+        path.write_bytes(self.files[path.name].encode('utf-8'))
+        restored = self.run_job('import', expected_hash=exported['hash'])
+        self.assertEqual(restored['status'], 'ok', restored)
+        self.assertEqual(path.read_bytes(), geometry)
+
+    def test_geometry_v5_round_trip(self):
+        path = self.storage / 'group-geometry-layout-pinned.txt'
+        geometry = (
+            'schema\t5\tgroup-geometry\n'
+            'group\t0\t工作\t0\t0\t272\t342\tgroup\t0\t0\t0\t0\t2\t3\t4\t1\t0\t0\n'
+        ).encode('utf-8')
+        path.write_bytes(geometry)
+        exported = self.exported()
+        path.write_bytes(self.files[path.name].encode('utf-8'))
+        restored = self.run_job('import', expected_hash=exported['hash'])
+        self.assertEqual(restored['status'], 'ok', restored)
+        self.assertEqual(path.read_bytes(), geometry)
+
+    def test_geometry_v6_round_trip(self):
+        path = self.storage / 'group-geometry-layout-pinned.txt'
+        geometry = (
+            'schema\t6\tgroup-geometry\t12\n'
+            'group\t0\t工作\t60\t30\t240\t300\tgroup\t0\t0\t1\t1\t4\t10\t5\t1\t0\t0\n'
+        ).encode('utf-8')
+        path.write_bytes(geometry)
+        exported = self.exported()
+        path.write_bytes(self.files[path.name].encode('utf-8'))
+        restored = self.run_job('import', expected_hash=exported['hash'])
+        self.assertEqual(restored['status'], 'ok', restored)
+        self.assertEqual(path.read_bytes(), geometry)
 
     def test_changed_archive_after_confirmation_does_not_replace_data(self):
         exported = self.exported()

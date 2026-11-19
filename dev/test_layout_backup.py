@@ -5,6 +5,7 @@ import unittest
 import uuid
 import zipfile
 import layout_backup as backup
+from unittest.mock import patch
 
 
 class BackupTests(unittest.TestCase):
@@ -13,13 +14,19 @@ class BackupTests(unittest.TestCase):
         self.source = self.root / 'source'
         self.source.mkdir(parents=True)
         self.host = {'gridLayout': 'scroll', 'appSource': 'allApps', 'uiFont': 'auto'}
+        self.original_base = backup.BASE
+        backup.BASE = self.root / "isolated-mod-storage"
         self.original_registry = backup.registry_settings
         backup.registry_settings = lambda mod: self.host if mod in backup.LEGACY else {'gridLayout': 'groups', 'appSource': 'allApps', 'uiFont': 'auto'}
         (self.source / 'groups-v1-allApps.txt').write_bytes('schema\t1\tgroups\r\nfolder\t科研软件\r\nin\tapp-甲\r\n'.encode())
         self.archive = self.root / 'backup.ryjs.zip'
+        self.mutex = patch.object(backup, 'integration_running', return_value=False)
+        self.mutex.start()
 
     def tearDown(self):
+        self.mutex.stop()
         backup.registry_settings = self.original_registry
+        backup.BASE = self.original_base
 
     def make_archive(self):
         return backup.export(self.source, 'local@seamless-launchpad-custom', self.archive)

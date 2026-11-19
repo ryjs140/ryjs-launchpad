@@ -29,6 +29,19 @@
     "group": "Rendering"
   },
   {
+    "key": "launchpadAnimation",
+    "type": "Choice",
+    "default": "iconFlyIn",
+    "label": "Launchpad animation style",
+    "description": "Choose how the launchpad opens and closes.",
+    "options": {
+      "iconFlyIn": "iOS icon fly-in",
+      "classic": "Classic zoom and fade"
+    },
+    "page": 1,
+    "group": "Motion"
+  },
+  {
     "key": "openDuration",
     "type": "Number",
     "default": 280,
@@ -133,7 +146,7 @@
     "type": "Number",
     "default": 32,
     "label": "Group spacing",
-    "description": "Space between groups, in DIP.",
+    "description": "Minimum horizontal and vertical space between groups, in DIP.",
     "min": 8,
     "max": 160,
     "page": 1,
@@ -181,15 +194,6 @@
     "group": "Theme"
   },
   {
-    "key": "textColor",
-    "type": "Color",
-    "default": "#CDD6F4",
-    "label": "Text color",
-    "description": "Application and group names in the custom theme.",
-    "page": 2,
-    "group": "Theme"
-  },
-  {
     "key": "groupColor",
     "type": "Color",
     "default": "#1E1E2E",
@@ -226,39 +230,6 @@
     "description": "Background color of the keyboard-selected application.",
     "page": 2,
     "group": "Theme"
-  },
-  {
-    "key": "labelPlateOpacity",
-    "type": "Number",
-    "default": 65,
-    "label": "Name backplate opacity",
-    "description": "Protect names from bright window glare. Zero turns the backplate off.",
-    "min": 0,
-    "max": 100,
-    "page": 2,
-    "group": "Readability"
-  },
-  {
-    "key": "labelRadius",
-    "type": "Number",
-    "default": 6,
-    "label": "Name backplate corner radius",
-    "description": "Corner radius in DIP, independent of icon size.",
-    "min": 0,
-    "max": 24,
-    "page": 2,
-    "group": "Readability"
-  },
-  {
-    "key": "labelShadow",
-    "type": "Number",
-    "default": 45,
-    "label": "Name shadow strength",
-    "description": "0–100 percent, combined with the name backplate.",
-    "min": 0,
-    "max": 100,
-    "page": 2,
-    "group": "Readability"
   },
   {
     "key": "backgroundDim",

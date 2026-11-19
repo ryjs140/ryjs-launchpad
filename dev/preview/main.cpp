@@ -20,12 +20,126 @@ bool SavePng(IWICBitmapSource* bitmap, const std::wstring& path) {
     return true;
 }
 
-bool SaveGrid(const std::wstring& path) {
+bool SaveSurface(HBITMAP bitmap, const std::wstring& path) {
     ComPtr<IWICImagingFactory> factory;
-    ComPtr<IWICBitmap> bitmap;
+    ComPtr<IWICBitmap> wic;
     return SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory))) &&
-        SUCCEEDED(factory->CreateBitmapFromHBITMAP(g_surface.bitmap, nullptr, WICBitmapUsePremultipliedAlpha, &bitmap)) &&
-        SavePng(bitmap.Get(), path);
+        SUCCEEDED(factory->CreateBitmapFromHBITMAP(bitmap, nullptr, WICBitmapUsePremultipliedAlpha, &wic)) &&
+        SavePng(wic.Get(), path);
+}
+
+bool SaveGrid(const std::wstring& path) {
+    return SaveSurface(g_surface.bitmap, path);
+}
+
+// Copies a 32-bit DIB section into memory. The surfaces D2D and the layered
+// window share are premultiplied BGRA, bottom-up.
+bool ReadDib(HBITMAP bitmap, int& width, int& height,
+             std::vector<UINT32>& pixels) {
+    if (!bitmap) return false;
+    BITMAP info{};
+    if (!GetObjectW(bitmap, sizeof(info), &info)) return false;
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
+    bmi.bmiHeader.biWidth = info.bmWidth;
+    bmi.bmiHeader.biHeight = info.bmHeight;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+    pixels.assign((size_t)info.bmWidth * info.bmHeight, 0);
+    HDC dc = GetDC(nullptr);
+    int lines = GetDIBits(dc, bitmap, 0, (UINT)info.bmHeight, pixels.data(), &bmi,
+                          DIB_RGB_COLORS);
+    ReleaseDC(nullptr, dc);
+    if (lines != info.bmHeight) return false;
+    width = info.bmWidth;
+    height = info.bmHeight;
+    return true;
+}
+
+// Composites the menu surface over the grid, so the screenshot shows what the
+// menu really looks like on the wallpaper instead of floating on white.
+bool SaveOverlay(const std::wstring& path, HBITMAP base, HBITMAP overlay,
+                 int ox, int oy) {
+    int bw = 0, bh = 0, ow = 0, oh = 0;
+    std::vector<UINT32> dst, src;
+    if (!ReadDib(base, bw, bh, dst) || !ReadDib(overlay, ow, oh, src))
+        return false;
+    for (int y = 0; y < oh; y++) {
+        int dy = bh - 1 - (oy + y);  // both DIBs are bottom-up
+        if (dy < 0 || dy >= bh) continue;
+        const int sy = oh - 1 - y;   // y counts from the top of the overlay
+        for (int x = 0; x < ow; x++) {
+            int dx = ox + x;
+            if (dx < 0 || dx >= bw) continue;
+            const UINT32 s = src[(size_t)sy * ow + x];
+            const UINT32 a = s >> 24;
+            if (!a) continue;
+            UINT32& d = dst[(size_t)dy * bw + dx];
+            const UINT32 inv = 255 - a;
+            UINT32 out = 0xFF000000u;
+            for (int shift = 0; shift < 24; shift += 8) {
+                UINT32 c = ((s >> shift) & 0xFF) + ((((d >> shift) & 0xFF) * inv + 127) / 255);
+                out |= (c > 255 ? 255 : c) << shift;
+            }
+            d = out;
+        }
+    }
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
+    bmi.bmiHeader.biWidth = bw;
+    bmi.bmiHeader.biHeight = bh;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    HDC dc = GetDC(nullptr);
+    HBITMAP merged = CreateDIBSection(dc, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
+    ReleaseDC(nullptr, dc);
+    if (!merged) return false;
+    memcpy(bits, dst.data(), dst.size() * sizeof(UINT32));
+    bool ok = SaveSurface(merged, path);
+    DeleteObject(merged);
+    return ok;
+}
+
+// Renders the app menu offscreen over the grid that was just drawn, so the
+// material can be checked without a window, input or a screen capture.
+bool PreviewMenuShot(const std::wstring& path, int x, int y, int hover = -1,
+                     int submenu = -1) {
+    HMENU menu = CreatePopupMenu();
+    HMENU groups = CreatePopupMenu();
+    AppendMenuW(groups, MF_STRING, 1000, L"开发工具");
+    AppendMenuW(groups, MF_STRING, 1001, L"远程");
+    AppendMenuW(groups, MF_STRING, 1002, L"网盘与同步");
+    AppendMenuW(menu, MF_STRING, 1, L"打开");
+    AppendMenuW(menu, MF_POPUP, (UINT_PTR)groups, L"移动到分组");
+    AppendMenuW(menu, MF_STRING, 91, L"从分组中移除");
+    AppendMenuW(menu, MF_STRING, 95, L"重命名");
+    AppendMenuW(menu, MF_STRING, 92, L"编辑条目…");
+    AppendMenuW(menu, MF_STRING, 3, L"以管理员身份运行");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, 4, L"打开文件所在位置");
+    AppendMenuW(menu, MF_STRING | MF_GRAYED, 5, L"打开快捷方式所在位置");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, 6, L"更改图标…");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, 7, L"从网格中移除");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, 8, L"属性");
+    SetMenuDefaultItem(menu, 1, FALSE);
+    LaunchpadMenu::g_previewScreen = g_surface.bitmap;
+    LaunchpadMenu::g_previewScreenOrigin = {g_layout.area.left,
+                                            g_layout.area.top};
+    bool ok = PreviewRenderMenu(menu, x, y, TPM_LEFTALIGN | TPM_TOPALIGN,
+                               hover, submenu) &&
+              SaveOverlay(path, g_surface.bitmap,
+                          LaunchpadMenu::g_menu.surface.bitmap,
+                          LaunchpadMenu::g_menu.origin.x - g_layout.area.left,
+                          LaunchpadMenu::g_menu.origin.y - g_layout.area.top);
+    LaunchpadMenu::g_previewScreen = nullptr;
+    DestroyMenu(menu);
+    return ok;
 }
 
 bool SaveSettings(const std::wstring& path, int page, UINT dpi) {
@@ -118,6 +232,23 @@ void Preview_RunSmoke(HWND hwnd) {
         g_labelFormat.Reset();
         if (!g_setWin && !Set_Create(true)) { ok = false; break; }
         Set_LoadFields(*g_setWin);
+        // The monitor dropdown lists the monitors connected right now: the
+        // follow-the-mouse entry first, then one labeled entry per monitor.
+        for (auto& f : g_setWin->fields) if (wcscmp(f.key, L"monitor") == 0) {
+            int connected = 0;
+            EnumDisplayMonitors(nullptr, nullptr,
+                [](HMONITOR, HDC, LPRECT, LPARAM p) -> BOOL { (*(int*)p)++; return TRUE; },
+                (LPARAM)&connected);
+            bool listed = !f.options.empty() &&
+                          wcscmp(f.options[0].first, L"mouse") == 0 &&
+                          (int)f.options.size() == connected + 1 &&
+                          f.options.back().first == std::to_wstring(connected);
+            Preview::Log(L"smoke: monitor dropdown: %d connected display(s), %zu options: %ls",
+                         connected, f.options.size(), listed ? L"PASS" : L"FAIL");
+            for (auto& o : f.options)
+                Preview::Log(L"smoke:   monitor option %ls = %ls", o.first, o.second);
+            ok = listed && ok;
+        }
         for (int page = 0; page < kSetPageCount; page++)
             ok = SaveSettings(output + L"\\settings-" + language + L"-" + std::to_wstring(page) + L".png", page, 96) && ok;
         ok = SaveSettings(output + L"\\settings-" + language + L"-150pct.png", 2, 144) && ok;
@@ -141,6 +272,54 @@ void Preview_RunSmoke(HWND hwnd) {
         ok = ticks.size() == 30 && mean < 12 && ok;
     } else ok = false;
     // Search real application names and verify the retained filtering path.
+    g_query.clear();
+    g_caret=g_anchor=0;
+    QueryChanged();
+    const auto compactSearch=g_layout.search;
+    // The field opens over a few frames now, so geometry is compared once the
+    // animation has landed, and the first frame is checked for not jumping.
+    auto settleSearch=[&]{
+        for(int i=0;i<40&&g_searchExpand!=(SearchExpanded()?1.0f:0.0f);i++){
+            g_lastFrame=Now()-.04;OnFrame();
+        }
+    };
+    SendMessageW(hwnd,WM_CHAR,L'a',1);
+    float beforeGrow=g_layout.search.right-g_layout.search.left;
+    settleSearch();
+    ok=g_query==L"a"&&beforeGrow<=compactSearch.right-compactSearch.left+.5f&&
+       g_layout.search.right-g_layout.search.left>2*(compactSearch.right-compactSearch.left)&&ok;
+    const auto typedSearch=g_layout.search;
+    SendMessageW(hwnd,WM_KEYDOWN,VK_ESCAPE,1);
+    settleSearch();
+    ok=g_query.empty()&&g_layout.search.left==compactSearch.left&&g_layout.search.right==compactSearch.right&&ok;
+    auto clickSearch=[&](D2D1_RECT_F rect) {
+        auto point=MAKELPARAM((int)((rect.left+rect.right)/2),(int)((rect.top+rect.bottom)/2));
+        SendMessageW(hwnd,WM_LBUTTONDOWN,MK_LBUTTON,point);
+        SendMessageW(hwnd,WM_LBUTTONUP,0,point);
+    };
+    size_t unfiltered=g_visible.size();
+    // The resting search icon is gone: at rest the grid starts above the
+    // field's rect, and a click at the old pill spot no longer opens anything.
+    ok=g_query.empty()&&!g_searchActivated&&
+       g_layout.viewTop<g_layout.search.bottom&&ok;
+    launchpad_i18n::Select(L"zh-CN");
+    SendMessageW(hwnd,WM_CHAR,L'a',1);  // Typing is what opens the field now.
+    settleSearch();
+    Render();
+    ok=SaveGrid(output+L"\\search-click-expanded-zh-CN.png")&&ok;
+    launchpad_i18n::Select(L"en");
+    SendMessageW(hwnd,WM_KEYDOWN,VK_ESCAPE,1);
+    settleSearch();
+    ok=!SearchExpanded()&&g_query.empty()&&ok;
+    SendMessageW(hwnd,WM_CHAR,L'a',1);
+    ok=g_query==L"a"&&g_caret==1&&ok;
+    clickSearch(g_layout.clearButton);
+    settleSearch();
+    ok=g_searchActivated&&g_query.empty()&&g_visible.size()==unfiltered&&
+        g_layout.search.left==typedSearch.left&&ok;
+    SendMessageW(hwnd,WM_KEYDOWN,VK_ESCAPE,1);
+    settleSearch();
+    ok=!SearchExpanded()&&g_layout.search.left==compactSearch.left&&g_shown&&!g_closing&&ok;
     if (!g_apps.empty()) {
         g_query = g_apps[0]->name; UpdateFilter();
         ok = !g_visible.empty() && ok;
@@ -217,6 +396,80 @@ void Preview_RunSmoke(HWND hwnd) {
             for (int i = 0; i < 8 && app < (int)g_apps.size(); i++,app++) grouped.push_back(L"in\t"+g_apps[app]->target);
         }
         ArrangeTiles(grouped); UpdateFilter(); ComputeLayout();
+        // A section is a caption and a run of icons, not a panel: the caption
+        // keeps the click (it starts a drag), while the strip beside the icons
+        // is empty space the grid closes on.
+        if (!g_groupGeometry.empty()) {
+            const auto& group = *g_groupGeometry.begin();
+            auto visual = VisualGroupRect(group), title = ProjectGroupRect(group.title);
+            int captionX = (int)((title.left + title.right) / 2);
+            int captionY = (int)((title.top + title.bottom) / 2);
+            int emptyX = (int)(visual.left + 3);
+            int emptyY = (int)std::min(title.bottom + 2, visual.bottom - 2);
+            ok = GroupAtPoint(captionX, captionY, true) == 0 &&
+                 ClickKeepsOpen(captionX, captionY) && GroupAtPoint(emptyX, emptyY) == 0 &&
+                 GroupAtPoint(emptyX, emptyY, true) < 0 &&
+                 !ClickKeepsOpen(emptyX, emptyY) && ok;
+        }
+        // Sample the production renderer in both directions at identical phases.
+        auto animationLayout = g_layout;
+        bool priorFlyIn = g_settings.iconFlyIn;
+        g_settings.iconFlyIn = true;
+        for (auto size : {Size{1600,1000,1,L"wide"}, Size{1080,1920,1.25f,L"portrait"}}) {
+            g_layout.area = {0,0,size.width,size.height};
+            g_layout.width = size.width; g_layout.height = size.height; g_layout.scale = size.scale;
+            EnsureFormats(size.scale); ComputeLayout();
+            auto prefix = output + L"\\fly-in-" + size.name;
+            for (int frame : {0,18,32,52,75,100}) {
+                g_appear = frame / 100.f;
+                Render();
+                ok = SaveGrid(prefix + L"-" + std::to_wstring(frame) + L".png") && ok;
+            }
+            g_appear = .32f; g_closing = true;
+            Render();
+            ok = SaveGrid(prefix + L"-32-reverse.png") && ok;
+            g_closing = false;
+            g_appear = 1; g_settings.iconFlyIn = false;
+            Render();
+            ok = SaveGrid(prefix + L"-classic-100.png") && ok;
+            g_settings.iconFlyIn = true;
+        }
+        // Exercise actual toggle entry points while the canvas is still hidden.
+        bool requestedAnimations = g_requestedAnimations.exchange(true);
+        bool systemAnimations = g_systemAnimations.exchange(true);
+        g_appear = .5f; g_appearVelocity = 1000.0 / g_settings.openMs;
+        Toggle();
+        bool reverses = g_closing && g_appear == .5f && g_appearVelocity > 0;
+        g_lastFrame = Now() - .04;
+        OnFrame();
+        reverses = reverses && g_closing && g_shown && g_appear < .5f && g_appearVelocity < 0;
+        float closingPhase = g_appear;
+        Toggle();
+        reverses = reverses && !g_closing && g_shown && g_appear == closingPhase &&
+                   g_appearVelocity < 0;
+        g_lastFrame = Now() - .04;
+        OnFrame();
+        reverses = reverses && g_appear > closingPhase && g_appearVelocity > 0;
+        g_lastFrame = Now() - 2;
+        OnFrame();
+        ok = reverses && g_appear == 1 && g_appearVelocity == 0 && ok;
+        // The Windows key itself decides the toggle: once the mod answered the
+        // first show, Windows stops repeating that request, so the second tap
+        // arrives only as a tap. The show request that accompanies the same
+        // keystroke must not toggle a second time.
+        g_keyToggleAt = -1000;
+        SendMessageW(hwnd, WM_APP_WIN_TAP, 0, 0);
+        bool tapCloses = g_closing && g_shown;
+        SendMessageW(hwnd, WM_APP_TOGGLE, 1, 0);
+        bool oneToggle = g_closing && g_shown;
+        g_closing = false; g_appear = 1; g_appearVelocity = 0;
+        ok = tapCloses && oneToggle && ok;
+        Preview::Log(L"smoke: lone Windows key tap closes, duplicate show request ignored: %ls",
+                     tapCloses && oneToggle ? L"PASS" : L"FAIL");
+        g_requestedAnimations = requestedAnimations; g_systemAnimations = systemAnimations;
+        g_settings.iconFlyIn = priorFlyIn;
+        g_layout = animationLayout; EnsureFormats(g_layout.scale); ComputeLayout();
+        Preview::Log(L"smoke: grouped fly-in frames in wide and portrait, classic settled frame, real Toggle reversal: %ls", reverses ? L"PASS" : L"FAIL");
         size_t applicationCount = g_visible.size();
         auto source = g_tiles[0].folder, destination = g_tiles[1].folder;
         Tile moved = source->apps[0];
@@ -301,14 +554,130 @@ void Preview_RunSmoke(HWND hwnd) {
         int geometryIndex=0;
         for(const auto& tile:g_tiles)if(tile.folder) {
             int col=geometryIndex/2,row=geometryIndex%2;
-            g_groupPositions[tile.folder]={24.0f+col*500.0f,row*340.0f,460,300};++geometryIndex;
+            GroupPosition position;
+            position.style=5;position.gridW=6;position.gridH=10;
+            g_groupPositions[tile.folder]=MoveGroupToGrid(position,col*7,row*12);
+            ++geometryIndex;
         }
-        g_freeGroupLayout=true;ok=SaveGroupPositions()&&beforeGeometry==ArrangementLines()&&ok;
+        g_freeGroupLayout=true;ok=SaveGroupPositions(true)&&beforeGeometry==ArrangementLines()&&ok;
         UpdateFilter();ComputeLayout();Render();ok=SaveGrid(output+L"\\free-group-edit-zh-CN.png")&&ok;
+        // Render the resize preview with its independent whole-cell target.
+        if(!g_groupGeometry.empty()) {
+            const auto& first=g_groupGeometry.front();
+            auto handle=GroupResizeHit(first.area);
+            FreeGroupPointerDown(hwnd,(int)(handle.left+10),(int)(handle.top+10));
+            if(g_groupGesture.group) {
+                FreeGroupPointerMove(g_groupGesture.start.x-38,g_groupGesture.start.y+34);
+                Render();ok=SaveGrid(output+L"\\whole-cell-resize-zh-CN.png")&&ok;
+                CancelGroupPointer();
+                if(GetCapture()==hwnd)ReleaseCapture();
+            } else ok=false;
+        }
+        g_groupEditMode=false;g_settings.powerBar=true;ComputeLayout();
+        std::vector<int> selectable;
+        for(const auto& geometry:g_groupGeometry)if(geometry.count>0&&
+            g_visible[geometry.start].app&&g_groupCells[geometry.start].icon.top<g_layout.viewBottom)
+            selectable.push_back(geometry.start);
+        if(selectable.size()>=2) {
+            const auto originalTint=g_settings.tint;
+            const float originalOpacity=g_settings.opacity;
+            g_settings.tint=D2D1::ColorF(0x343434);g_settings.opacity=1;
+            SendMessageW(hwnd,WM_MOUSELEAVE,0,0);
+            Render();
+            auto unit=CellAt(selectable[0]).unit;
+            auto sample=[&](D2D1_RECT_F box,float u,float v) {
+                return POINT{(LONG)std::lround(std::lerp(box.left,box.right,u)),
+                             (LONG)std::lround(std::lerp(box.top,box.bottom,v))};
+            };
+            auto pixel=[&](POINT p) {return (int)GetRValue(GetPixel(g_surface.dc,p.x,p.y));};
+            auto next=sample(CellAt(selectable[1]).unit,.05f,.10f);
+            int neighbour=pixel(next);
+            auto left=sample(unit,.009f,.22f),right=sample(unit,.991f,.22f);
+            auto top=sample(unit,.22f,.009f),bottom=sample(unit,.22f,.991f);
+            auto move=[&](POINT p) {SendMessageW(hwnd,WM_MOUSEMOVE,0,MAKELPARAM(p.x,p.y));Render();};
+            std::array<POINT,4> catches{left,right,top,bottom};
+            for(size_t edge=0;edge<catches.size();++edge) {
+                move(catches[edge]);
+                ok=g_glassClaimed&&pixel(catches[edge])>pixel(catches[edge^1])+22&&pixel(next)==neighbour&&ok;
+            }
+            for(float x:{.012f,.988f})for(float y:{.012f,.988f}) {
+                move(sample(unit,x,y));
+                float edgeX=x<.5f?.009f:.991f, edgeY=y<.5f?.009f:.991f;
+                float alongX=x<.5f?.08f:.92f, alongY=y<.5f?.08f:.92f;
+                ok=g_glassClaimed&&pixel(sample(unit,edgeX,alongY))>100&&
+                    pixel(sample(unit,alongX,edgeY))>100&&ok;
+            }
+            ok=SaveGrid(output+L"\\glass-corner-zh-CN.png")&&ok;
+            move(left);ok=SaveGrid(output+L"\\square-grid-hover-zh-CN.png")&&ok;
+
+            double started=Now();
+            for(int frame=0;frame<24;++frame) {
+                auto slot=CellAt(selectable[frame%2]).unit;
+                move(sample(slot,.12f+(frame%6)*.14f,.20f+(frame%5)*.13f));
+                ok=g_glassClaimed&&ok;
+            }
+            Preview::Log(L"tile glass: 24 alternating-tile pointer messages and frames, mean %.3f ms (smoke harness, not displayed FPS)",
+                         (Now()-started)*1000/24);
+            SendMessageW(hwnd,WM_MOUSELEAVE,0,0);Render();
+            ok=!g_glassClaimed&&pixel(next)==neighbour&&ok;
+            int iconSize=g_settings.iconSize;
+            float labelSize=g_settings.labelSize;
+            for(float scale:{1.25f,1.5f}) {
+                g_layout.scale=scale;
+                g_settings.iconSize=iconSize+12;
+                g_settings.labelSize=labelSize+3;
+                EnsureFormats(scale);
+                ComputeLayout();
+                g_scroll=g_scrollTarget=std::min(36*scale,MaxScroll());
+                auto cell=CellAt(selectable[0]);
+                move(sample(cell.unit,.02f,.28f));
+                auto fade=std::find_if(std::begin(g_glowFades),std::end(g_glowFades),[&](const auto& slot) {
+                    return slot.key==g_visible[selectable[0]].app.get()&&slot.alpha>0;
+                });
+                ok=g_glassClaimed&&fade!=std::end(g_glowFades)&&std::abs(fade->light.x-.02f)<.012f&&
+                    std::abs(fade->light.y-.28f)<.012f&&InRect(cell.unit,cell.icon.left,cell.icon.top)&&ok;
+            }
+            SendMessageW(hwnd,WM_MOUSELEAVE,0,0);
+            g_settings.iconSize=iconSize;g_settings.labelSize=labelSize;
+            g_layout.scale=1;g_scroll=g_scrollTarget=0;
+            EnsureFormats(1);ComputeLayout();
+            g_settings.tint=originalTint;g_settings.opacity=originalOpacity;
+            auto one=CellAt(selectable[0]).highlight,two=CellAt(selectable[1]).highlight;
+            g_selectionPointer.pending=true;
+            g_selectionPointer.start={(LONG)std::min(one.left,two.left)-5,(LONG)std::min(one.top,two.top)-5};
+            MoveAppSelection((int)std::max(one.right,two.right)+5,(int)std::max(one.bottom,two.bottom)+5);
+            ok=AppSelected(*g_visible[selectable[0]].app)&&AppSelected(*g_visible[selectable[1]].app)&&ok;
+            Render();ok=SaveGrid(output+L"\\batch-selection-zh-CN.png")&&ok;
+            ClearAppSelection();
+        } else ok=false;
         g_groupEditMode=false;g_settings.blurMode=BlurMode::None;g_settings.opacity=1;g_settings.tint=D2D1::ColorF(0xFFFFFF);
-        g_settings.textColor=D2D1::ColorF(0xFFFFFF);g_settings.labelPlateColor=D2D1::ColorF(0x111318);g_settings.labelPlateOpacity=0.65f;
         Render();ok=SaveGrid(output+L"\\readability-white-background.png")&&ok;
         g_settings.tint=D2D1::ColorF(0x111318);Render();ok=SaveGrid(output+L"\\readability-dark-background.png")&&ok;
+        g_settings.tint=D2D1::ColorF(0x808080);Render();ok=SaveGrid(output+L"\\readability-gray-background.png")&&ok;
+        // Exercise the common white labels over a synthetic split-luminance background.
+        std::vector<UINT32> mixed(160*100);
+        for(int y=0;y<100;y++)for(int x=0;x<160;x++)mixed[y*160+x]=x<80?0xFFF5F5F5:0xFF090909;
+        ComPtr<ID2D1Bitmap> mixedBitmap;
+        auto mixedProps=D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED),96,96);
+        ok=SUCCEEDED(g_target->CreateBitmap(D2D1::SizeU(160,100),mixed.data(),160*4,mixedProps,&mixedBitmap))&&ok;
+        g_backdropImage.bitmap=mixedBitmap;g_backdropImage.sourceWidth=160;g_backdropImage.sourceHeight=100;
+        g_settings.blurMode=BlurMode::Custom;g_settings.opacity=0;g_settings.backgroundDim=0;
+        Render();ok=SaveGrid(output+L"\\readability-mixed-background.png")&&ok;
+        for(float progress:{0.0f,.25f,.5f,.75f,1.0f}){g_appear=progress;Render();}
+        g_closing=true;for(float progress:{.75f,.5f,.25f}){g_appear=progress;Render();}g_closing=false;g_appear=1;
+
+        // The app menu: laid out and painted offscreen over the grid just
+        // drawn, so its material is checked without a window or input. The
+        // menu base now comes from the grid's own frame, so the synthetic
+        // backdrop stays: it is what makes the frame opaque here.
+        g_settings.blurMode=BlurMode::Custom;g_settings.opacity=0.35f;g_settings.tint=D2D1::ColorF(0x11111B);
+        Render();
+        ok=PreviewMenuShot(output+L"\\menu-tile-zh-CN.png",g_layout.area.left+180,g_layout.area.top+140)&&ok;
+        Render();
+        ok=PreviewMenuShot(output+L"\\menu-hover-zh-CN.png",g_layout.area.left+180,g_layout.area.top+140,2)&&ok;
+        Render();
+        ok=PreviewMenuShot(output+L"\\menu-submenu-zh-CN.png",g_layout.area.left+180,g_layout.area.top+140,1,1)&&ok;
+        g_backdropImage={};
         ok=beforeGeometry==ArrangementLines()&&ok;
         g_settings=appearance;ClearGroupPositions();DeleteFileW(GroupPositionFile().c_str());DeleteFileW((GroupPositionFile()+L".bak").c_str());
         UpdateFilter();ComputeLayout();
@@ -337,6 +706,7 @@ void Preview_RunSmoke(HWND hwnd) {
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     Preview::Init();
+    Preview::uiCheck=GetFileAttributesW(Preview::File(L"ui-check.flag").c_str())!=INVALID_FILE_ATTRIBUTES;
     int count = 0;
     auto argv = CommandLineToArgvW(GetCommandLineW(), &count);
     for (int i = 1; i < count; i++) {

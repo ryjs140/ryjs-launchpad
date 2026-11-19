@@ -9,12 +9,13 @@
 #include <string>
 
 #define WH_MOD_ID L"ryjs-launchpad"
-#define WH_MOD_VERSION L"0.2.1-preview"
+#define WH_MOD_VERSION L"1.0.0-preview"
 namespace Preview {
 inline std::wstring directory;
 inline std::wstring languageOverride;
 inline bool settingsOnStart = false;
 inline bool smoke = false;
+inline bool uiCheck = false;
 inline bool smokePassed = false;
 inline bool benchmarkGpu = false;
 inline std::recursive_mutex storageMutex;

@@ -153,6 +153,17 @@ def verify(archive_path):
         return manifest, data
 
 
+def integration_running():
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.OpenMutexW.argtypes = (ctypes.c_uint, ctypes.c_int, ctypes.c_wchar_p)
+    kernel.OpenMutexW.restype = ctypes.c_void_p
+    kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
+    handle = kernel.OpenMutexW(0x00100000, False, r'Local\RYJSLaunchpad.Integration')
+    if handle:
+        kernel.CloseHandle(handle)
+    return bool(handle)
+
+
 def restore(archive, destination, replace=False):
     manifest, files = verify(archive)
     destination = destination.resolve()
@@ -164,13 +175,7 @@ def restore(archive, destination, replace=False):
         raise FileExistsError('Destination exists. Keep it and choose an empty RYJS destination; no data was replaced')
     if destination.exists() and not (destination / 'ryjs-storage.ini').is_file():
         raise ValueError('Only a marked RYJS data directory can be replaced')
-    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-    kernel.OpenMutexW.argtypes = (ctypes.c_uint, ctypes.c_int, ctypes.c_wchar_p)
-    kernel.OpenMutexW.restype = ctypes.c_void_p
-    kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
-    handle = kernel.OpenMutexW(0x00100000, False, r'Local\RYJSLaunchpad.Integration')
-    if handle:
-        kernel.CloseHandle(handle)
+    if integration_running():
         raise RuntimeError('Disable RYJS Launchpad before importing data')
     stage = destination.with_name(destination.name + '.restore-' + uuid.uuid4().hex)
     stage.mkdir(parents=True)

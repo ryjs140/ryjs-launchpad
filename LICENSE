@@ -1,7 +1,24 @@
 MIT License
 
 Copyright (c) 2026 DavidHiFi
-Copyright (c) 2026 ryjs (RYJS modifications only)
+Copyright (c) Rafael Mendes
+Copyright (c) 2026 Fangyu Guo (ryjs)
+
+This file covers RYJS Launchpad, a derivative work of:
+
+  Fullscreen Start (Launchpad style) by Rafael Mendes
+  https://windhawk.net/mods/fullscreen-start
+
+  Seamless Launchpad by DavidHiFi
+  https://github.com/DavidHiFi/davids-windhawk-mods/tree/main/mods/local/seamless-launchpad
+
+  RYJS Launchpad changes by Fangyu Guo (ryjs)
+  https://github.com/ryjs140/ryjs-launchpad
+
+Note on the notices above: DavidHiFi's year comes from the LICENSE file of the
+upstream repository ("Copyright (c) 2026 DavidHiFi"). Rafael Mendes' mod
+declares @license MIT in its metadata but has no separate LICENSE file and no
+copyright line, so no year is asserted for that notice.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

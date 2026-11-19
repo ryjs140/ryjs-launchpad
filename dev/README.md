@@ -35,3 +35,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File dev/Check-Library.ps1
 `dev/Test-FullBackup.ps1` 验证 GUI 调用链、内嵌 Windows PowerShell 5.1 导出/导入、旧 ZIP 兼容、设置及图标还原、原数据保留，以及损坏/不支持的备份被拒绝时数据不变。只写 `build/` 下的虚构数据。编辑 `dev/full_backup_worker.ps1` 后重新构建，生成器会将脚本和设置默认值一并内嵌到单文件源码。
 
 Esc/点击空白区域隐藏网格，托盘右键可重新打开；网格 `…` 菜单或托盘右键中的“退出预览”完全退出进程。布局与设置不会因重新编译删除。备份时先退出预览，再复制 `build/preview-data` 中的 `settings.ini`、`state.ini` 和所有 `.txt` 文件；恢复时退出预览再放回同一目录。不要将 `validation-state` 中的测试数据当作个人布局。
+
+本轮整改验证见 `FOUR_FIXES_REPORT.md`。专项测试覆盖四档 DPI、吸附阈值、碰撞、编辑取消、溢出访问及名称恢复。新增灰色和明暗混合背景离屏图，直接测试 GPU 读回与局部黑白文字。`dev/inspect_taskbar_symbols.cpp` 仅离线审计本机任务栏符号，不修改 Explorer。
+
+
+应用悬停将共享的窗口鼠标位置转换成绘制坐标，并使用完整单元作为光照范围。动态边缘遮罩参考 [Meapri PointerField](https://github.com/Meapri/liquid-glass-web/blob/main/src/core/PointerField.ts) 和其 [边缘样式](https://github.com/Meapri/liquid-glass-web/blob/main/src/styles/liquid-glass.css)（MIT，Copyright 2026 Meapri）。轻微的表面反射和边缘层次参考 [rdev/liquid-glass-react](https://github.com/rdev/liquid-glass-react/blob/master/src/index.tsx)（MIT，Copyright 2025 Max Rovensky）和 [ybouane/liquidglass 的着色器](https://github.com/ybouane/liquidglass/blob/main/src/shaders.ts)（项目声明 MIT）。Direct2D 版本根据这些思路独立实现，使用两支缓存的径向画刷，无第三方源码或纹理。

@@ -1,5 +1,24 @@
 # Changes
 
+## 1.0.0 — first public release
+
+Version 1.0.0 marks the first submission to the Windhawk mod library. The code
+is the 0.2.1 feature set; no behaviour changed.
+
+- `@version` is now `1.0.0`.
+- `@author` is `Fangyu Guo (ryjs)`, the developer and maintainer. The two
+  upstream authors are credited by role in the mod readme, the repository
+  `README.md`, `LICENSE` and `release/SOURCE_PROVENANCE.md`, not in `@author`.
+- Copyright notices were corrected: `Copyright (c) 2026 DavidHiFi` is taken
+  from the upstream LICENSE; Rafael Mendes is named as the author of Fullscreen
+  Start under MIT, with no year asserted, because the upstream project declares
+  only `@license MIT` and has no copyright line or LICENSE file.
+- Development source moved to `mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp`;
+  the root single file keeps its name. Upstream snapshots used by the audit
+  moved to `reference/upstream/`.
+- `release/` holds the provenance report, release audit, submission checklist,
+  PR text and a manual acceptance checklist.
+
 ## 0.2.1 — GUI complete backup and import
 
 - Native menu actions and ZIP file dialogs export complete layout/entry/geometry/settings/icon data, plus installed source/module and registry settings for reference. The embedded worker uses Windows PowerShell and .NET; Python is not required for users.
@@ -8,6 +27,8 @@
 - Preview and Windhawk x64 builds, bilingual offscreen smoke, 21 native bridge assertions, 7 worker tests (including 10 invalid-archive cases), 45 feature assertions, 26 storage assertions, 28 Start-button assertions and 5 legacy-backup tests passed. The previously created desktop ZIP passed read-only validation. No live installation or layout changes were performed.
 - Local official checks explicitly use the upstream compile script, keeping outputs in the workspace rather than invoking the installed Windhawk CLI's install command.
 - Official metadata and x64 compile checks passed. A small adapter accepts the installed Windhawk alpha version label; the upstream compiler implementation is unchanged.
+
+See `release/` for the provenance audit, release audit, checklist and PR text.
 
 ## 0.2.0 — Phases 3–5
 

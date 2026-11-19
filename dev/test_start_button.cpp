@@ -109,6 +109,10 @@ int main() {
     Check(toggles == 2 && nativeUp == 0, "lost capture cancels complete gesture");
     SendMessageW(button, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(10, 10));
     SendMessageW(button, WM_CANCELMODE, 0, 0);
+    nativeChecked=nativePushed=nativeHot=true;
+    Pump();
+    Check(!nativeChecked&&!nativePushed&&!nativeHot,
+        "cancel without a later UP releases visual latch (cancel tombstone cannot block reset)");
     SendMessageW(button, WM_LBUTTONUP, 0, MAKELPARAM(10, 10)); Pump();
     Check(toggles == 2 && GetCapture() != button && nativeUp == 0, "cancel mode consumes pending up");
 
