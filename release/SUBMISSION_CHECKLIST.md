@@ -31,7 +31,7 @@
 
 ## 二、本地准备工作（本目录已完成）
 
-- ✅ 发布源码：`release/mods/ryjs-launchpad.wh.cpp`（与仓库根 `ryjs-launchpad.wh.cpp` 逐字节一致，SHA256 `9f238d3a296afb3e3b3ecbd881303f436f68102196a7dfa73a7a6c20a7a5b933`）
+- ✅ 发布源码：`release/mods/ryjs-launchpad.wh.cpp`（与仓库根 `ryjs-launchpad.wh.cpp` 逐字节一致，SHA256 `af72dda026efabc021cc92ddff1a20905a32bcea8366e9d63da425bc558a8b89`）
 - ✅ 开发源码已纳入版本管理：`mods/local/ryjs-launchpad/`（含 `launchpad_contrast.inc`、`launchpad_display_names.inc`、`launchpad_fly_in.h`、`launchpad_start_xaml.h`）
 - ✅ 上游参考材料：`reference/upstream/`（不参与构建）
 - ✅ 来源审计：`release/SOURCE_PROVENANCE.md`

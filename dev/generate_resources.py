@@ -109,10 +109,14 @@ def main():
         raise ValueError('Standalone Windhawk source still includes: ' + ', '.join(sorted(remaining)))
     output = ROOT / 'build'
     output.mkdir(exist_ok=True)
-    (output / 'ryjs-launchpad.wh.cpp').write_text(packed, encoding='utf-8')
+    # Write LF on every platform: this file is submitted verbatim, and Git
+    # normalises text to LF on commit anyway. Without this, the working copy
+    # (CRLF) and the committed blob (LF) hash differently, and the SHA256 in
+    # release/BUILD_RECORD.md would not match the file on GitHub.
+    (output / 'ryjs-launchpad.wh.cpp').write_text(packed, encoding='utf-8', newline='\n')
     root_source = ROOT / 'ryjs-launchpad.wh.cpp'
     temporary_source = root_source.with_suffix('.cpp.tmp')
-    temporary_source.write_text(packed, encoding='utf-8')
+    temporary_source.write_text(packed, encoding='utf-8', newline='\n')
     temporary_source.replace(root_source)
     print(f'Generated {len(strings)} Chinese resources')
 

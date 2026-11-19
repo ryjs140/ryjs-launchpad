@@ -8,7 +8,7 @@
 | 版本 | 1.0.0 |
 | 行数 | 16,326 |
 | 字节数 | 755,461 |
-| SHA256 | `9f238d3a296afb3e3b3ecbd881303f436f68102196a7dfa73a7a6c20a7a5b933` |
+| SHA256 | `af72dda026efabc021cc92ddff1a20905a32bcea8366e9d63da425bc558a8b89` |
 | 架构 | x86-64（官方编译脚本另测 x86 / arm64） |
 
 ## 输入
@@ -30,6 +30,8 @@
 ```powershell
 py -3.12 dev/generate_resources.py
 ```
+
+生成器对交付文件固定使用 LF 写入（`newline='\n'`）。原因：Git 在 Windows 上把文本按 LF 存库，若工作副本是 CRLF，则"本地文件哈希"与"GitHub 上的文件哈希"不一致，`release/` 中记录的 SHA256 就无法从 GitHub 复核。现在两者相同。
 
 等价入口（额外编译预览与 x64 模块）：
 

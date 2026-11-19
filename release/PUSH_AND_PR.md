@@ -153,8 +153,8 @@ git push origin add-ryjs-launchpad
 | --- | --- |
 | 文件 | `release/mods/ryjs-launchpad.wh.cpp` |
 | 行数 | 16,326 |
-| 字节 | 755,461 |
-| SHA256 | `9f238d3a296afb3e3b3ecbd881303f436f68102196a7dfa73a7a6c20a7a5b933` |
+| 字节 | 739,135 |
+| SHA256 | `af72dda026efabc021cc92ddff1a20905a32bcea8366e9d63da425bc558a8b89` |
 
 放入 fork 后可复核：
 

@@ -1,6 +1,6 @@
 # 发布审计报告（安全、质量、兼容性）
 
-对象：RYJS Launchpad 1.0.0 · `ryjs-launchpad.wh.cpp`（16,326 行，755,461 字节，SHA256 `9f238d3a296afb3e3b3ecbd881303f436f68102196a7dfa73a7a6c20a7a5b933`）
+对象：RYJS Launchpad 1.0.0 · `ryjs-launchpad.wh.cpp`（16,326 行，739,135 字节，SHA256 `af72dda026efabc021cc92ddff1a20905a32bcea8366e9d63da425bc558a8b89`）
 审计日期：2026-11-19
 结论：**可以提交**，前提是接受第 8 节的"未实机验证"清单并在提交前决定是否补截图。
 
@@ -172,7 +172,7 @@ Test run: Validating single file...
 | 检查 | 方法 | 结果 |
 | --- | --- | --- |
 | 单文件可复现 | 删除根文件后由 `py -3.12 dev/generate_resources.py` 重新生成 | 与提交前逐字节相同（`cmp` 无差异） |
-| 根文件 = 提交文件 | `sha256sum` 比对 | 两者均为 `9f238d3a296afb3e3b3ecbd881303f436f68102196a7dfa73a7a6c20a7a5b933` |
+| 根文件 = 提交文件 | `sha256sum` 比对 | 两者均为 `af72dda026efabc021cc92ddff1a20905a32bcea8366e9d63da425bc558a8b89` |
 | 打包无残留 include | 生成脚本内置断言：仍存在本地 `#include "..."` 即抛错 | 通过 |
 | 未跟踪源码 | `git status` + 依赖检查 | 四个原未跟踪文件已 `git add`，生成不再依赖工作区私有文件 |
 
