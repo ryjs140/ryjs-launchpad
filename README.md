@@ -20,7 +20,7 @@ Windhawk 中新建模组，使用根目录的 `ryjs-launchpad.wh.cpp` 编译。�
 
 ## 数据兼容
 
-新 ID 为 `ryjs-launchpad`，首次启动将旧 Custom 数据复制到独立存储 `local@ryjs-launchpad/data-v1`。旧存储保持只读，已有 RYJS 数据不会被重新导入。布局读取失败或遇到未知版本时停止保存，不以默认布局覆盖。
+新 ID 为 `ryjs-launchpad`，首次启动只复制旧 Custom 的布局、分组、固定项和图标到独立存储 `local@ryjs-launchpad/data-v1`；旧存储保持只读，已有 RYJS 数据不会被重新导入。旧设置文件不会被应用，而是以 `migration-original-ui-settings.ini` 复制到新目录留档，因此无需读取 Windhawk 的注册表内部布局，便携版同样可用。布局读取失败或遇到未知版本时以只读方式打开并显示提示，不以默认布局覆盖。
 
 启动器“…”菜单提供“完整备份…”和“导入完整备份…”，使用 Windows 自带组件，无需安装 Python。备份为 `.ryjs.zip`，包括所有布局、分组尺寸、入口名称与启动参数、图标缓存和自定义图标、以及经 Windhawk API 读取的设置。不再包含安装源码、DLL 或注册表导出，因此便携版 Windhawk 也能完整备份。也兼容此前旧版工具生成的 `.ryjs.zip`（旧包中的源码、DLL 与注册表文件只会被忽略）。
 

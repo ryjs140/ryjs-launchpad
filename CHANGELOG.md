@@ -4,6 +4,22 @@
 
 Version 1.0.0 marks the first submission to the Windhawk mod library.
 
+### Review hardening (third push)
+
+- **Migration no longer reads Windhawk's registry.** Only the layout, group,
+  pins and icon files are inherited; the predecessor's settings file is copied
+  into the new folder as `migration-original-ui-settings.ini` for reference
+  instead of being applied, so nothing is inherited silently and no private
+  registry layout is touched.
+- **No no-op hook apply.** The queued `kernelbase` hook is applied by Windhawk
+  when `Wh_ModInit` returns; the call that was refused during init is gone.
+- **Cancelling UAC is not an error.** `LaunchTarget` treats `ERROR_CANCELLED`
+  as the user saying no instead of "this entry is broken".
+- `labelRadius` was removed from `Settings` as well, so no undeclared setting
+  is read at all.
+- The launch-probe assertion in the feature tests now waits long enough for a
+  process start on a loaded machine, so it no longer reports a false failure.
+
 ### Review hardening (second push)
 
 Changes made in response to the repository's AI review of the submitted file:

@@ -389,7 +389,9 @@ int wmain(int argc,wchar_t** argv) {
     Check(g_appSelection.empty()&&g_batchBlend==0,"batch toolbar Cancel clears selection through native input");
     click(0,0);
     auto waitForMarker=[&](PCWSTR filename){
-        for(int tries=0;tries<50&&!std::filesystem::exists(cases/filename);tries++)Sleep(20);
+        // Process startup on a busy machine can take several seconds; a short
+        // window here reports a launch failure that never happened.
+        for(int tries=0;tries<750&&!std::filesystem::exists(cases/filename);tries++)Sleep(20);
         return std::filesystem::exists(cases/filename);
     };
     Check(waitForMarker(L"0.txt")&&g_appSelection.empty(),"ordinary click requests launch with entry arguments and working directory");

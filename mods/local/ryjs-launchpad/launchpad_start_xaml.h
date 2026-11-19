@@ -197,9 +197,11 @@ bool HookXamlStartVisibility() {
             ?reinterpret_cast<XamlLoadLibrary_t>(GetProcAddress(kernelbase,"LoadLibraryExW"))
             :nullptr;
         if(loadLibrary&&!g_xamlLoadLibraryOriginal){
+            // Registered here; Windhawk applies queued hooks when Wh_ModInit
+            // returns, so no explicit apply is needed (and during init the API
+            // refuses one anyway).
             WindhawkUtils::SetFunctionHook(loadLibrary,XamlTaskbarLoadHook,
                                            &g_xamlLoadLibraryOriginal);
-            Wh_ApplyHookOperations();
         }
         Wh_Log(L"XAML taskbar not loaded; waiting for its module load.");return false;
     }

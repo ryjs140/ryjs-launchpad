@@ -118,6 +118,23 @@
 | 官方元数据校验 | 除 `media/preview.png` 404（尚未推送）外无问题 |
 | 官方三架构编译（`check.py compile`） | `ok: true` |
 
+## 第二轮审核（针对 `578dd37`）
+
+第二轮的结论是上一轮问题全部确认修复，并明确更正了它对数字设置读取方式的判断
+（`RawItemToString` 会把 `REG_DWORD` 转成十进制字符串，因此字符串读取是正确的）。
+剩余三条都是“由维护者判断”的事实说明，本轮按其中可执行的部分继续处理：
+
+| 第二轮条目 | 处理 |
+| --- | --- |
+| 1. 与既有模组功能重合 | **已说明**（政策）。PR 正文已写明来源、作者与差异化范围；是否接受独立条目由维护者判断。已在 PR 下留一条技术说明。 |
+| 2. 网页图标联网 | **已说明**（文档已覆盖）。readme 的 Data and network 段已写明第三方图标主机与“自定义图标即不请求”。 |
+| 3. 首次迁移读取其他模组的存储与 Windhawk 注册表内部布局 | **已修复**。采纳审核给出的替代方案：迁移只复制布局/分组/固定项/图标，不再读取 `HKLM|HKCU\SOFTWARE\Windhawk\Engine\Mods\<id>\Settings`；旧 `ui-settings.ini` 复制为 `migration-original-ui-settings.ini` 留档而不应用，因此不静默继承任何设置，便携版也不受影响。备份导入的 `source_mod` 校验保留（它只比对备份清单里的 ID 字符串，不读注册表）。 |
+
+可选建议中本轮采纳的：`Wh_ApplyHookOperations()` 在 `Wh_ModInit` 期间的空调用已删除（Windhawk 会在
+`Wh_ModInit` 返回后自行应用）；用户取消 UAC 时不再弹“入口损坏”的错误，按 `ERROR_CANCELLED` 静默处理。
+未采纳的：`no_destroy` 清理、`Hotkey`/`saving` 死代码清理、`SEAMLESS_PREVIEW` 拆分——都属于扩大改动面而无行为收益，
+且第三轮修改后已无 `labelRadius` 读取。
+
 ## 仍未验证
 
 以下只能在真实桌面确认，不得视为已验证：电源线程 join 在锁屏/休眠/重启时的实际行为；设置窗口打开期间禁用或更新模组；任务栏 XAML 钩子在 WinRT 激活路径下的实际命中；`tmp` 目录在真实 Windhawk 存储下的创建与清理；设备丢失（切换显卡/驱动重启）时的表现。

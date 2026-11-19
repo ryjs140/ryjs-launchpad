@@ -6,9 +6,9 @@
 | 项 | 值 |
 | --- | --- |
 | 版本 | 1.0.0 |
-| 行数 | 16,525 |
-| 字节数 | 746,747 |
-| SHA256 | `d6beba2020cfd0de1e9bf262f196288d159df8514ba85bb3f9d6b7dcf746ea7e` |
+| 行数 | 16,471 |
+| 字节数 | 743,473 |
+| SHA256 | `f60f123a7e3ac504dab5b18187bd806324d7d40500f0645c1865d0df636f33e3` |
 | 架构 | x86-64（官方编译脚本另测 x86 / arm64） |
 
 ## 输入
@@ -21,7 +21,7 @@
 | `dev/settings-extension.json`（设置字段来源） | `c1000bdf0d1fff8c5b805f9af9beccf9ae207da0` |
 | `dev/strings.zh-CN.json`（中文资源） | `f36c8bf31c23c22c88e2b1c614c1fe02c906ce11` |
 | `dev/full_backup_worker.ps1`（内嵌备份脚本） | `af687151c11ba046b68f647d0bd0ad6f406341da` |
-| `mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp`（开发主文件） | `e4d8796b489ff309d9490167fbf0574505a4607f` |
+| `mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp`（开发主文件） | `050f660b052d5159f41dd42353c7192056746071` |
 
 开发主文件通过 `#include "..."` 引入 18 个分片（`launchpad_*.h`、`launchpad_*.inc`、`ryjs_data.h`），全部位于 `mods/local/ryjs-launchpad/`，均已纳入版本管理。唯一例外是 `preview_api.h`：它只属于 `dev/preview`，生成时会替换为一行注释，因此产物中本地 `#include` 计数为 **0**。
 
