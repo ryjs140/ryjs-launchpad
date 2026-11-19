@@ -155,6 +155,7 @@ void EditEntry(HWND owner,const std::shared_ptr<App>& existing=nullptr,const std
     auto old=g_entries;g_entries[key]=record;
     if (!SaveEntries()) {g_entries=std::move(old);MessageBoxW(owner,Tr(L"Could not save entry."),Tr(L"Add or edit entry"),MB_OK|MB_ICONERROR);return;}
     ApplyEntryRecord(*app,key,record,IconPixels());
+    ApplyDisplayName(*app);
     if (created) g_apps.push_back(app);
     if (!icon.empty()) {if(LoadIconFile(icon,IconPixels(),*app)){g_customIcons[key]=icon;SaveCustomIcons();}}
     else if (g_customIcons.erase(key)) {SaveCustomIcons();}

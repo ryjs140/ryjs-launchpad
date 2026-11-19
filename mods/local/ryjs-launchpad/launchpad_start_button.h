@@ -45,12 +45,17 @@ void ClearStartButtonPress(HWND window) {
 
 LRESULT CALLBACK StartButtonSubclass(HWND window, UINT message, WPARAM wp,
                                     LPARAM lp, DWORD_PTR button) {
+    if(message==WM_LBUTTONDOWN||message==WM_LBUTTONUP||message==WM_CAPTURECHANGED||
+       message==WM_CANCELMODE||message==WM_MOUSELEAVE||message==WM_KILLFOCUS) {
+        Wh_Log(L"Start lifecycle hwnd=%p button=%p msg=%04x press=%lld capture=%p foreground=%p",
+            window,(HWND)button,message,(long long)(INT_PTR)GetPropW(window,kStartPressProperty),GetCapture(),GetForegroundWindow());
+    }
     if (message == StartButtonResetMessage()) {
         // The mouse pair alone does not clear a previously latched state or
         // the native hover left behind when the launcher covers the button.
         // Perform cleanup on its owning thread, after the click has unwound.
         if ((wp && !g_startButtonReplacementActive) ||
-            (!wp && g_startButtonAction == KeyAction::Start) || GetPropW(window,kStartPressProperty)) return 0;
+            (!wp && g_startButtonAction == KeyAction::Start) || (INT_PTR)GetPropW(window,kStartPressProperty)>1) return 0;
         DefSubclassProc(window, WM_CANCELMODE, 0, 0);
         DefSubclassProc(window, BM_SETSTATE, FALSE, 0);
         DefSubclassProc(window, BM_SETCHECK, BST_UNCHECKED, 0);
@@ -104,8 +109,12 @@ LRESULT CALLBACK StartButtonSubclass(HWND window, UINT message, WPARAM wp,
         case WM_CAPTURECHANGED:
         case WM_CANCELMODE:
             if (GetPropW(window, kStartPressProperty)) {
+                // Keep a release tombstone so an unmatched UP stays consumed,
+                // but do not let that cancelled gesture block visual cleanup.
                 SetPropW(window, kStartPressProperty, (HANDLE)1);
                 if (message == WM_CANCELMODE && GetCapture() == window) ReleaseCapture();
+                g_startButtonReplacementActive=true;
+                PostMessageW(window,StartButtonResetMessage(),1,0);
             }
             break;
     }

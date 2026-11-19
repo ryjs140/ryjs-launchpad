@@ -43,7 +43,7 @@ LRESULT CALLBACK GroupNameProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-std::wstring PromptGroupName(HWND owner, const std::wstring& initial) {
+std::wstring PromptGroupName(HWND owner, const std::wstring& initial,PCWSTR caption=L"Group name",int limit=80) {
     WNDCLASSEXW wc{sizeof(wc)};
     wc.lpfnWndProc = GroupNameProc; wc.hInstance = (HINSTANCE)&__ImageBase;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
@@ -53,10 +53,13 @@ std::wstring PromptGroupName(HWND owner, const std::wstring& initial) {
     UINT dpi = GetDpiForWindow(owner);
     auto px = [&](int dip) { return MulDiv(dip, dpi, 96); };
     RECT area{}; GetWindowRect(owner, &area);
-    HWND window = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kGroupNameClass, Tr(L"Group name"),
+    HWND window = CreateWindowExW(WS_EX_DLGMODALFRAME | WS_EX_CONTROLPARENT, kGroupNameClass, Tr(caption),
         WS_CAPTION | WS_SYSMENU, (area.left + area.right - px(440))/2, (area.top + area.bottom - px(170))/2,
         px(440), px(170), owner, nullptr, wc.hInstance, &dialog);
     if (!window) return {};
+#ifdef SEAMLESS_PREVIEW
+    if(Preview::uiCheck)SetWindowLongPtrW(window,GWL_EXSTYLE,GetWindowLongPtrW(window,GWL_EXSTYLE)|WS_EX_APPWINDOW);
+#endif
     HFONT font = CreateFontW(-px(14), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, g_settings.font.c_str());
     dialog.edit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", initial.c_str(), WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
@@ -66,14 +69,17 @@ std::wstring PromptGroupName(HWND owner, const std::wstring& initial) {
     HWND cancel = CreateWindowExW(0, L"BUTTON", Tr(L"Cancel"), WS_CHILD | WS_VISIBLE | WS_TABSTOP,
         px(320), px(74), px(90), px(30), window, (HMENU)IDCANCEL, wc.hInstance, nullptr);
     for (HWND control : {dialog.edit, save, cancel}) SendMessageW(control, WM_SETFONT, (WPARAM)font, TRUE);
-    SendMessageW(dialog.edit, EM_SETLIMITTEXT, 80, 0);
+    SendMessageW(dialog.edit, EM_SETLIMITTEXT, limit, 0);
     bool previousModal = g_modal; g_modal = true;
-    ShowWindow(window, SW_SHOW); SetForegroundWindow(window); SetFocus(dialog.edit);
+    EnableWindow(owner,FALSE);ShowWindow(window, SW_SHOW); SetForegroundWindow(window); SetFocus(dialog.edit);
     SendMessageW(dialog.edit, EM_SETSEL, 0, -1);
     MSG message;
     while (!dialog.done) {
         int result = GetMessageW(&message, nullptr, 0, 0);
         if (result <= 0) { if (!result) PostQuitMessage((int)message.wParam); break; }
+        if(message.message==WM_KEYDOWN&&(message.wParam==VK_RETURN||message.wParam==VK_ESCAPE)) {
+            dialog.accepted=message.wParam==VK_RETURN;dialog.done=true;continue;
+        }
         if (!IsDialogMessageW(window, &message)) { TranslateMessage(&message); DispatchMessageW(&message); }
     }
     std::wstring name;
@@ -84,7 +90,7 @@ std::wstring PromptGroupName(HWND owner, const std::wstring& initial) {
         size_t begin = name.find_first_not_of(L" ");
         name = begin == std::wstring::npos ? L"" : name.substr(begin, name.find_last_not_of(L" ") - begin + 1);
     }
-    DestroyWindow(window); DeleteObject(font);
+    EnableWindow(owner,TRUE);DestroyWindow(window); DeleteObject(font);
     g_modal = previousModal;
     if (g_shown) SetForegroundWindow(owner);
     return name;
@@ -106,16 +112,36 @@ void ShowGroupMenu(HWND hwnd, const std::shared_ptr<Folder>& group, POINT point)
     AppendMenuW(menu, MF_STRING, 5, Tr(L"New group"));
     AppendMenuW(menu, MF_STRING, 6, Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
     AppendMenuW(menu, MF_STRING, 7, Tr(group->collapsed?L"Show as expanded group":L"Show as traditional folder"));
+    if(g_groupEditMode)AppendMenuW(menu,MF_STRING,8,Tr(L"Cancel group editing"));
     g_modal = true;
     int command = TrackLaunchpadPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, point.x, point.y, hwnd, nullptr);
     g_modal = false; DestroyMenu(menu);
     if(command==6){ToggleGroupEdit();return;}
+    if(command==8){CancelGroupEdit();return;}
+    if(g_groupEditMode)return;
     if(command==7){
         if(g_groupPositionsReadOnly||g_layoutReadOnly||g_dataReadOnly)return;
-        bool wasEditing=g_groupEditMode;
-        if(!g_freeGroupLayout){if(!g_groupEditMode)ToggleGroupEdit();g_freeGroupLayout=true;g_groupEditMode=wasEditing;}
+        bool wasFree=g_freeGroupLayout,added=false;
+        if(!g_groupPositions.count(group)) {
+            auto geometry=std::find_if(g_groupGeometry.begin(),g_groupGeometry.end(),[&](const auto& item){return item.group==group;});
+            if(geometry==g_groupGeometry.end())return;
+            auto position=PositionFromArea(geometry->area);
+            if(geometry->squareCells)position=EditorGroupPosition(*geometry);
+            else if(geometry->wholeCells) {
+                position.style=4;position.snapped=true;
+                position.gridX=GroupGridIndex(position.x,GroupPitchX()/g_layout.scale);
+                position.gridY=GroupGridIndex(position.y,GroupPitchY()/g_layout.scale);
+                position.gridW=geometry->columns;position.gridH=geometry->visibleRows+1;
+            }
+            g_groupPositions[group]=position;
+            added=true;
+        }
+        g_freeGroupLayout=true;
         group->collapsed=!group->collapsed;
-        if(!SaveGroupPositions())group->collapsed=!group->collapsed;
+        if(!SaveGroupPositions()) {
+            group->collapsed=!group->collapsed;g_freeGroupLayout=wasFree;
+            if(added)g_groupPositions.erase(group);
+        }
         Refresh();return;
     }
     if (command == 1) {
@@ -141,10 +167,11 @@ void GroupDragMove(int x, int y) {
     const auto& geometry = g_groupGeometry[index];
     g_groupDropFolder = geometry.group;
     auto area = ProjectGroupRect(geometry.area);
-    float relativeX = x - area.left - 12 * g_layout.scale;
-    float relativeY = y - area.top - 48 * g_layout.scale;
-    int col = std::clamp((int)std::floor(relativeX / geometry.cellWidth), 0, geometry.columns - 1);
-    int row = std::max(0, (int)std::floor(relativeY / g_layout.cellHeight));
+    auto origin=GroupCellsOrigin(geometry);
+    float relativeX=x-area.left-(origin.x-geometry.area.left);
+    float relativeY=y-area.top-(origin.y-geometry.area.top);
+    int col=std::clamp((int)std::floor(relativeX/geometry.cellWidth),0,geometry.columns-1);
+    int row=std::max(0,(int)std::floor(relativeY/geometry.rowPitch));
     g_groupDropSlot = std::clamp(geometry.firstInGroup + row * geometry.columns + col, 0, (int)geometry.group->apps.size());
 }
 
@@ -182,7 +209,8 @@ void GroupHeaderTick() {
     g_groupDropFolder=index<0?nullptr:g_groupGeometry[index].group;
 }
 void CancelGroupPointer() {
-    g_groupGesture={};
+    bool preview=(bool)g_groupGesture.group;g_groupGesture={};
+    if(preview){g_groupTransitions.clear();StartFrames();}
     g_groupHeaderPressed.reset(); g_groupHeaderDragging.reset(); g_groupDropFolder.reset();
     g_groupHeaderEdge=0;
 }

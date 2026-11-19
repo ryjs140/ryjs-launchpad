@@ -121,7 +121,7 @@ function Validate-Data($manifest,$files) {
             $ini=Read-Ini $files[$name]
             if ($ini['meta'] -and $ini['meta']['version'] -ne '1') { throw 'Unsupported private-settings version.' }
         }
-        if ($name -notmatch '^data/(groups-v1-|layout-|group-geometry-|entries-v1|pins\.txt|icons\.txt)' -or !$name.EndsWith('.txt')) { continue }
+        if ($name -notmatch '^data/(groups-v1-|layout-|group-geometry-|entries-v1|display-names-v1|pins\.txt|icons\.txt)' -or !$name.EndsWith('.txt')) { continue }
         $text=$utf8.GetString($files[$name]).TrimStart([char]0xFEFF)
         if ($text.Contains([string][char]0)) { throw 'Invalid text data.' }
         $rows=@($text -split '\r?\n' | Where-Object { $_ -ne '' })
@@ -144,19 +144,58 @@ function Validate-Data($manifest,$files) {
                 } elseif ($f[0] -eq 'in' -and $folder -and $f.Count -eq 2) { }
                 elseif ($f[0] -in @('app','hidden') -and $f.Count -eq 2) { if ($f[0] -eq 'app') { $folder=$false } }
                 else { throw 'Unsupported layout record.' }
+            } elseif ($leaf -eq 'display-names-v1.txt') {
+                if ($i -eq 0) { if ($rows[$i] -ne "schema`t1`tdisplay-names") { throw 'Unsupported display name version.' }; continue }
+                if ($f.Count -ne 4 -or $f[0] -ne 'name' -or !$f[1] -or !$f[2]) { throw 'Invalid display name.' }
+                foreach ($value in $f) { $null=Decode-Entry $value }
+                if (!$entryKeys.Add((Decode-Entry $f[1]))) { throw 'Duplicate display name identity.' }
             } elseif ($leaf -eq 'entries-v1.txt') {
                 if ($i -eq 0) { if ($rows[$i] -ne "schema`t1`tentries") { throw 'Unsupported entry version.' }; continue }
                 if ($f.Count -ne 7 -or $f[0] -ne 'entry' -or $f[2] -notin @('0','1') -or !$f[1] -or !$f[3] -or !$f[4]) { throw 'Invalid application entry.' }
                 foreach ($value in $f) { $null=Decode-Entry $value }
                 if (!$entryKeys.Add((Decode-Entry $f[1]))) { throw 'Duplicate application identity.' }
             } elseif ($leaf.StartsWith('group-geometry-')) {
-                if ($i -eq 0) { if ($rows[$i] -ne "schema`t1`tgroup-geometry") { throw 'Unsupported geometry version.' }; continue }
-                if ($f.Count -ne 8 -or $f[0] -ne 'group' -or $f[1] -notmatch '^\d+$' -or !$f[2] -or $f[7] -notin @('group','folder')) { throw 'Invalid group geometry.' }
+                if ($i -eq 0) {
+                    $squareColumns=0
+                    if ($rows[0] -match '^schema	6	group-geometry	([1-9]|[12][0-9]|30)$') { $squareColumns=[int]$Matches[1] }
+                    elseif ($rows[0] -notin @("schema`t1`tgroup-geometry","schema`t2`tgroup-geometry","schema`t3`tgroup-geometry","schema`t4`tgroup-geometry","schema`t5`tgroup-geometry")) { throw 'Unsupported geometry version.' }
+                    continue
+                }
+                if ($f.Count -ne $(if ($squareColumns -or $rows[0] -in @("schema`t4`tgroup-geometry","schema`t5`tgroup-geometry")) { 18 } elseif ($rows[0] -eq "schema`t3`tgroup-geometry") { 14 } elseif ($rows[0] -eq "schema`t2`tgroup-geometry") { 10 } else { 8 }) -or $f[0] -ne 'group' -or $f[1] -notmatch '^\d+$' -or !$f[2] -or $f[7] -notin @('group','folder')) { throw 'Invalid group geometry.' }
                 foreach ($value in $f[3..6]) {
                     $number=0.0
                     if (![double]::TryParse($value,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$number) -or [double]::IsNaN($number) -or [double]::IsInfinity($number) -or $number -lt 0 -or $number -gt 1000000) { throw 'Invalid group dimensions.' }
                 }
-                if ([double]::Parse($f[5],[Globalization.CultureInfo]::InvariantCulture) -lt 48 -or [double]::Parse($f[6],[Globalization.CultureInfo]::InvariantCulture) -lt 60) { throw 'Group dimensions are too small.' }
+                if ([double]::Parse($f[5],[Globalization.CultureInfo]::InvariantCulture) -lt $(if($squareColumns){0.000001}else{48}) -or [double]::Parse($f[6],[Globalization.CultureInfo]::InvariantCulture) -lt $(if($squareColumns){0.000001}else{60})) { throw 'Group dimensions are too small.' }
+                if ($f.Count -ge 10) {
+                    if ($f[8] -notmatch '^\d{1,5}$' -or $f[9] -notmatch '^\d{1,5}$' -or [int]$f[8] -gt 10000 -or [int]$f[9] -gt 10000 -or (([int]$f[8] -eq 0) -ne ([int]$f[9] -eq 0))) { throw 'Invalid icon cell counts.' }
+                }
+                if ($f.Count -ge 14) {
+                    foreach ($value in $f[10..13]) {
+                        if ($value -notmatch '^\d{1,7}$' -or [int]$value -gt 1000000) { throw 'Invalid half-grid index.' }
+                    }
+                    $grid=@($f[10..13] | ForEach-Object { [int]$_ })
+                    if ($f.Count -eq 14) {
+                        if (!(($grid[2] -gt 0 -and $grid[3] -gt 0 -and [int]$f[8] -eq 0) -or ($grid | Measure-Object -Sum).Sum -eq 0)) { throw 'Invalid half-grid bounds.' }
+                    } else {
+                        if (($f[14] -notmatch '^[0123]$' -and !((($squareColumns -or $rows[0] -eq "schema`t5`tgroup-geometry") -and $f[14] -eq '4') -or ($squareColumns -and $f[14] -eq '5'))) -or $f[15] -notmatch '^[01]$') { throw 'Invalid geometry mode.' }
+                        $body = $grid[2] -gt 0
+                        if ($body -ne ($grid[3] -gt 0) -or
+                            ($f[14] -eq '0' -and $body -and [int]$f[8] -ne 0) -or
+                            ($f[14] -ne '0' -and $body -ne ($f[14] -in @('2','4','5'))) -or
+                            ($f[14] -eq '4' -and ($f[15] -ne '1' -or $grid[3] -lt 2)) -or
+                            ($f[14] -eq '5' -and ($f[15] -ne '1' -or $grid[2] -lt 2 -or $grid[2] % 2 -ne 0 -or
+                                $grid[3] -lt 6 -or $grid[3] % 4 -ne 2 -or $grid[0] % (2*$squareColumns) + $grid[2] -gt 2*$squareColumns)) -or
+                            (!$body -and $f[15] -eq '0' -and ($grid[0] -ne 0 -or $grid[1] -ne 0))) { throw 'Invalid half-grid bounds.' }
+                        $restore=@(0.0,0.0)
+                        for ($j=0;$j -lt 2;$j++) {
+                            $number=0.0
+                            if (![double]::TryParse($f[16+$j],[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$number) -or [double]::IsNaN($number) -or $number -lt 0 -or $number -gt 1000000) { throw 'Invalid original group size.' }
+                            $restore[$j]=$number
+                        }
+                        if (($restore[0] -ne 0 -or $restore[1] -ne 0) -and ($restore[0] -lt 48 -or $restore[1] -lt 60)) { throw 'Invalid original group size.' }
+                    }
+                }
                 $ordinal=0
                 if (![int]::TryParse($f[1],[ref]$ordinal) -or $geometry.ContainsKey($ordinal)) { throw 'Duplicate or invalid group ordinal.' }
                 $geometry[$ordinal]=Decode-Entry $f[2]
@@ -166,7 +205,7 @@ function Validate-Data($manifest,$files) {
                 if ($f.Count -ne 3 -or $f[0] -ne 'icon' -or !$f[1] -or !$f[2]) { throw 'Invalid icon mapping.' }
             }
         }
-        if ($leaf -in @('entries-v1.txt') -or $leaf.StartsWith('group-geometry-')) { if (!$rows.Count) { throw 'Empty versioned data.' } }
+        if ($leaf -in @('entries-v1.txt','display-names-v1.txt') -or $leaf.StartsWith('group-geometry-')) { if (!$rows.Count) { throw 'Empty versioned data.' } }
         if ($leaf.StartsWith('group-geometry-')) {
             $layout='data/'+$leaf.Substring('group-geometry-'.Length)
             if ($effective['gridLayout'] -eq 'groups') { $layout=$layout.Replace('data/layout-','data/groups-v1-') }
@@ -178,9 +217,9 @@ function Validate-Data($manifest,$files) {
                 if ($record[0] -eq 'folder') { $folders[$ordinal]=$record[1]; $ordinal++ }
                 elseif ($record[0] -eq 'app') { $ordinal++ }
             }
-            if ($folders.Count -ne $geometry.Count) { throw 'Group geometry is incomplete.' }
-            foreach ($index in $folders.Keys) {
-                if (!$geometry.ContainsKey($index) -or $geometry[$index] -cne $folders[$index]) { throw 'Group geometry does not match its layout.' }
+            if (!$squareColumns -and $rows[0] -notin @("schema`t3`tgroup-geometry","schema`t4`tgroup-geometry","schema`t5`tgroup-geometry") -and $folders.Count -ne $geometry.Count) { throw 'Group geometry is incomplete.' }
+            foreach ($index in $geometry.Keys) {
+                if (!$folders.ContainsKey($index) -or $geometry[$index] -cne $folders[$index]) { throw 'Group geometry does not match its layout.' }
             }
         }
     }
@@ -383,4 +422,4 @@ try {
 }
 [IO.File]::WriteAllText((Join-Path $work 'result.ini'),$resultText,[Text.Encoding]::Unicode)
 )RYJS_BACKUP";
-constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "accentColor": "#89B4FA", "glowStrength": "60", "glowSize": "14", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "1", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "textColor": "#CDD6F4", "groupColor": "#1E1E2E", "groupOpacity": "0", "hoverColor": "#89B4FA", "selectionColor": "#CBA6F7", "labelPlateOpacity": "65", "labelRadius": "6", "labelShadow": "45", "backgroundDim": "0"})RYJS_DEFAULTS";
+constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "globalColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "accentColor": "#89B4FA", "glowStrength": "60", "glowSize": "14", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "1", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "groupColor": "#1E1E2E", "groupOpacity": "0", "hoverColor": "#89B4FA", "selectionColor": "#CBA6F7", "backgroundDim": "0", "launchpadAnimation": "iconFlyIn"})RYJS_DEFAULTS";

@@ -2,39 +2,52 @@
 // @id              ryjs-launchpad
 // @name            RYJS Launchpad
 // @name:zh-CN      RYJS Launchpad
-// @description     A bilingual fullscreen app launcher with expanded groups, folders, local font selection, GPU composition, search and configurable motion
-// @description:zh-CN 支持中英文、展开分组、文件夹、拖放、本机字体、GPU 合成和动画自定义的全屏应用启动器
-// @version         0.2.1
-// @author          ryjs
+// @description     A fullscreen Launchpad-style Start replacement with expanded groups, free group layout, manual and web entries, themes, bilingual UI and instant search
+// @description:zh-CN 全屏 Launchpad 风格开始菜单替代：展开分组、自由分组布局、手动与网址入口、主题、中英双语与即时搜索
+// @version         1.0.0
+// @author          Fangyu Guo (ryjs)
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
 // @include         explorer.exe
 // @architecture    x86-64
-// @compilerOptions -lgdi32 -lshell32 -lshcore -ldwmapi -ld2d1 -ldwrite -ld3d11 -ldxgi -ldcomp -lole32 -luuid -lcomdlg32 -luxtheme -lpropsys -lpowrprof -lwindowscodecs -limm32 -lcomctl32 -lwinhttp -lshlwapi
+// @compilerOptions -lgdi32 -lshell32 -lshcore -ldwmapi -ld2d1 -ldwrite -ld3d11 -ldxgi -ldcomp -lole32 -luuid -lcomdlg32 -luxtheme -lpropsys -lpowrprof -lwindowscodecs -limm32 -lcomctl32 -lwinhttp -lshlwapi -lruntimeobject -loleaut32
 // @license         MIT
-// @donateUrl       https://ko-fi.com/DavidHiFi
 // ==/WindhawkMod==
 
 // ==WindhawkModReadme==
 /*
 # RYJS Launchpad
 
-Maintained by ryjs. Based on Seamless Launchpad by DavidHiFi, originally
-Fullscreen Start by Rafael Mendes. Upstream credits and MIT notices remain below.
+Developed and maintained by **Fangyu Guo (ryjs)**. This is a derivative work,
+not an independent rewrite:
+
+| Project | Author | Role |
+| --- | --- | --- |
+| [Fullscreen Start (Launchpad style)](https://windhawk.net/mods/fullscreen-start) | [Rafael Mendes](https://github.com/RafaelMendes1407) | Original launcher, its rendering and the Start hook |
+| [Seamless Launchpad](https://github.com/DavidHiFi/davids-windhawk-mods/tree/main/mods/local/seamless-launchpad) | [DavidHiFi](https://github.com/DavidHiFi) | Direct base: grid, search, folders, power dock, settings |
+| RYJS Launchpad | Fangyu Guo (ryjs) | The changes listed under "RYJS edition" below |
+
+All three are MIT licensed. The original copyright notices and the MIT text
+are kept verbatim in the License section at the end of this readme.
 
 ## RYJS edition
 - Expanded groups show their apps directly. Choose Layout > Expanded groups;
   the original scrolling and paged folder modes remain available.
 - Right-click empty space to create a group. Right-click a group title to
   rename it or enter Edit group layout. In edit mode drag a title to move
-  the group, or its lower-right handle to resize it. Drag apps between groups,
+  the group, or its lower-right handle to resize by whole icon cells.
+  Enter/Finish saves; Escape cancels the gesture, then the edit session.
+  Drag apps between groups,
   or use Move to group (also available in search).
 - Add entry accepts programs, shortcuts, Remote Desktop files, Store apps
   and web addresses. Edit entry saves aliases, arguments and working folders.
+  Rename/Restore original name change only the Launchpad display name.
   Website icons are fetched on explicit add/update and cached locally.
-- Light, dark, system and custom themes include name backplate/shadow controls
-  for readable labels over bright blurred windows. New discoveries never
-  insert themselves into an existing arrangement.
+- Labels have no backplates or shadows. Per-label pure black/white follows
+  the text-free rendered blur plus tint; DWM materials use a pre-open estimate.
+  New discoveries never insert themselves into an existing arrangement.
+- Launchpad menus use a rounded acrylic surface and theme-aware text, while
+  retaining native submenu, keyboard and accessibility behavior.
 - Interface language follows Windows, with manual Chinese/English selection.
   The Interface font picker lists local fonts without changing icon glyphs.
 - Icon/name sizes, spacing, group width/flow, blur, opacity, taskbar coverage,
@@ -56,6 +69,7 @@ Fullscreen Start by Rafael Mendes. Upstream credits and MIT notices remain below
 “添加入口”支持程序、快捷方式、RDP、商店应用和网址；右键“编辑入口”可改名、路径、参数和图标。
 缩小分组后在组内滚动查看应用，按住 Shift 滚动整体画布；未进入编辑模式时保留已有排列。
 删除分组会将应用移到“未分组”，不会卸载应用。字体、名称字号、图标间距及分组布局可在设置中调整。
+Launchpad 自有菜单采用圆角亚克力玻璃效果，并跟随当前主题调整文字与悬停对比度；原生子菜单和键盘操作保持不变。
 设置保存在模块私有目录中；修改 Windhawk 设置页的同名选项后，以该次修改为准。
 布局自动保留上一次备份；“…”菜单提供导入及恢复。导入前会保留当前布局。
 
@@ -63,8 +77,6 @@ Fullscreen Start by Rafael Mendes. Upstream credits and MIT notices remain below
 
 Replaces the Start menu with a fullscreen grid of all your apps, in the style
 of the macOS Launchpad, with instant search and a blurred background.
-
-![Seamless Launchpad preview](https://raw.githubusercontent.com/DavidHiFi/davids-windhawk-mods/main/media/previews/seamless-launchpad.png)
 
 ## Features
 - **Fullscreen.** Fills the monitor the mouse is on, or one monitor you pick.
@@ -141,11 +153,14 @@ Clicking outside the icons or switching to another window closes it.
 - **No blur**: only the color.
 
 ## Notes
-- Disable the original Fullscreen Start (Launchpad style) before you enable
-  this mod. Both replace Start, so only one should run.
-- This mod used to be called Fullscreen Start Plus. If you used that one,
-  disable it. On its first run this mod copies your order, folders, pins and
-  icons from the old mod's storage folder.
+- Disable Seamless Launchpad, Fullscreen Start Plus and Fullscreen Start
+  (Launchpad style) before you enable this mod. All of them replace Start, so
+  only one should run. RYJS refuses to load while another Launchpad window is
+  present and never disables or unloads that mod for you.
+- On its first run, RYJS copies your order, folders, pins, icons and private
+  settings from the storage of Seamless Launchpad Custom, Seamless Launchpad
+  or Fullscreen Start Plus, if one of them is installed. The old data is only
+  read, never modified or deleted.
 - The power buttons never force apps to close. If an app has unsaved work,
   Windows asks about it as usual. Hibernate shows only when hibernation is on
   in Windows.
@@ -158,9 +173,51 @@ Clicking outside the icons or switching to another window closes it.
   `twinui.pcshell.dll`, which can take a minute.
 - Setting changes apply the next time Start opens.
 
+## Compatibility
+- Windhawk 1.7.3 and later, including 2.0. The settings block uses only the
+  `$name`, `$description` and `$options` keys, so it parses on both.
+- Windows 11. The Start replacement hooks `ShowStartView` in
+  `twinui.pcshell.dll` and, when present, the `ExperienceToggleButton` of the
+  Windows 11 taskbar. Windows 10 was not tested by the maintainer.
+- Explorer only (`@include explorer.exe`). Nothing is injected into other
+  processes.
+
+## Data and network
+- No telemetry and no analytics. RYJS does not send anything anywhere except
+  the requests described next.
+- The only network requests are made when you add a web entry or ask to
+  refresh its icon: the page is read to find its declared icon, with
+  `/favicon.ico` as the fallback. Requests have time limits and a size cap,
+  are sent without cookies, and the result is cached in the mod's storage.
+  Nothing is uploaded.
+- Layouts, groups, entries, icons and settings stay in Windhawk's per-mod
+  storage folder on this PC. The optional full backup writes a `.ryjs.zip`
+  file only where you choose, and import restores data, never code.
+
 ## Credits
-Based on [Fullscreen Start (Launchpad style)](https://windhawk.net/mods/fullscreen-start)
-by [Rafael Mendes](https://github.com/RafaelMendes1407). MIT.
+- [Fullscreen Start (Launchpad style)](https://windhawk.net/mods/fullscreen-start)
+  by [Rafael Mendes](https://github.com/RafaelMendes1407): the origin of the
+  launcher, its rendering and its Start hook.
+- [Seamless Launchpad](https://github.com/DavidHiFi/davids-windhawk-mods/tree/main/mods/local/seamless-launchpad)
+  by [DavidHiFi](https://github.com/DavidHiFi): the direct base of this mod.
+  Most of the grid, search, folder, power-dock and settings code comes from it.
+- RYJS Launchpad changes by Fangyu Guo (ryjs).
+- The Catppuccin Mocha palette used by the original search bar, folder glass
+  and power bar.
+
+All three projects are MIT licensed.
+
+## Copyright notices
+
+The notices below are reproduced as the upstream projects state them. No year
+is invented for a project that does not declare one.
+
+- **Seamless Launchpad** — `Copyright (c) 2026 DavidHiFi`, from the `LICENSE`
+  file of https://github.com/DavidHiFi/davids-windhawk-mods.
+- **Fullscreen Start (Launchpad style)** — `Copyright (c) Rafael Mendes`. The
+  upstream mod declares `@license MIT` in its metadata but ships no separate
+  `LICENSE` file and no copyright line, so no year is stated here.
+- **RYJS Launchpad changes** — `Copyright (c) 2026 Fangyu Guo (ryjs)`.
 
 ## License
 
@@ -168,7 +225,8 @@ by [Rafael Mendes](https://github.com/RafaelMendes1407). MIT.
 MIT License
 
 Copyright (c) 2026 DavidHiFi
-Copyright (c) 2026 ryjs (RYJS modifications only)
+Copyright (c) Rafael Mendes
+Copyright (c) 2026 Fangyu Guo (ryjs)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -307,6 +365,12 @@ SOFTWARE.
   $description: '0 to 30. 0 picks a number that fits the screen (Suggested: 0).'
   $name:zh-CN: 每行图标数量
   $description:zh-CN: 范围 0–30。0 表示根据屏幕自动调整（建议：0）。
+- globalColumns: 0
+  $name: Columns per row
+  $description: Global grid columns, 1–30. 0 keeps the saved density or estimates it for a new layout. Preview changes
+    in the layout editor.
+  $name:zh-CN: 每行列数（全局）
+  $description:zh-CN: 全局列数为 1–30。0 沿用已保存的密度，新布局则自动估算。进入布局编辑可预览列数变化。
 - coverScreen: false
   $name: Cover the whole screen
   $description: On, the grid also covers the taskbar, side bars and the Standalone Dock. Off, they stay visible.
@@ -520,9 +584,9 @@ SOFTWARE.
   $description:zh-CN: 首选分组宽度，单位为 DIP。0 根据屏幕和分组数量自动调整。
 - groupSpacing: 32
   $name: Group spacing
-  $description: Space between groups, in DIP.
+  $description: Minimum horizontal and vertical space between groups, in DIP.
   $name:zh-CN: 分组间距
-  $description:zh-CN: 分组之间的间距，单位为 DIP。
+  $description:zh-CN: 分组之间水平和垂直方向的最小间距，单位为 DIP。
 - groupFlow: columns
   $name: Group arrangement
   $description: Arrange groups in columns or use one full-width group per row.
@@ -565,11 +629,6 @@ SOFTWARE.
   - light: 浅色
   - dark: 深色
   - system: 跟随 Windows
-- textColor: '#CDD6F4'
-  $name: Text color
-  $description: Application and group names in the custom theme.
-  $name:zh-CN: 文字颜色
-  $description:zh-CN: 自定义主题中的应用和分组名称颜色。
 - groupColor: '#1E1E2E'
   $name: Group background color
   $description: Group and folder background in the custom theme.
@@ -590,26 +649,22 @@ SOFTWARE.
   $description: Background color of the keyboard-selected application.
   $name:zh-CN: 选中颜色
   $description:zh-CN: 键盘选中应用的背景色。
-- labelPlateOpacity: 65
-  $name: Name backplate opacity
-  $description: Protect names from bright window glare. Zero turns the backplate off.
-  $name:zh-CN: 名称底衬强度
-  $description:zh-CN: 避免白色窗口光晕淹没名称，设为 0 可关闭底衬。
-- labelRadius: 6
-  $name: Name backplate corner radius
-  $description: Corner radius in DIP, independent of icon size.
-  $name:zh-CN: 名称底衬圆角
-  $description:zh-CN: 底衬圆角大小，不影响图标尺寸。
-- labelShadow: 45
-  $name: Name shadow strength
-  $description: 0–100 percent, combined with the name backplate.
-  $name:zh-CN: 名称阴影强度
-  $description:zh-CN: 0～100%，可与名称底衬共同使用。
 - backgroundDim: 0
   $name: Background dimming
   $description: Additional darkening of the blurred background, 0–80 percent.
   $name:zh-CN: 背景压暗
   $description:zh-CN: 进一步压暗毛玻璃背景，范围为 0～80%。
+- launchpadAnimation: iconFlyIn
+  $name: Launchpad animation style
+  $description: Choose how the launchpad opens and closes.
+  $options:
+  - iconFlyIn: iOS icon fly-in
+  - classic: Classic zoom and fade
+  $name:zh-CN: 启动台动画风格
+  $description:zh-CN: 选择启动台展开和收起的动画风格。
+  $options:zh-CN:
+  - iconFlyIn: iOS 图标飞入
+  - classic: 经典缩放与淡入淡出
 */
 // ==/WindhawkModSettings==
 
@@ -620,6 +675,7 @@ SOFTWARE.
 #include <regex>
 // Original code and credits: DavidHiFi and Rafael Mendes. See the MIT readme above.
 #include <windowsx.h>
+#include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
@@ -627,6 +683,7 @@ SOFTWARE.
 #include <shellscalingapi.h>
 #include <commdlg.h>
 #include <uxtheme.h>
+#include <vssym32.h>
 #include <dwmapi.h>
 #include <propsys.h>
 #include <powrprof.h>
@@ -643,19 +700,28 @@ SOFTWARE.
 #include "preview_api.h"
 #else
 #include <windhawk_utils.h>
+#undef GetCurrentTime
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.UI.Xaml.Automation.h>
+#include <winrt/Windows.UI.Xaml.Controls.h>
+#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>
+#include <winrt/Windows.UI.Core.h>
 #endif
 #include "launchpad_i18n.h"
 #include "launchpad_presenter.h"
 #include "launchpad_metrics.h"
 #include "launchpad_settings_store.h"
+#include "launchpad_fly_in.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include "ryjs_data.h"
 
@@ -688,12 +754,17 @@ constexpr UINT WM_APP_RELOAD = WM_APP + 3;
 constexpr UINT WM_APP_QUIT = WM_APP + 4;
 constexpr UINT WM_APP_RUN = WM_APP + 5;
 constexpr UINT WM_APP_SHIFT_WIN = WM_APP + 6;
+// A lone Windows key tap, which the grid answers by closing (see KeyboardHook:
+// once the mod answered Start's first show, Windows never asks again, so the
+// second tap has to be caught at the key itself).
+constexpr UINT WM_APP_WIN_TAP = WM_APP + 7;
 
 constexpr UINT_PTR kTimerFrame = 1;
 constexpr UINT_PTR kTimerFirstLoad = 4;
 constexpr UINT_PTR kTimerShiftWin = 5;
 constexpr UINT_PTR kTimerCaret = 6;  // The search caret's blink.
 constexpr UINT_PTR kTimerPowerArm = 7;  // An unconfirmed power button resets.
+constexpr UINT_PTR kTimerXamlHook = 8;  // Waits for the XAML taskbar module.
 
 constexpr GUID kBhidEnumItems = {
     0x94f60519,
@@ -738,10 +809,10 @@ enum class DockAlign { Left, Center, Right };
 struct Settings {
     std::wstring font;
     std::wstring theme=L"custom";
-    D2D1_COLOR_F textColor=D2D1::ColorF(0xCDD6F4),groupColor=D2D1::ColorF(0x1E1E2E),labelPlateColor=D2D1::ColorF(0x111318),hoverColor=D2D1::ColorF(0x89B4FA),selectionColor=D2D1::ColorF(0xCBA6F7);
-    float groupOpacity=0,labelPlateOpacity=0.65f,labelShadow=0.45f,backgroundDim=0;
+    float backgroundDim=0;
     int labelRadius=6;
     bool gpuPresenter = true, performanceLogging = true, reducedMotion = false;
+    bool iconFlyIn = true;
     int openMs = 280, closeMs = 180, folderMs = 180, frameRateLimit = 0;
     std::wstring easing = L"settle";
     bool groups = false, groupRows = false;
@@ -752,7 +823,7 @@ struct Settings {
     float opacity = 0.3f;
     D2D1_COLOR_F tint{0, 0, 0, 1};
     int iconSize = 56;
-    int columns = 0;
+    int columns = 0, globalColumns = 0;
     bool pages = false;
     bool coverScreen = false;
     AppSource source = AppSource::AllApps;
@@ -762,9 +833,7 @@ struct Settings {
     bool powerShown[6] = {true, true, true, true, true, true};  // kPower order.
     bool powerNoConfirm = false;
     // 3.0.0 look and feel. Defaults here; schema and parsing in LoadSettings.
-    D2D1_COLOR_F accent{0x89 / 255.0f, 0xB4 / 255.0f, 0xFA / 255.0f, 1};  // Mocha blue.
     float glowStrength = 0.6f;    // 0..1, hover/focus glow alpha.
-    int glowSize = 14;            // DIP, glow spread.
     float chromeOpacity = 0.9f;   // 0..1, search bar and dock fill (Mocha base).
     DockAlign dockAlign = DockAlign::Center;
     bool wiggle = true;           // Edit-mode wiggle while dragging.
@@ -782,7 +851,7 @@ struct PowerButton {
     PCWSTR label;
     PCWSTR verb;    // "Click again to <verb>".
     WCHAR glyph;    // Segoe Fluent Icons.
-    bool danger;    // Armed in red rather than blue.
+    bool danger;    // Requires confirmation before activation.
 };
 
 constexpr PowerButton kPower[] = {
@@ -855,6 +924,7 @@ void LoadSettings() {
     s.gpuPresenter = IntSetting(L"gpuPresenter", 1) != 0;
     s.performanceLogging = IntSetting(L"performanceLogging", 1) != 0;
     s.reducedMotion = IntSetting(L"reducedMotion", 0) != 0;
+    s.iconFlyIn = GetStringSetting(L"launchpadAnimation") != L"classic";
     s.openMs = std::clamp(IntSetting(L"openDuration", 280), 60, 1500);
     s.closeMs = std::clamp(IntSetting(L"closeDuration", 180), 60, 1500);
     s.folderMs = std::clamp(IntSetting(L"folderDuration", 180), 60, 1500);
@@ -874,6 +944,7 @@ void LoadSettings() {
     s.tint = ParseColor(GetStringSetting(L"tintColor"), s.tint);
     s.iconSize = std::clamp(IntSetting(L"gridIconSize", 56), 24, 192);
     s.columns = std::clamp(IntSetting(L"gridColumns", 0), 0, 30);
+    s.globalColumns=std::clamp(IntSetting(L"globalColumns",0),0,30);
     s.groups = GetStringSetting(L"gridLayout").empty() || GetStringSetting(L"gridLayout") == L"groups";
     s.pages = GetStringSetting(L"gridLayout") == L"pages" || (s.groups && GetStringSetting(L"groupNavigation") == L"pages");
     s.groupRows = GetStringSetting(L"groupFlow") == L"rows";
@@ -896,11 +967,8 @@ void LoadSettings() {
             IntSetting((std::wstring(L"powerButtons.") + kPower[i].key).c_str(), 1) != 0;
     }
     s.powerNoConfirm = IntSetting(L"powerNoConfirm", 0) != 0;
-    s.accent = ParseColor(GetStringSetting(L"accentColor"),
-                          D2D1::ColorF(0x89B4FA));
     s.glowStrength =
         std::clamp(IntSetting(L"glowStrength", 60), 0, 100) / 100.0f;
-    s.glowSize = std::clamp(IntSetting(L"glowSize", 14), 4, 40);
     s.chromeOpacity =
         std::clamp(IntSetting(L"chromeOpacity", 90), 0, 100) / 100.0f;
     std::wstring dock = ToLower(GetStringSetting(L"dockAlignment"));
@@ -914,13 +982,6 @@ void LoadSettings() {
     s.normalizeIcons = IntSetting(L"normalizeIcons", 1) != 0;
     s.trayIcon = IntSetting(L"settingsTrayIcon", 1) != 0;
     s.theme=GetStringSetting(L"themeMode");
-    s.textColor=ParseColor(GetStringSetting(L"textColor"),s.textColor);
-    s.groupColor=ParseColor(GetStringSetting(L"groupColor"),s.groupColor);
-    s.hoverColor=ParseColor(GetStringSetting(L"hoverColor"),s.accent);
-    s.selectionColor=ParseColor(GetStringSetting(L"selectionColor"),s.selectionColor);
-    s.groupOpacity=std::clamp(IntSetting(L"groupOpacity",0),0,100)/100.0f;
-    s.labelPlateOpacity=std::clamp(IntSetting(L"labelPlateOpacity",65),0,100)/100.0f;
-    s.labelShadow=std::clamp(IntSetting(L"labelShadow",45),0,100)/100.0f;
     s.labelRadius=std::clamp(IntSetting(L"labelRadius",6),0,24);
     s.backgroundDim=std::clamp(IntSetting(L"backgroundDim",0),0,80)/100.0f;
     bool light=s.theme==L"light";
@@ -930,8 +991,7 @@ void LoadSettings() {
         light=value!=0;
     }
     if(s.theme==L"light"||s.theme==L"dark"||s.theme==L"system") {
-        s.tint=D2D1::ColorF(light?0xE9EDF4:0x111318);s.textColor=D2D1::ColorF(light?0x182235:0xF2F4F8);
-        s.groupColor=D2D1::ColorF(light?0xFFFFFF:0x202638);s.labelPlateColor=D2D1::ColorF(light?0xFFFFFF:0x111318);
+        s.tint=D2D1::ColorF(light?0xEEEEEE:0x141414);
         s.opacity=std::max(s.opacity,light?0.55f:0.40f);
     }
     g_settings = s;
@@ -1547,7 +1607,7 @@ bool AddStartPins(int iconPixels, AppList& list) {
 
 std::wstring StoragePath(const std::wstring& file);
 bool WriteLines(const std::wstring& path,
-                const std::vector<std::wstring>& lines);
+                const std::vector<std::wstring>& lines,bool backup=true);
 
 // The first time "only the apps you pin" is used, the pins start as Start's
 // own, matched by name to the apps already read. Written even when Start's
@@ -1694,7 +1754,7 @@ struct Folder {
 bool g_layoutReadOnly = false;
 bool g_dataReadOnly = false;
 extern bool g_entriesReadOnly;
-bool SaveGroupPositions();
+bool SaveGroupPositions(bool finishing=false);
 void BeforeArrangeGeometry();
 void AfterArrangeGeometry();
 
@@ -1882,7 +1942,7 @@ std::vector<std::vector<std::wstring>> ReadLines(const std::wstring& path, bool*
 
 // Written whole to a temporary file first, so a crash can't leave half a file.
 bool WriteLines(const std::wstring& path,
-                const std::vector<std::wstring>& lines) {
+                const std::vector<std::wstring>& lines,bool backup) {
     if (path.empty() || g_dataReadOnly) {
         return false;
     }
@@ -1907,7 +1967,7 @@ bool WriteLines(const std::wstring& path,
                         nullptr) &&
               written == bytes.size();
     CloseHandle(file);
-    if (ok && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES && !CopyFileW(path.c_str(), (path + L".bak").c_str(), FALSE)) {
+    if (ok && backup && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES && !CopyFileW(path.c_str(), (path + L".bak").c_str(), FALSE)) {
         Wh_Log(L"Cannot back up %s: %u; keeping previous data", path.c_str(), GetLastError());
         DeleteFileW(temp.c_str()); return false;
     }
@@ -2146,6 +2206,7 @@ void ApplyCustomIcons(int size) {
 }
 
 #include "launchpad_entries.inc"
+#include "launchpad_display_names.inc"
 #include "launchpad_group_positions.inc"
 
 void SavePins() {
@@ -2195,7 +2256,12 @@ void LoadTiles() {
         lines.push_back(std::move(line));
     }
     ArrangeTiles(lines);
-    if(g_settings.groups)LoadGroupPositions();
+    if(g_settings.groups&&LoadGroupPositions()&&records.empty()&&!g_layoutReadOnly) {
+        // Fresh layouts start on the whole-cell grid. Existing arrangements
+        // without a geometry file retain their legacy layout until editing.
+        g_wholeCellLayout=true;
+        g_freeGroupLayout=true;
+    }
     if (importing) SaveTiles();
 }
 
@@ -2203,6 +2269,11 @@ void LoadTiles() {
 // Search
 
 std::wstring g_query;
+bool g_searchActivated = false;
+// 0 = the resting pill, 1 = the open field. Eased toward SearchExpanded() a
+// frame at a time, so tapping the box grows it instead of snapping open.
+float g_searchExpand = 0;
+bool SearchExpanded() { return g_searchActivated || !g_query.empty(); }
 // The search field is a small text editor: a caret and a selection anchor as
 // UTF-16 indices into g_query (the selection is the span between them), a
 // tick that times the caret's blink, and the state of a drag-selection.
@@ -2232,10 +2303,15 @@ int MatchRank(const std::wstring& name, const std::wstring& word) {
     return iswalnum(name[pos - 1]) ? 2 : 1;
 }
 
+bool GroupVisible(const std::shared_ptr<Folder>& group) {
+    return group && (!group->inbox || !group->apps.empty() || g_groupEditMode);
+}
+
 void UpdateFilter() {
     if (g_query.empty()) {
         g_visible.clear();
         for (const auto& tile : g_tiles) {
+            if (g_settings.groups && tile.folder && !GroupVisible(tile.folder)) continue;
             if (g_settings.groups && tile.folder && !tile.folder->collapsed) g_visible.insert(g_visible.end(), tile.folder->apps.begin(), tile.folder->apps.end());
             else g_visible.push_back(tile);
         }
@@ -2419,6 +2495,10 @@ bool UseGpuPresenter() {
 }
 int g_frameWidth = 0, g_frameHeight = 0;
 UINT g_targetGeneration = 1;
+struct TileGlassResources {
+    ComPtr<ID2D1RadialGradientBrush> surface, rim;
+};
+[[clang::no_destroy]] TileGlassResources g_tileGlass;
 
 struct Surface {
     HDC dc = nullptr;
@@ -2465,8 +2545,6 @@ bool EnsureSurface(Surface& s, int width, int height) {
 
 void ResetTarget();
 
-[[clang::no_destroy]] ComPtr<ID2D1LinearGradientBrush> g_hoverGradient;
-[[clang::no_destroy]] ComPtr<ID2D1LinearGradientBrush> g_scrollGradient;
 
 bool EnsureTarget() {
     if (g_target) {
@@ -2502,12 +2580,11 @@ bool EnsureTarget() {
 }
 
 void ResetTarget() {
+    g_tileGlass={};
     g_presenter.Reset();
     g_frame.Reset();
     g_staging.Reset();
     g_frameWidth = g_frameHeight = 0;
-    g_hoverGradient.Reset();
-    g_scrollGradient.Reset();
     g_brush.Reset();
     g_target.Reset();
     g_d2dDevice.Reset();
@@ -2635,6 +2712,7 @@ void Fill(const D2D1_RECT_F& r, D2D1_COLOR_F color, float radius = 0) {
 // then scaled down and blurred on the GPU as an effect graph. Downscaling
 // first makes a strong blur cheap.
 
+
 struct Backdrop {
     ComPtr<ID2D1Bitmap> bitmap;
     int width = 0, height = 0;  // Blurred size.
@@ -2646,7 +2724,8 @@ struct Backdrop {
 // sh GPU bitmap. rect is the part of source used; the rest is cropped.
 ComPtr<ID2D1Bitmap1> BlurToBitmap(ID2D1Bitmap* source,
                                   const D2D1_RECT_F& rect, int f, float sigma,
-                                  int sw, int sh) {
+                                  int sw, int sh,
+                                  D2D1_POINT_2F dest = D2D1::Point2F(0, 0)) {
     D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_TARGET,
         D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
@@ -2661,12 +2740,15 @@ ComPtr<ID2D1Bitmap1> BlurToBitmap(ID2D1Bitmap* source,
         FAILED(g_target->CreateEffect(CLSID_D2D1GaussianBlur, &blur))) {
         return nullptr;
     }
-    // Pass 1: the part of source in rect, scaled down by f.
+    // Pass 1: the part of source in rect, scaled down by f and placed at dest.
+    const float w = (rect.right - rect.left) / f;
+    const float h = (rect.bottom - rect.top) / f;
     g_target->BeginDraw();
     g_target->SetTarget(small.Get());
     g_target->Clear(D2D1::ColorF(0, 0));
-    g_target->DrawBitmap(source, D2D1::RectF(0, 0, (float)sw, (float)sh), 1.0f,
-                         D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, rect);
+    g_target->DrawBitmap(source,
+                         D2D1::RectF(dest.x, dest.y, dest.x + w, dest.y + h),
+                         1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, rect);
     if (FAILED(g_target->EndDraw())) {
         return nullptr;
     }
@@ -2714,6 +2796,8 @@ void CaptureBackdrop(const RECT& rc, float sigma) {
     // by DWM already includes layered windows.
     BitBlt(dc, 0, 0, width, height, screen, rc.left, rc.top, SRCCOPY);
     GdiFlush();
+    // GDI screen copies have an undefined alpha channel; this source is opaque.
+    for(size_t i=0;i<(size_t)width*height;i++)((UINT32*)bits)[i]|=0xFF000000;
 
     D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
         D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
@@ -2932,9 +3016,7 @@ struct Layout {
     int perPage = 1, pages = 1;  // With the pages layout.
     float dotsY = 0;             // Center of the page dots.
     D2D1_RECT_F search{};
-    D2D1_RECT_F menuButton{};  // The "..." button, inside the search bar's
-                               // right inner edge.
-    D2D1_RECT_F clearButton{};  // Clear (x), left of "...", while typing.
+    D2D1_RECT_F clearButton{};  // Clear the current query.
     D2D1_RECT_F powerBar{};    // The power dock pill, aligned by dockAlignment.
     std::vector<int> powerItems;  // kPower indices shown, left to right.
     float powerButton = 36, powerGap = 6;
@@ -2950,6 +3032,7 @@ void FinishMetrics() {
 bool g_canSleep = true, g_canHibernate = false;
 // Pixels: down the list, or, with pages, across the row of pages.
 float g_scroll, g_scrollTarget;
+float g_groupPagePan=0;
 int g_wheelDelta;  // Wheel accumulated until it completes a row (touchpads).
 
 [[clang::no_destroy]] ComPtr<IDWriteTextFormat> g_labelFormat, g_searchFormat,
@@ -2984,9 +3067,13 @@ void EnsureFormats(float scale) {
         g_dwrite->CreateEllipsisTrimmingSign(format.Get(), &ellipsis);
         format->SetTrimming(&trimming, ellipsis.Get());
     };
-    make((float)g_settings.labelSize, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_ALIGNMENT_CENTER,
+    // The label is the only thing that has to stay legible over glass: one
+    // DIP larger and semi-bold. The weight itself is a hint — DirectWrite
+    // picks the closest weight the family actually has (400/700 for Microsoft
+    // YaHei), which is the proper mapping, never a fake double draw.
+    make((float)g_settings.labelSize + 1, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_TEXT_ALIGNMENT_CENTER,
          g_labelFormat);
-    make(18, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_TEXT_ALIGNMENT_LEADING, g_groupFormat);
+    make(19, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_TEXT_ALIGNMENT_CENTER, g_groupFormat);
     make(15, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_ALIGNMENT_LEADING,
          g_searchFormat);
     make(16, DWRITE_FONT_WEIGHT_SEMI_LIGHT, DWRITE_TEXT_ALIGNMENT_CENTER,
@@ -3005,42 +3092,74 @@ void EnsureFormats(float scale) {
          g_iconFormat, fluent ? L"Segoe Fluent Icons" : L"Segoe MDL2 Assets");
 }
 
+float GridMargin() {
+    return std::min(g_layout.width*.12f,std::max(24*g_layout.scale,g_layout.width*.045f));
+}
+float SquareCellSize(int columns) {
+    return std::max(1.f,g_layout.width-2*GridMargin())/std::max(1,columns);
+}
+int DesiredGridColumns() {
+    if(g_settings.globalColumns>0)return g_settings.globalColumns;
+    if(g_squareGridColumns>0)return g_squareGridColumns;
+    if(g_settings.columns>0)return g_settings.columns;
+    float density=(std::max(g_settings.iconSize+12.f,(g_settings.labelSize+8)*4)+g_settings.horizontalGap)*g_layout.scale;
+    return std::clamp((int)std::round((g_layout.width-2*GridMargin())/density),1,30);
+}
+
+float GroupPitchY();
 float MaxScroll() {
     if (g_settings.pages) {
         return (g_layout.pages - 1) * (float)g_layout.width;
     }
-    return std::max(0.0f, g_layout.contentHeight -
+    float editRoom=g_groupEditMode&&g_settings.groups&&g_query.empty()?(g_squareGridColumns?SquareCellSize(g_squareGridColumns):GroupPitchY()):0;
+    return std::max(0.0f, g_layout.contentHeight + editRoom -
                               (g_layout.viewBottom - g_layout.viewTop));
 }
 
 bool GroupedView() { return g_settings.groups && g_query.empty(); }
 void ComputeGroups();
+std::array<D2D1_RECT_F,3> GroupEditButtons();
+float MaxPagePan(int page);
+void LayoutSearch() {
+    auto& L = g_layout;
+    float s = L.scale, W = (float)L.width;
+    // The width follows the eased amount, so the pill opens into the field
+    // rather than changing size in one frame.
+    float t = std::clamp(g_searchExpand, 0.f, 1.f);
+    t = t * t * (3 - 2 * t);
+    float width =
+        std::min((44.f + (240.f - 44.f) * t) * s, std::max(1.f, W - 40 * s));
+    float top = std::round(std::max(28*s, L.height * 0.045f));
+    L.search = {std::round((W - width) / 2), top, std::round((W + width) / 2),
+                top + std::round(36*s)};
+    L.clearButton = {};
+    if (!g_query.empty()) {
+        float button = std::round(18*s);
+        float cx = L.search.right - 18*s, cy = (L.search.top + L.search.bottom) / 2;
+        L.clearButton = {cx-button/2, cy-button/2, cx+button/2, cy+button/2};
+    }
+    // The resting search icon no longer takes layout room: the grid starts
+    // one pill higher and sinks back as the field opens. The eased amount
+    // keeps that move continuous while the field grows, and computing it here
+    // lets the per-frame expansion callers (OnFrame and the click path)
+    // update the grid position without a full relayout.
+    L.viewTop = std::round(L.search.top + 28 * s) +
+                std::round(std::round(36 * s) * t);
+}
+
 void ComputeLayout() {
     Layout& L = g_layout;
     float s = L.scale;
     float W = (float)L.width, H = (float)L.height;
 
-    float searchWidth = std::min(320 * s, W - 40 * s);
-    float searchTop = std::round(std::max(28 * s, H * 0.045f));
-    L.search = D2D1::RectF(std::round((W - searchWidth) / 2), searchTop,
-                           std::round((W + searchWidth) / 2),
-                           searchTop + std::round(36 * s));
+    LayoutSearch();
 
     L.icon = std::round(g_settings.iconSize * s);
-    L.labelHeight = std::round((g_settings.labelSize + 7) * s);
+    L.labelHeight = std::round((g_settings.labelSize + 8) * s);  // +1 DIP label size
     L.cellPad = std::round(6 * s);
     L.cellHeight = std::round(L.icon + L.labelHeight + (18+g_settings.verticalGap) * s);
-    L.viewTop = L.search.bottom + std::round(28 * s);
-    // The "..." button sits at the bar's right inner edge, half the bar's
-    // height, like StartPad's; the clear (x) button goes left of it.
-    float button = std::round(18 * s);
-    float ccx = L.search.right - std::round(21.6f * s);
-    float cy = (L.search.top + L.search.bottom) / 2;
-    L.menuButton = D2D1::RectF(ccx - button / 2, cy - button / 2,
-                               ccx + button / 2, cy + button / 2);
-    L.clearButton = D2D1::RectF(L.menuButton.left - 2 * s - button,
-                                cy - button / 2, L.menuButton.left - 2 * s,
-                                cy + button / 2);
+    // viewTop comes from LayoutSearch: the grid rises when the search field
+    // rests (no icon), keeping the move tied to the eased expansion.
 
     float side = std::max(48 * s, W * 0.07f);
     float available = std::max(L.icon * 2, W - 2 * side);
@@ -3091,10 +3210,21 @@ void ComputeLayout() {
                      std::round((g_settings.pages ? 30 : 10) * s);
     }
 
-    L.visibleRows =
-        std::max(1, (int)((H - bottomRoom - L.viewTop) / L.cellHeight));
+    bool grouped=GroupedView();
+    if(grouped&&g_wholeCellLayout&&g_groupPositions.empty()&&!g_groupEditMode&&!g_squareGridColumns)
+        g_squareGridColumns=DesiredGridColumns();
+    int squareColumns=grouped?g_squareGridColumns:DesiredGridColumns();
+    if(squareColumns) {
+        L.columns=squareColumns;
+        L.cellWidth=L.cellHeight=SquareCellSize(squareColumns);
+        L.gridLeft=GridMargin();
+    }
+    float viewportEnd=H-bottomRoom;
+    if(grouped&&squareColumns&&g_groupEditMode)
+        viewportEnd=std::min(viewportEnd,GroupEditButtons()[0].top-6*s);
+    L.visibleRows=std::max(1,(int)((viewportEnd-L.viewTop)/L.cellHeight));
     L.cellSpare = 0;
-    if (g_settings.pages) {
+    if (g_settings.pages&&!squareColumns) {
         // Pages don't scroll, so the rows spread out to the dots instead of
         // leaving the part of a row that doesn't fit empty at the bottom.
         float rowHeight =
@@ -3102,7 +3232,7 @@ void ComputeLayout() {
         L.cellSpare = std::max(0.0f, rowHeight - L.cellHeight);
         L.cellHeight += L.cellSpare;
     }
-    L.viewBottom = L.viewTop + L.visibleRows * L.cellHeight;
+    L.viewBottom = squareColumns?std::max(L.viewTop+1,viewportEnd):L.viewTop + L.visibleRows * L.cellHeight;
     L.dotsY = std::round(
         (L.viewBottom + (L.powerItems.empty() ? H : L.powerBar.top)) / 2);
 
@@ -3114,27 +3244,116 @@ void ComputeLayout() {
     if (GroupedView()) ComputeGroups();
     g_scrollTarget = std::clamp(g_scrollTarget, 0.0f, MaxScroll());
     g_scroll = std::clamp(g_scroll, 0.0f, MaxScroll());
+    g_groupPagePan=std::clamp(g_groupPagePan,0.f,MaxPagePan(std::max(0,(int)std::lround(g_scroll/std::max(1,L.width)))));
 }
 
 struct Cell {
     D2D1_RECT_F highlight, icon, label;
+    bool wrapLabel=false;
+    D2D1_RECT_F unit{};
 };
+// A text layout pre-rendered as white text over its soft dark shadow, padded
+// so the blur has room around the layout box. Tile labels and group headers
+// share this.
+struct LabelShadowBitmap {
+    ComPtr<ID2D1Bitmap1> bitmap;
+    float padX=0, padTop=0, padBottom=0;
+};
+bool RenderTextWithShadow(IDWriteTextLayout* layout, float width, float height,
+                          LabelShadowBitmap& out) {
+    out.bitmap.Reset();
+    if (!g_d2dDevice || !layout || width <= 0 || height <= 0) return false;
+    // A private device context keeps this legal at any call time: the visible
+    // context sits inside its own BeginDraw session while the frame is drawn,
+    // and one context cannot nest BeginDraw on itself. Everything here is
+    // device-scoped, so the bitmap draws fine from the visible context.
+    static ComPtr<ID2D1DeviceContext> dc;
+    if (!dc && FAILED(g_d2dDevice->CreateDeviceContext(
+                    D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &dc)))
+        return false;
+    float s = g_layout.scale;
+    float sigma = 2.4f * s;                       // blur radius, ~2.4 DIP
+    float pad = sigma * 3;
+    out.padX = pad;
+    out.padTop = pad;
+    out.padBottom = pad + std::round(1 * s);      // 1 DIP shadow offset below
+    D2D1_SIZE_U size{
+        (UINT)std::ceil(width + out.padX * 2),
+        (UINT)std::ceil(height + out.padTop + out.padBottom)};
+    D2D1_BITMAP_PROPERTIES1 props{
+        {DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED},
+        0, 0, D2D1_BITMAP_OPTIONS_TARGET, nullptr};
+    ComPtr<ID2D1Bitmap1> bitmap;
+    if (FAILED(dc->CreateBitmap(size, nullptr, 0, props, &bitmap)))
+        return false;
+    // The white text goes into a command list: it feeds both the shadow
+    // effect and the composite on top of it.
+    ComPtr<ID2D1CommandList> list;
+    if (FAILED(dc->CreateCommandList(&list))) return false;
+    dc->SetTarget(list.Get());
+    dc->BeginDraw();
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF, 1.0f));
+    dc->DrawTextLayout({0, 0}, layout, g_brush.Get(),
+                       D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    if (FAILED(dc->EndDraw()) || FAILED(list->Close())) return false;
+    ComPtr<ID2D1Effect> shadow, offset;
+    if (FAILED(dc->CreateEffect(CLSID_D2D1Shadow, &shadow))) return false;
+    shadow->SetInput(0, list.Get());
+    shadow->SetValue(D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, sigma);
+    shadow->SetValue(D2D1_SHADOW_PROP_COLOR, D2D1::Vector4F(0, 0, 0, 0.4f));
+    if (FAILED(dc->CreateEffect(CLSID_D2D12DAffineTransform, &offset))) return false;
+    offset->SetInputEffect(0, shadow.Get());
+    offset->SetValue(D2D1_2DAFFINETRANSFORM_PROP_TRANSFORM_MATRIX,
+                     D2D1::Matrix3x2F::Translation(out.padX,
+                                                   out.padTop + std::round(1 * s)));
+    dc->SetTarget(bitmap.Get());
+    dc->BeginDraw();
+    dc->Clear(D2D1::ColorF(0, 0, 0, 0));
+    dc->DrawImage(offset.Get());
+    dc->DrawImage(list.Get(), D2D1::Point2F(out.padX, out.padTop));
+    if (FAILED(dc->EndDraw())) return false;
+    out.bitmap = bitmap.Detach();
+    return true;
+}
 Cell GroupCellAt(int index);
+Cell SpaceTileContents(const Tile& tile, Cell cell);
 
 // The cell whose top left corner is x, y.
-Cell MakeCell(float x, float y) {
+Cell MakeCell(float x, float y, float width, float height, float spare) {
     const Layout& L = g_layout;
     Cell c;
-    c.highlight = D2D1::RectF(x + L.cellPad, y, x + L.cellWidth - L.cellPad,
-                              y + L.cellHeight - L.cellSpare - L.cellPad * 2);
-    float iconLeft = std::round(x + (L.cellWidth - L.icon) / 2);
+    c.unit={x,y,x+width,y+height-spare};
+    c.highlight = D2D1::RectF(x + L.cellPad, y, x + width - L.cellPad,
+                              y + height - spare - L.cellPad * 2);
+    float iconLeft = std::round(x + (width - L.icon) / 2);
     float iconTop = std::round(y + 10 * L.scale);
     c.icon = D2D1::RectF(iconLeft, iconTop, iconLeft + L.icon, iconTop + L.icon);
     float labelTop = c.icon.bottom + std::round(8 * L.scale);
     c.label = D2D1::RectF(x + L.cellPad + 4 * L.scale, labelTop,
-                          x + L.cellWidth - L.cellPad - 4 * L.scale,
+                          x + width - L.cellPad - 4 * L.scale,
                           labelTop + L.labelHeight);
     return c;
+}
+
+Cell MakeSquareCell(float x,float y,float side) {
+    const auto& L=g_layout;
+    float pad=std::min(3*L.scale,side*.05f);
+    float line=std::min(L.labelHeight,side*.45f);
+    float gap=g_settings.showLabels?std::min(6*L.scale,side*.08f):0;
+    // Labels stay single-line everywhere: the second row made sparse groups
+    // push their icons higher than dense ones, which read as misaligned.
+    // Long names keep the character-level ellipsis from the label format.
+    bool wrap=false;
+    float label=g_settings.showLabels?line:0;
+    float icon=std::max(0.f,std::min(L.icon,side-2*pad-label-gap));
+    float top=y+(side-icon-gap-label)/2;
+    float left=x+(side-icon)/2;
+    return {{x+pad,y+pad,x+side-pad,y+side-pad},{left,top,left+icon,top+icon},
+        {x+pad,top+icon+gap,x+side-pad,top+icon+gap+label},wrap,{x,y,x+side,y+side}};
+}
+
+Cell MakeCell(float x,float y) {
+    return MakeSquareCell(x,y,g_layout.cellWidth);
 }
 
 Cell CellAt(int index) {
@@ -3145,14 +3364,14 @@ Cell CellAt(int index) {
         int page = index / L.perPage, slot = index % L.perPage;
         x = L.gridLeft + (slot % L.columns) * L.cellWidth +
             page * (float)L.width - std::round(g_scroll);
-        y = L.viewTop + (slot / L.columns) * L.cellHeight;
+        y = L.viewTop + (slot / L.columns) * L.cellHeight-g_groupPagePan;
     } else {
         int row = index / L.columns, col = index % L.columns;
         x = L.gridLeft + col * L.cellWidth;
         y = L.viewTop + row * L.cellHeight - std::round(g_scroll);
     }
     y += std::round(L.cellSpare / 2);  // Centered in a stretched row.
-    return MakeCell(x, y);
+    return SpaceTileContents(g_visible[index], MakeCell(x, y));
 }
 
 #include "launchpad_groups_layout.inc"
@@ -3163,76 +3382,27 @@ Cell CellAt(int index) {
 // A soft halo in the accent colour behind the icon of the hovered or
 // keyboard-selected tile. Blurring is expensive, so one bitmap per icon size
 // and spread is built once and reused; each tile only fades its opacity,
-// eased over ~150 ms. Built outside the frame's BeginDraw, in Render.
-
-struct GlowCache {
-    ComPtr<ID2D1Bitmap1> bitmap;
-    int size = 0;         // Device pixels the halo bitmap covers.
-    UINT generation = 0;  // g_targetGeneration it was built for.
-};
-[[clang::no_destroy]] GlowCache g_glow;
+// eased over ~150 ms.
 
 void StartFrames();
-float Ease(float t);
-
-ID2D1Bitmap1* EnsureGlowBitmap(int icon, float scale) {
-    int spread = (int)std::round(g_settings.glowSize * scale);
-    int size = icon + spread * 2;
-    if (g_glow.bitmap && g_glow.size == size &&
-        g_glow.generation == g_targetGeneration) {
-        return g_glow.bitmap.Get();
-    }
-    int f = 4;  // The source renders at a quarter size; the blur smooths it.
-    int small = std::max(16, size / f);
-    D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
-        D2D1_BITMAP_OPTIONS_TARGET,
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
-                          D2D1_ALPHA_MODE_PREMULTIPLIED),
-        96, 96);
-    ComPtr<ID2D1Bitmap1> source;
-    if (FAILED(g_target->CreateBitmap(D2D1::SizeU(small, small), nullptr, 0,
-                                      props, &source))) {
-        return nullptr;
-    }
-    g_target->BeginDraw();
-    g_target->SetTarget(source.Get());
-    g_target->Clear(D2D1::ColorF(0, 0));
-    float margin = (float)spread / f;
-    // The solid rect reaches a few pixels past the icon, so the halo is at
-    // full strength right at the icon's edge instead of half.
-    float overhang = 4.0f / f;
-    D2D1_RECT_F rect = D2D1::RectF(margin - overhang, margin - overhang,
-                                   small - margin + overhang,
-                                   small - margin + overhang);
-    float radius = std::max(2.0f, icon * 0.28f / f + overhang);
-    g_brush->SetColor(Alpha(g_settings.accent, 1.0f));
-    g_target->FillRoundedRectangle(D2D1::RoundedRect(rect, radius, radius),
-                                   g_brush.Get());
-    if (FAILED(g_target->EndDraw())) {
-        return nullptr;
-    }
-    // The sigma is in small-bitmap pixels; drawn back up it blurs like
-    // 0.35 * spread device pixels would - tight enough to stay bright at the
-    // icon's edge on the dark backdrop.
-    g_glow.bitmap = BlurToBitmap(
-        source.Get(), D2D1::RectF(0, 0, (float)small, (float)small), 1,
-        0.35f * spread / f, small, small);
-    g_glow.size = size;
-    g_glow.generation = g_targetGeneration;
-    return g_glow.bitmap ? g_glow.bitmap.Get() : nullptr;
-}
 
 struct GlowFade {
     const void* key = nullptr;  // The tile's app or folder.
     float alpha = 0;            // 0..1, eased when drawn.
     double last = 0;
+    D2D1_POINT_2F light{.5f,.5f};
 };
 constexpr int kGlowSlots = 4;
 [[clang::no_destroy]] GlowFade g_glowFades[kGlowSlots];
+// A single client-space pointer drives the whole view, like Meapri's
+// PointerField (MIT). The edge shading in this renderer is implemented in D2D.
+std::optional<D2D1_POINT_2F> g_glassPointer, g_glassScenePointer;
+bool g_glassClaimed=false;
+
 bool g_glowAnimating;  // A fade is under way; OnFrame keeps rendering.
 
 // Advances the tile's fade and returns the eased alpha to draw with.
-float GlowAlpha(const void* key, bool on) {
+GlowFade* UpdateGlow(const void* key, bool on) {
     GlowFade* slot = nullptr;
     for (auto& s : g_glowFades) {
         if (s.key == key) {
@@ -3259,22 +3429,22 @@ float GlowAlpha(const void* key, bool on) {
         slot->last = Now();
     }
     if (!slot) {
-        return 0;
+        return nullptr;
     }
     double now = Now();
-    float dt = (float)std::clamp(now - slot->last, 0.0, 0.1);
+    float dt = (float)std::clamp(now - slot->last, 0.0, 0.15);
     if (!Animate()) {
         dt = 1.0f;
     }
     slot->last = now;
     slot->alpha = std::clamp(slot->alpha + (on ? dt : -dt) / 0.15f, 0.0f, 1.0f);
-    if (slot->alpha > 0 && slot->alpha < 1) {
+    if ((on&&slot->alpha<1)||(!on&&slot->alpha>0)) {
         g_glowAnimating = true;
         StartFrames();
     } else if (!on) {
         slot->key = nullptr;  // Faded out: freed for the next tile.
     }
-    return Ease(slot->alpha);
+    return slot;
 }
 
 bool InRect(const D2D1_RECT_F& r, float x, float y) {
@@ -3299,14 +3469,20 @@ int GridIndexAt(int px, int py) {
     }
     int col = (int)((x - L.gridLeft) / L.cellWidth);
     int row = (int)((y - L.viewTop +
-                     (g_settings.pages ? 0 : std::round(g_scroll))) /
+                     (g_settings.pages ? g_groupPagePan : std::round(g_scroll))) /
                     L.cellHeight);
-    return row < 0 ? -1 : page * L.perPage + row * L.columns + col;
+    if(row<0||(g_settings.pages&&row>=L.visibleRows))return -1;
+    return page*L.perPage+row*L.columns+col;
 }
 
 // An open folder: a panel over the grid with its name and its apps.
 [[clang::no_destroy]] std::shared_ptr<Folder> g_openFolder;
 bool g_folderRenaming = false;
+[[clang::no_destroy]] std::wstring g_folderOriginalName;
+void SaveFolderName() {
+    if(g_openFolder&&g_openFolder->name!=g_folderOriginalName&&SaveTiles())
+        g_folderOriginalName=g_openFolder->name;
+}
 bool g_folderTitleHover = false;
 // The folder fading out after a close, and the open/close progress (0 to 1).
 [[clang::no_destroy]] std::shared_ptr<Folder> g_closingFolder;
@@ -3346,8 +3522,9 @@ FolderLayout GetFolderLayout() {
 
 Cell FolderCellAt(int index) {
     FolderLayout F = GetFolderLayout();
-    return MakeCell(F.left + (index % F.columns) * g_layout.cellWidth,
-                    F.top + (index / F.columns - g_folderRow) * F.cellHeight);
+    return SpaceTileContents(g_openFolder->apps[index],
+        MakeCell(F.left + (index % F.columns) * g_layout.cellWidth,
+                 F.top + (index / F.columns - g_folderRow) * F.cellHeight));
 }
 
 int FolderIndexAt(int px, int py) {
@@ -3413,6 +3590,7 @@ int PageDotAt(int px, int py) {
 bool g_shown;        // The windows are on screen (opening, open or closing).
 bool g_closing;
 float g_appear;      // 0 closed, 1 open.
+double g_appearVelocity;
 float g_wiggle;      // Edit mode envelope: ramps to 1 while an icon is held.
 double g_lastFrame;
 HANDLE g_frameWake = nullptr;
@@ -3460,15 +3638,17 @@ void ArmNextFrame(bool reset) {
     SetWaitableTimer(g_frameWake, &due, 0, nullptr, nullptr, FALSE);
 }
 double g_lastClosed;  // When it closed by losing focus.
+// One keystroke can reach this window twice: the keyboard hook reports the tap
+// and the launcher's own show request follows it. The two are one toggle, so
+// whichever lands first acts and the other is dropped inside this window.
+double g_keyToggleAt = -1000;
 bool g_frameTimer;
 int g_hover = -1, g_selected = -1, g_pressed = -1;
 bool g_pressedEmpty;
 bool g_trackingMouse;
-bool g_menuHover;
 bool g_searchHover;   // The pointer rests on the search bar.
 bool g_clearHover;    // ... on the clear (x) button.
 float g_searchGlow;   // 0..1, the bar's eased accent glow.
-float g_btnGlow;      // 0..1, the "..." button's eased hover fill.
 
 // Dragging an icon: it keeps a place in the grid or folder, drawn empty, and
 // moves to the place the pointer rests on.
@@ -3487,43 +3667,1329 @@ struct Drag {
     std::vector<std::wstring> backup;  // The arrangement before, for Esc.
 };
 [[clang::no_destroy]] Drag g_drag;
+using AppSelection = std::vector<std::shared_ptr<App>>;
+[[clang::no_destroy]] AppSelection g_appSelection;
+[[clang::no_destroy]] std::unordered_set<std::wstring> g_selectedAppKeys;
+struct SelectionPointer {
+    AppSelection base;
+    std::unordered_set<std::wstring> baseKeys;
+    std::shared_ptr<App> app;
+    POINT start{}, end{};
+    bool pending=false, active=false;
+};
+[[clang::no_destroy]] SelectionPointer g_selectionPointer;
+float g_batchBlend=0;
+int g_batchPressed=-1,g_batchHover=-1;
+size_t g_batchDisplayCount=0;
+bool g_batchLaunching=false;
+
+auto FindSelectedApp(const AppSelection& selection,const App& app) {
+    return std::find_if(selection.begin(),selection.end(),[&](const auto& item){
+        return item.get()==&app||AppKey(*item)==AppKey(app);
+    });
+}
+bool AppSelected(const App& app) {
+    return !g_selectedAppKeys.empty()&&g_selectedAppKeys.contains(AppKey(app));
+}
+void SelectionChanged() {
+    g_selectedAppKeys.clear();
+    for(const auto& app:g_appSelection)g_selectedAppKeys.insert(AppKey(*app));
+    if(!g_appSelection.empty())g_batchDisplayCount=g_appSelection.size();
+    if(!Animate())g_batchBlend=g_appSelection.empty()?0.f:1.f;
+    StartFrames();
+}
+void ClearAppSelection() {
+    g_selectionPointer={};
+    g_batchPressed=g_batchHover=-1;
+    if(g_appSelection.empty())return;
+    g_appSelection.clear();
+    SelectionChanged();
+}
+void ToggleAppSelection(const std::shared_ptr<App>& app) {
+    auto found=FindSelectedApp(g_appSelection,*app);
+    if(found==g_appSelection.end())g_appSelection.push_back(app);
+    else g_appSelection.erase(found);
+    SelectionChanged();
+}
+D2D1_RECT_F SelectionRect() {
+    const auto& p=g_selectionPointer;
+    return {(float)std::min(p.start.x,p.end.x),(float)std::min(p.start.y,p.end.y),
+            (float)std::max(p.start.x,p.end.x),(float)std::max(p.start.y,p.end.y)};
+}
+D2D1_RECT_F SelectionViewport() {
+    if(!g_openFolder)return {0,g_layout.viewTop,(float)g_layout.width,g_layout.viewBottom};
+    auto f=GetFolderLayout();
+    return {f.left,f.top,f.panel.right,f.top+f.visibleRows*f.cellHeight};
+}
+D2D1_RECT_F SelectionIntersection(const D2D1_RECT_F& a,const D2D1_RECT_F& b) {
+    return {std::max(a.left,b.left),std::max(a.top,b.top),
+            std::min(a.right,b.right),std::min(a.bottom,b.bottom)};
+}
+bool SelectionHasArea(const D2D1_RECT_F& r) {
+    return r.right>r.left&&r.bottom>r.top;
+}
+bool MoveAppSelection(int x,int y) {
+    auto& pointer=g_selectionPointer;
+    if(!pointer.pending)return false;
+    pointer.end={x,y};
+    if(!pointer.active&&std::abs(x-pointer.start.x)<GetSystemMetrics(SM_CXDRAG)&&
+       std::abs(y-pointer.start.y)<GetSystemMetrics(SM_CYDRAG))return true;
+    pointer.active=true;
+    auto rect=SelectionIntersection(SelectionRect(),SelectionViewport());
+    auto selection=pointer.base;
+    if(SelectionHasArea(rect)) {
+        auto keys=pointer.baseKeys;
+        const auto& items=Items();
+        for(int i=0;i<(int)items.size();i++) {
+            if(!items[i].app||!SelectionHasArea(SelectionIntersection(rect,ItemCell(i).highlight)))continue;
+            if(keys.insert(AppKey(*items[i].app)).second)selection.push_back(items[i].app);
+        }
+    }
+    if(selection!=g_appSelection) {
+        g_appSelection=std::move(selection);
+        SelectionChanged();
+    }
+    StartFrames();return true;
+}
+
 bool g_modal;  // A dialog of the grid is open: losing the focus is expected.
 
 #ifndef SEAMLESS_PREVIEW
 void ResetTaskbarStartButtons(bool ownRequest = false);
+void ClearStartButtonLatch(const wchar_t* why);  // launchpad_start_xaml.h
 #endif
 
-// Consume a menu-dismissal click in the menu's own message loop. Otherwise
-// Windows can replay that down to the launcher and its up closes the grid.
-LRESULT CALLBACK LaunchpadMenuFilter(int code, WPARAM wp, LPARAM lp) {
-    if (code == MSGF_MENU) {
-        const MSG* message = (const MSG*)lp;
-        if (message->message == WM_LBUTTONDOWN || message->message == WM_LBUTTONDBLCLK) {
-            HWND hit = WindowFromPoint(message->pt);
-            WCHAR cls[32]{};
-            if (hit) GetClassNameW(GetAncestor(hit,GA_ROOT),cls,ARRAYSIZE(cls));
-            if (wcscmp(cls,L"#32768") != 0) {
-                g_pressed = -1; g_pressedEmpty = false;
-                g_drag.pending = false;
-                EndMenu();
-                return 1;
+////////////////////////////////////////////////////////////////////////////////
+// Popup menus
+//
+// Every menu the grid opens is drawn by the mod instead of the system's #32768
+// menu class: a topmost layered window with rounded corners, a blurred copy of
+// whatever sits behind it, the wallpaper tint and the same light veil and white
+// rim the search box and the power dock wear. HMENU stays the command source
+// (every caller passes TPM_RETURNCMD), so TrackLaunchpadPopupMenu is the only
+// entry point that had to change.
+
+namespace LaunchpadMenu {
+
+constexpr WCHAR kMenuClass[] = L"RYJSLaunchpadMenu";
+constexpr UINT kAnimationTimer = 1;
+constexpr UINT kSubmenuTimer = 2;
+constexpr int kAnimationMs = 120;
+constexpr int kSubmenuDelayMs = 140;
+
+// One row of a menu. Built from the HMENU the caller filled in, so the command
+// ids, the disabled states and the submenus all stay exactly as they were.
+struct Node {
+    std::wstring text;
+    std::wstring hint;  // The part after a tab, drawn right aligned.
+    UINT id = 0;
+    bool separator = false;
+    bool enabled = true;
+    bool checked = false;
+    bool radio = false;
+    bool bold = false;  // The default item, hit by Enter.
+    WCHAR mnemonic = 0;
+    std::vector<Node> sub;
+    ComPtr<IDWriteTextLayout> layout;
+    ComPtr<IDWriteTextLayout> hintLayout;
+};
+
+// One open level. Everything is in screen coordinates; the window paints with
+// a translation so a panel can be hit tested against the pointer directly.
+struct Panel {
+    std::vector<Node>* items = nullptr;
+    D2D1_RECT_F rect{};
+    float width = 0;
+    float contentHeight = 0;
+    float scroll = 0;
+    int hover = -1;
+    int pressed = -1;
+    int parentItem = -1;
+    float checkWidth = 0, arrowWidth = 0, hintWidth = 0;
+};
+
+struct State {
+    std::vector<Node> root;
+    std::vector<Panel> panels;
+    HWND hwnd = nullptr;
+    RECT work{};
+    POINT origin{};
+    int width = 0, height = 0;
+    float scale = 1;
+    float rootTop = 0;
+    float widestChild = 0, tallestChild = 0;
+    bool running = false;
+    UINT result = 0;
+    int active = 0;
+    bool ignoreFirstMove = true;
+    int wheel = 0;
+    int pressedPanel = -1, pressedItem = -1;
+    int pendingPanel = -1, pendingItem = -1;
+    double appearStart = 0;
+    UINT generation = 0;
+    ComPtr<IDWriteTextFormat> textFormat, boldFormat, hintFormat;
+    ComPtr<ID2D1Bitmap1> frame, backdrop;
+    int backdropFactor = 1;
+    bool frameBackdrop = false;  // Backdrop came from the grid's own frame.
+    ComPtr<ID3D11Texture2D> staging;
+    Surface surface;
+};
+// One menu at a time, and freed by Reset instead of at exit.
+[[clang::no_destroy]] State g_menu;
+
+float PadY(float scale) { return 6 * scale; }
+float RowHeight(const Node& node, float scale) {
+    return node.separator ? 9 * scale : 32 * scale;
+}
+
+bool PointInRect(const D2D1_RECT_F& r, float x, float y) {
+    return x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+}
+
+// ----------------------------------------------------------------------------
+// Reading the HMENU
+
+std::wstring MenuItemText(HMENU menu, int index) {
+    WCHAR buffer[512]{};
+    int length = GetMenuStringW(menu, index, buffer, ARRAYSIZE(buffer),
+                                MF_BYPOSITION);
+    if (length < ARRAYSIZE(buffer) - 1) return buffer;
+    std::wstring text((size_t)length + 1, L'\0');
+    GetMenuStringW(menu, index, text.data(), (int)text.size(), MF_BYPOSITION);
+    text.resize(wcslen(text.c_str()));
+    return text;
+}
+
+// "&&" is a literal ampersand and a single "&" marks the keyboard mnemonic;
+// neither is drawn. A tab separates the shortcut column.
+std::wstring CleanMenuItem(const std::wstring& raw, WCHAR& mnemonic,
+                           std::wstring& hint) {
+    std::wstring text = raw;
+    size_t tab = text.find(L'\t');
+    if (tab != std::wstring::npos) {
+        hint = text.substr(tab + 1);
+        text.erase(tab);
+    }
+    std::wstring out;
+    out.reserve(text.size());
+    for (size_t i = 0; i < text.size(); i++) {
+        if (text[i] != L'&') {
+            out += text[i];
+            continue;
+        }
+        if (i + 1 < text.size() && text[i + 1] == L'&') {
+            out += L'&';
+            i++;
+            continue;
+        }
+        if (i + 1 < text.size()) {
+            if (!mnemonic) {
+                WCHAR c = text[i + 1];
+                mnemonic =
+                    c >= L'a' && c <= L'z' ? (WCHAR)(c - L'a' + L'A') : c;
+            }
+            i++;
+        }
+    }
+    return out;
+}
+
+bool ReadMenu(HMENU menu, std::vector<Node>& nodes) {
+    int count = GetMenuItemCount(menu);
+    if (count <= 0) return false;
+    nodes.clear();
+    nodes.reserve((size_t)count);
+    for (int i = 0; i < count; i++) {
+        MENUITEMINFOW info{};
+        info.cbSize = sizeof(info);
+        info.fMask = MIIM_FTYPE | MIIM_STATE | MIIM_ID | MIIM_SUBMENU;
+        if (!GetMenuItemInfoW(menu, (UINT)i, TRUE, &info)) continue;
+        Node node;
+        node.id = info.wID;
+        node.separator = (info.fType & MFT_SEPARATOR) != 0;
+        node.enabled = !(info.fState & (MFS_DISABLED | MFS_GRAYED));
+        node.checked = (info.fState & MFS_CHECKED) != 0;
+        node.radio = (info.fType & MFT_RADIOCHECK) != 0;
+        node.bold = (info.fState & MFS_DEFAULT) != 0;
+        if (!node.separator) {
+            node.text =
+                CleanMenuItem(MenuItemText(menu, i), node.mnemonic, node.hint);
+        }
+        if (info.hSubMenu) ReadMenu(info.hSubMenu, node.sub);
+        nodes.push_back(std::move(node));
+    }
+    return !nodes.empty();
+}
+
+// ----------------------------------------------------------------------------
+// Measuring
+
+void EnsureFormats(State& m, float scale) {
+    if (m.textFormat && m.scale == scale) return;
+    m.scale = scale;
+    auto make = [&](float size, DWRITE_FONT_WEIGHT weight,
+                    ComPtr<IDWriteTextFormat>& format) {
+        format.Reset();
+        g_dwrite->CreateTextFormat(g_settings.font.c_str(), nullptr, weight,
+                                   DWRITE_FONT_STYLE_NORMAL,
+                                   DWRITE_FONT_STRETCH_NORMAL, size * scale,
+                                   L"", &format);
+        if (!format) return;
+        format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+        DWRITE_TRIMMING trimming{DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0, 0};
+        ComPtr<IDWriteInlineObject> ellipsis;
+        g_dwrite->CreateEllipsisTrimmingSign(format.Get(), &ellipsis);
+        format->SetTrimming(&trimming, ellipsis.Get());
+    };
+    make(14.0f, DWRITE_FONT_WEIGHT_NORMAL, m.textFormat);
+    make(14.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD, m.boldFormat);
+    make(12.5f, DWRITE_FONT_WEIGHT_NORMAL, m.hintFormat);
+    if (m.hintFormat) m.hintFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
+}
+
+IDWriteTextLayout* MakeLayout(IDWriteTextFormat* format,
+                              const std::wstring& text, float maxWidth,
+                              float maxHeight) {
+    if (!format || text.empty()) return nullptr;
+    IDWriteTextLayout* layout = nullptr;
+    if (FAILED(g_dwrite->CreateTextLayout(text.c_str(), (UINT32)text.size(),
+                                          format, maxWidth, maxHeight,
+                                          &layout))) {
+        return nullptr;
+    }
+    return layout;
+}
+
+void MeasurePanel(State& m, Panel& panel) {
+    const float s = m.scale;
+    const float rowHeight = 32 * s;
+    const float maxText = 380 * s;
+    float widest = 0, widestHint = 0;
+    bool submenu = false, checks = false;
+    for (auto& node : *panel.items) {
+        if (node.separator) continue;
+        if (!node.sub.empty()) submenu = true;
+        if (node.checked) checks = true;
+        node.layout.Reset();
+        node.hintLayout.Reset();
+        if (node.text.empty()) continue;
+        node.layout = MakeLayout(node.bold && m.boldFormat ? m.boldFormat.Get()
+                                                          : m.textFormat.Get(),
+                                 node.text, maxText, rowHeight);
+        if (node.layout) {
+            DWRITE_TEXT_METRICS metrics{};
+            if (SUCCEEDED(node.layout->GetMetrics(&metrics)))
+                widest = std::max(widest, metrics.width);
+        }
+        if (!node.hint.empty()) {
+            node.hintLayout = MakeLayout(m.hintFormat.Get(), node.hint,
+                                         180 * s, rowHeight);
+            if (node.hintLayout) {
+                DWRITE_TEXT_METRICS metrics{};
+                if (SUCCEEDED(node.hintLayout->GetMetrics(&metrics)))
+                    widestHint = std::max(widestHint, metrics.width);
             }
         }
     }
-    return CallNextHookEx(nullptr,code,wp,lp);
+    panel.checkWidth = checks ? 18 * s : 0;
+    panel.arrowWidth = submenu ? 16 * s : 0;
+    panel.hintWidth = widestHint > 0 ? widestHint + 18 * s : 0;
+    float frame = 14 * s + panel.checkWidth + panel.hintWidth +
+                  panel.arrowWidth + 14 * s;
+    panel.width = std::max(172 * s, frame + widest);
+    float height = 2 * PadY(s);
+    for (const auto& node : *panel.items) height += RowHeight(node, s);
+    panel.contentHeight = height;
 }
 
-UINT TrackLaunchpadPopupMenu(HMENU menu, UINT flags, int x, int y, HWND owner, LPTPMPARAMS params) {
-    HHOOK filter = SetWindowsHookExW(WH_MSGFILTER,LaunchpadMenuFilter,nullptr,GetCurrentThreadId());
-    if (!filter) Wh_Log(L"Menu-dismiss filter unavailable: %u",GetLastError());
+// Every level is measured up front: the window is one fixed size for the life
+// of the menu, so a submenu never has to resize it (which would need a fresh
+// screenshot).
+void MeasureChildren(State& m, std::vector<Node>& nodes) {
+    for (auto& node : nodes) {
+        if (node.sub.empty()) continue;
+        Panel panel;
+        panel.items = &node.sub;
+        MeasurePanel(m, panel);
+        m.widestChild = std::max(m.widestChild, panel.width);
+        m.tallestChild = std::max(m.tallestChild, panel.contentHeight);
+        MeasureChildren(m, node.sub);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Placement
+
+void PlaceRoot(State& m, POINT point, UINT flags) {
+    Panel& panel = m.panels[0];
+    const float s = m.scale;
+    const float margin = 4 * s;
+    const float workWidth = (float)(m.work.right - m.work.left);
+    const float workHeight = (float)(m.work.bottom - m.work.top);
+    float w = std::min(panel.width, workWidth - margin * 2);
+    float h = std::min(panel.contentHeight, workHeight - margin * 2);
+    float x = (float)point.x, y = (float)point.y;
+    if (flags & TPM_RIGHTALIGN) x -= w;
+    else if (flags & TPM_CENTERALIGN) x -= w * 0.5f;
+    if (flags & TPM_BOTTOMALIGN) y -= h;
+    else if (flags & TPM_VCENTERALIGN) y -= h * 0.5f;
+    float left = (float)m.work.left, top = (float)m.work.top;
+    float maxX = (float)m.work.right - margin - w;
+    float maxY = (float)m.work.bottom - margin - h;
+    if (maxX < left) maxX = left;
+    if (maxY < top) maxY = top;
+    x = std::clamp(x, left + margin, maxX);
+    y = std::clamp(y, top + margin, maxY);
+    panel.rect = D2D1::RectF(x, y, x + w, y + h);
+    m.rootTop = y;
+}
+
+void OpenSubmenu(int level, int item);
+
+// ----------------------------------------------------------------------------
+// Drawing
+
+void DrawItem(State& m, Panel& panel, int index, Node& node, float top,
+              float height, float left, float right) {
+    const float s = m.scale;
+    if (node.separator) {
+        float y = std::round(top + height * 0.5f) + 0.5f;
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF, 0.16f));
+        g_target->DrawLine(D2D1::Point2F(left + 8 * s, y),
+                           D2D1::Point2F(right - 8 * s, y), g_brush.Get(), 1);
+        return;
+    }
+    const float radius = 8 * s;
+    D2D1_RECT_F pill =
+        D2D1::RectF(left, top + 1 * s, right, top + height - 1 * s);
+    if (panel.hover == index) {
+        // Same white wash the dock and the search box use for hover, floored so
+        // the row always reads as selected even with the glow turned down.
+        float glow = std::clamp(g_settings.glowStrength, 0.f, 1.f);
+        Fill(pill, D2D1::ColorF(0xFFFFFF, 0.12f + 0.14f * glow), radius);
+    }
+    float textLeft = left + 10 * s + panel.checkWidth;
+    float textRight = right - 8 * s - panel.arrowWidth - panel.hintWidth;
+    if (panel.hintWidth > 0 && node.hintLayout) {
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF, node.enabled ? 0.55f : 0.30f));
+        g_target->DrawTextLayout(
+            D2D1::Point2F(right - 8 * s - panel.arrowWidth - panel.hintWidth,
+                          top),
+            node.hintLayout.Get(), g_brush.Get());
+    }
+    if (node.layout) {
+        g_brush->SetColor(node.enabled ? D2D1::ColorF(0xFFFFFF, 0.96f)
+                                       : D2D1::ColorF(0xFFFFFF, 0.38f));
+        g_target->DrawTextLayout(D2D1::Point2F(textLeft, top),
+                                 node.layout.Get(), g_brush.Get());
+    }
+    if (panel.checkWidth > 0 && node.checked) {
+        float cx = left + 10 * s + panel.checkWidth * 0.5f;
+        float cy = top + height * 0.5f;
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF, node.enabled ? 0.92f : 0.32f));
+        if (node.radio) {
+            g_target->FillEllipse(
+                D2D1::Ellipse(D2D1::Point2F(cx, cy), 3.2f * s, 3.2f * s),
+                g_brush.Get());
+        } else {
+            g_target->DrawLine(D2D1::Point2F(cx - 4 * s, cy),
+                               D2D1::Point2F(cx - 1 * s, cy + 3.2f * s),
+                               g_brush.Get(), 1.6f * s);
+            g_target->DrawLine(D2D1::Point2F(cx - 1 * s, cy + 3.2f * s),
+                               D2D1::Point2F(cx + 4.2f * s, cy - 3.4f * s),
+                               g_brush.Get(), 1.6f * s);
+        }
+    }
+    if (!node.sub.empty()) {
+        float cx = right - 8 * s - panel.arrowWidth * 0.5f;
+        float cy = top + height * 0.5f;
+        float arm = 3.6f * s;
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF, node.enabled ? 0.70f : 0.30f));
+        g_target->DrawLine(D2D1::Point2F(cx - arm * 0.5f, cy - arm),
+                           D2D1::Point2F(cx + arm * 0.7f, cy), g_brush.Get(),
+                           1.4f * s);
+        g_target->DrawLine(D2D1::Point2F(cx + arm * 0.7f, cy),
+                           D2D1::Point2F(cx - arm * 0.5f, cy + arm),
+                           g_brush.Get(), 1.4f * s);
+    }
+}
+
+void DrawPanel(State& m, Panel& panel) {
+    const float s = m.scale;
+    const D2D1_RECT_F r = panel.rect;
+    const float radius = 10 * s;
+    // The popup wears the same material as the search box and the power dock,
+    // so a menu opened on a tile reads as part of the grid rather than as a
+    // foreign window. DrawGlassSurface() itself cannot be reused: it paints
+    // into the shared frame and bails out through SelectionHasArea().
+    const float shift = 2 * s;
+    Fill(D2D1::RectF(r.left, r.top + shift, r.right, r.bottom + shift),
+         D2D1::ColorF(0, 0.14f), radius);
+    // The base is the blurred screen behind the popup, painted as a rounded
+    // bitmap fill: the popup keeps its corners and nothing sharp from behind
+    // can reach the labels.
+    if (m.backdrop) {
+        ComPtr<ID2D1BitmapBrush> brush;
+        if (SUCCEEDED(g_target->CreateBitmapBrush(
+                m.backdrop.Get(),
+                D2D1::BitmapBrushProperties(
+                    D2D1_EXTEND_MODE_CLAMP, D2D1_EXTEND_MODE_CLAMP,
+                    D2D1_BITMAP_INTERPOLATION_MODE_LINEAR),
+                &brush))) {
+            brush->SetTransform(D2D1::Matrix3x2F::Scale(
+                (float)m.backdropFactor, (float)m.backdropFactor));
+            g_target->FillRoundedRectangle(D2D1::RoundedRect(r, radius, radius),
+                                           brush.Get());
+        }
+    }
+    // Then the launcher's own recipe: the chrome veil the search bar and the
+    // power dock are made of, and their white edge. When the base came from
+    // the grid's frame it already wears the grid's tint — adding more would
+    // make the menu a different color from the search bar. Only the tray
+    // menu, whose backdrop is a raw screen copy, needs the extra shade.
+    if (!m.frameBackdrop) {
+        const float tintAlpha =
+            std::clamp(g_settings.opacity + 0.30f, 0.f, 0.94f);
+        Fill(r, Alpha(g_settings.tint, tintAlpha), radius);
+    }
+    Fill(r, D2D1::ColorF(0xE8E8E8, 0.07f + 0.17f * g_settings.chromeOpacity),
+         radius);
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF, 0.22f));
+    g_target->DrawRoundedRectangle(
+        D2D1::RoundedRect(
+            D2D1::RectF(r.left + .5f, r.top + .5f, r.right - .5f, r.bottom - .5f),
+            radius - .5f, radius - .5f),
+        g_brush.Get(), 1);
+    const float padY = PadY(s);
+    g_target->PushAxisAlignedClip(
+        D2D1::RectF(r.left, r.top + padY, r.right, r.bottom - padY),
+        D2D1_ANTIALIAS_MODE_ALIASED);
+    float top = r.top + padY - panel.scroll;
+    float pillLeft = r.left + 6 * s, pillRight = r.right - 6 * s;
+    for (int i = 0; i < (int)panel.items->size(); i++) {
+        Node& node = (*panel.items)[i];
+        float height = RowHeight(node, s);
+        if (top + height > r.top + padY && top < r.bottom - padY) {
+            DrawItem(m, panel, i, node, top, height, pillLeft, pillRight);
+        }
+        top += height;
+    }
+    g_target->PopAxisAlignedClip();
+}
+
+// BlurToBitmap() hands back a bitmap created as a render target. Direct2D
+// refuses to sample one of those, so the blur is copied into an ordinary
+// bitmap that a brush can read.
+ComPtr<ID2D1Bitmap1> SampledBlur(ComPtr<ID2D1Bitmap1> blurred) {
+    if (!blurred) return nullptr;
+    D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
+        D2D1_BITMAP_OPTIONS_NONE,
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                          D2D1_ALPHA_MODE_PREMULTIPLIED),
+        96, 96);
+    ComPtr<ID2D1Bitmap1> out;
+    if (FAILED(g_target->CreateBitmap(blurred->GetPixelSize(), nullptr, 0,
+                                      props, &out)) ||
+        FAILED(out->CopyFromBitmap(nullptr, blurred.Get(), nullptr))) {
+        return nullptr;
+    }
+    return out;
+}
+
+#ifdef SEAMLESS_PREVIEW
+// Offscreen previews never put a window on screen, so the harness hands over
+// the grid it just drew and the capture reads that instead of the desktop.
+HBITMAP g_previewScreen = nullptr;
+POINT g_previewScreenOrigin = {0, 0};
+#endif
+
+// The blurred copy of whatever sits behind the menu window, taken while the
+// window is still hidden. Inside the grid that is the frame the launcher just
+// drew — the same pixels the search bar sits on — read straight from the GPU
+// and blurred exactly like the screen copy: same blur, same tint, same light,
+// and it cannot pick up the menu itself or miss the launcher. The tray menu,
+// which opens with no grid on screen, falls back to a screen copy.
+bool CaptureBackdrop(State& m) {
+    m.backdrop.Reset();
+    m.frameBackdrop = false;
+    if (!g_target || m.width <= 0 || m.height <= 0) return false;
+    const float sigma = 26 * m.scale;
+    const int factor = std::clamp((int)(sigma / 3), 1, 16);
+    const int sw = (m.width + factor - 1) / factor;
+    const int sh = (m.height + factor - 1) / factor;
+
+    // DrawBitmap out of a target bitmap works — the folder panel's frost is
+    // taken from this same frame — but a brush needs an ordinary bitmap, so
+    // the blur lands in SampledBlur() on the way out. The frame is at rest
+    // here: right-clicks reach it fully shown, unzoomed, identity transform,
+    // so frame pixels map one to one onto window position on screen.
+    if (g_shown && !g_closing && g_appear >= 1 && g_frame && g_wnd) {
+        RECT wnd{};
+#ifdef SEAMLESS_PREVIEW
+        wnd = g_layout.area;  // The preview window sits exactly on its area.
+#else
+        if (GetWindowRect(g_wnd, &wnd))
+#endif
+        {
+            int x0 = m.origin.x - wnd.left, y0 = m.origin.y - wnd.top;
+            int x1 = x0 + m.width, y1 = y0 + m.height;
+            if (x0 >= 0 && y0 >= 0 && x1 <= g_frameWidth &&
+                y1 <= g_frameHeight) {
+                m.backdrop = SampledBlur(BlurToBitmap(
+                    g_frame.Get(),
+                    D2D1::RectF((float)x0, (float)y0, (float)x1, (float)y1),
+                    factor, sigma, sw, sh));
+                if (m.backdrop) {
+                    m.backdropFactor = factor;
+                    m.frameBackdrop = true;
+                    return true;
+                }
+            }
+        }
+    }
+
+    BITMAPINFO info{};
+    info.bmiHeader.biSize = sizeof(info.bmiHeader);
+    info.bmiHeader.biWidth = m.width;
+    info.bmiHeader.biHeight = -m.height;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    info.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    HDC screen = GetDC(nullptr);
+    HDC memory = CreateCompatibleDC(screen);
+    HBITMAP bitmap =
+        CreateDIBSection(memory, &info, DIB_RGB_COLORS, &bits, nullptr, 0);
+    if (!bitmap) {
+        DeleteDC(memory);
+        ReleaseDC(nullptr, screen);
+        return false;
+    }
+    HGDIOBJ old = SelectObject(memory, bitmap);
+    // Wait for the compositor, so a grid just selected under the pointer is on
+    // screen before its pixels are blurred.
+    DwmFlush();
+#ifdef SEAMLESS_PREVIEW
+    if (g_previewScreen) {
+        HDC source = CreateCompatibleDC(screen);
+        HGDIOBJ previous = SelectObject(source, g_previewScreen);
+        BitBlt(memory, 0, 0, m.width, m.height, source,
+               m.origin.x - g_previewScreenOrigin.x,
+               m.origin.y - g_previewScreenOrigin.y, SRCCOPY);
+        SelectObject(source, previous);
+        DeleteDC(source);
+    } else
+#endif
+    {
+        BitBlt(memory, 0, 0, m.width, m.height, screen, m.origin.x, m.origin.y,
+               SRCCOPY);
+    }
+    GdiFlush();
+    SelectObject(memory, old);
+    DeleteDC(memory);
+    ReleaseDC(nullptr, screen);
+    // GDI screen copies leave the alpha channel undefined; the source is
+    // opaque.
+    for (size_t i = 0; i < (size_t)m.width * m.height; i++)
+        ((UINT32*)bits)[i] |= 0xFF000000;
+    D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                          D2D1_ALPHA_MODE_PREMULTIPLIED),
+        96, 96);
+    ComPtr<ID2D1Bitmap> full;
+    bool uploaded = SUCCEEDED(g_target->CreateBitmap(
+        D2D1::SizeU(m.width, m.height), bits, m.width * 4, props, &full));
+    DeleteObject(bitmap);
+    if (!uploaded) return false;
+    m.backdrop = SampledBlur(BlurToBitmap(
+        full.Get(), D2D1::RectF(0, 0, (float)m.width, (float)m.height), factor,
+        sigma, sw, sh));
+    if (!m.backdrop) return false;
+    m.backdropFactor = factor;
+    return true;
+}
+
+bool EnsureMenuFrame(State& m) {
+    if (m.frame) return true;
+    D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
+        D2D1_BITMAP_OPTIONS_TARGET,
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                          D2D1_ALPHA_MODE_PREMULTIPLIED),
+        96, 96);
+    if (FAILED(g_target->CreateBitmap(D2D1::SizeU(m.width, m.height), nullptr,
+                                      0, props, &m.frame))) {
+        return false;
+    }
+    if (!EnsureSurface(m.surface, m.width, m.height)) {
+        m.frame.Reset();
+        return false;
+    }
+    m.staging.Reset();
+    return true;
+}
+
+bool CopyToSurface(State& m) {
+    if (!m.frame || !m.surface.bitmap || !g_d3d) return false;
+    if (!m.staging) {
+        D3D11_TEXTURE2D_DESC desc{};
+        desc.Width = m.width;
+        desc.Height = m.height;
+        desc.MipLevels = desc.ArraySize = desc.SampleDesc.Count = 1;
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        if (FAILED(g_d3d->CreateTexture2D(&desc, nullptr, &m.staging)))
+            return false;
+    }
+    DIBSECTION ds{};
+    if (GetObjectW(m.surface.bitmap, sizeof(ds), &ds) != sizeof(ds) ||
+        !ds.dsBm.bmBits) {
+        return false;
+    }
+    ComPtr<IDXGISurface> surface;
+    ComPtr<ID3D11Texture2D> texture;
+    if (FAILED(m.frame->GetSurface(&surface)) ||
+        FAILED(surface.As(&texture))) {
+        return false;
+    }
+    ComPtr<ID3D11DeviceContext> ctx;
+    g_d3d->GetImmediateContext(&ctx);
+    ctx->CopyResource(m.staging.Get(), texture.Get());
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(ctx->Map(m.staging.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
+        return false;
+    size_t span = (size_t)m.width * 4;
+    const BYTE* src = (const BYTE*)mapped.pData;
+    BYTE* dst = (BYTE*)ds.dsBm.bmBits;
+    for (int y = 0; y < m.height; y++)
+        memcpy(dst + (size_t)y * span, src + (size_t)y * mapped.RowPitch, span);
+    ctx->Unmap(m.staging.Get(), 0);
+    return true;
+}
+
+float AppearAmount(State& m) {
+    float t = (float)((Now() - m.appearStart) * 1000.0 / kAnimationMs);
+    t = std::clamp(t, 0.0f, 1.0f);
+    return t * t * (3 - 2 * t);
+}
+
+bool DrawFrame(State& m) {
+    if (m.width <= 0 || m.height <= 0) return false;
+    if (!EnsureTarget()) return false;
+    if (m.generation != g_targetGeneration) {
+        // The device went away: the cached blur belongs to the old one.
+        m.frame.Reset();
+        m.staging.Reset();
+        m.backdrop.Reset();
+        m.generation = g_targetGeneration;
+    }
+    if (!EnsureMenuFrame(m)) return false;
+    g_target->SetTarget(m.frame.Get());
+    g_target->BeginDraw();
+    g_target->SetTransform(D2D1::Matrix3x2F::Translation(
+        -(float)m.origin.x, -(float)m.origin.y));
+    g_target->Clear(D2D1::ColorF(0, 0, 0, 0));
+    for (auto& panel : m.panels) DrawPanel(m, panel);
+    g_target->SetTransform(D2D1::Matrix3x2F::Identity());
+    if (g_target->EndDraw() == D2DERR_RECREATE_TARGET) {
+        ResetTarget();
+        return false;
+    }
+    if (!CopyToSurface(m)) return false;
+    return true;
+}
+
+// Puts the finished frame on screen, fading in over the first ~120 ms.
+void Present(State& m) {
+    if (!m.hwnd || !m.surface.dc) return;
+    POINT dst{m.origin.x, m.origin.y}, src{0, 0};
+    SIZE size{m.width, m.height};
+    BLENDFUNCTION blend{AC_SRC_OVER, 0,
+                        (BYTE)std::lround(255 * AppearAmount(m)),
+                        AC_SRC_ALPHA};
+    UpdateLayeredWindow(m.hwnd, nullptr, &dst, &size, m.surface.dc, &src, 0,
+                        &blend, ULW_ALPHA);
+}
+
+bool Paint(State& m) {
+    if (!m.hwnd) return false;
+    if (!DrawFrame(m)) return false;
+    Present(m);
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+// Interaction
+
+void Finish(UINT command) {
+    g_menu.result = command;
+    g_menu.running = false;
+}
+
+int PanelAt(float x, float y) {
+    State& m = g_menu;
+    for (int i = (int)m.panels.size() - 1; i >= 0; i--) {
+        if (PointInRect(m.panels[i].rect, x, y)) return i;
+    }
+    return -1;
+}
+
+int HitTest(const Panel& panel, float x, float y) {
+    if (!PointInRect(panel.rect, x, y)) return -1;
+    const float s = g_menu.scale;
+    float top = panel.rect.top + PadY(s) - panel.scroll;
+    for (int i = 0; i < (int)panel.items->size(); i++) {
+        const Node& node = (*panel.items)[i];
+        float height = RowHeight(node, s);
+        if (y >= top && y < top + height) {
+            return node.separator || !node.enabled ? -1 : i;
+        }
+        top += height;
+    }
+    return -1;
+}
+
+void SetHover(int level, int item) {
+    State& m = g_menu;
+    bool changed = false;
+    for (int i = 0; i < (int)m.panels.size(); i++) {
+        int value = i == level ? item : -1;
+        if (m.panels[i].hover != value) {
+            m.panels[i].hover = value;
+            changed = true;
+        }
+    }
+    if (changed) Paint(m);
+}
+
+void CloseDeeper(int level) {
+    State& m = g_menu;
+    m.pendingPanel = m.pendingItem = -1;
+    if (m.hwnd) KillTimer(m.hwnd, kSubmenuTimer);
+    if ((int)m.panels.size() > level + 1) {
+        m.panels.resize(level + 1);
+        m.active = level;
+        Paint(m);
+    }
+}
+
+// The row's top edge inside a panel, in screen pixels.
+float RowTop(const Panel& panel, int index) {
+    const float s = g_menu.scale;
+    float top = panel.rect.top + PadY(s) - panel.scroll;
+    for (int i = 0; i < index; i++) top += RowHeight((*panel.items)[i], s);
+    return top;
+}
+
+void ScrollPanel(int level, float delta) {
+    State& m = g_menu;
+    if (level < 0 || level >= (int)m.panels.size()) return;
+    Panel& panel = m.panels[level];
+    float visible = panel.rect.bottom - panel.rect.top;
+    float limit = std::max(0.0f, panel.contentHeight - visible);
+    float value = std::clamp(panel.scroll + delta, 0.0f, limit);
+    if (value == panel.scroll) return;
+    panel.scroll = value;
+    panel.hover = -1;
+    m.pendingPanel = m.pendingItem = -1;
+    if (m.hwnd) KillTimer(m.hwnd, kSubmenuTimer);
+    Paint(m);
+}
+
+void EnsureVisible(int level, int index) {
+    State& m = g_menu;
+    Panel& panel = m.panels[level];
+    float s = m.scale;
+    float visible = panel.rect.bottom - panel.rect.top - PadY(s) * 2;
+    float top = RowTop(panel, index) - panel.rect.top - PadY(s) + panel.scroll;
+    float height = RowHeight((*panel.items)[index], s);
+    float limit = std::max(0.0f, panel.contentHeight - (panel.rect.bottom - panel.rect.top));
+    if (top < panel.scroll) panel.scroll = top;
+    else if (top + height > panel.scroll + visible)
+        panel.scroll = top + height - visible;
+    panel.scroll = std::clamp(panel.scroll, 0.0f, limit);
+}
+
+void MoveHover(int step) {
+    State& m = g_menu;
+    if (m.panels.empty()) return;
+    int level = std::clamp(m.active, 0, (int)m.panels.size() - 1);
+    Panel& panel = m.panels[level];
+    int count = (int)panel.items->size();
+    if (!count) return;
+    int index = panel.hover;
+    for (int probe = 0; probe < count; probe++) {
+        index = index < 0 ? (step > 0 ? 0 : count - 1)
+                          : (index + step + count) % count;
+        const Node& node = (*panel.items)[index];
+        if (!node.separator && node.enabled) break;
+    }
+    panel.hover = index;
+    EnsureVisible(level, index);
+    Paint(m);
+}
+
+void OpenSubmenu(int level, int item) {
+    State& m = g_menu;
+    if (level < 0 || level >= (int)m.panels.size()) return;
+    if (item < 0 || item >= (int)m.panels[level].items->size()) return;
+    std::vector<Node>& nodes = *m.panels[level].items;
+    if (nodes[item].sub.empty()) return;
+    if ((int)m.panels.size() > level + 1 &&
+        m.panels[level + 1].parentItem == item) {
+        return;
+    }
+    const D2D1_RECT_F parentRect = m.panels[level].rect;
+    const float itemTop = RowTop(m.panels[level], item);
+    m.panels.resize(level + 1);
+    Panel child;
+    child.items = &nodes[item].sub;
+    child.parentItem = item;
+    MeasurePanel(m, child);
+    const float s = m.scale;
+    float maxHeight = (float)m.work.bottom - m.rootTop - 8 * s;
+    float height = std::min(child.contentHeight, std::max(maxHeight, 4 * s));
+    float x = parentRect.right - 2 * s;
+    if (x + child.width > (float)m.work.right - 4 * s) {
+        x = parentRect.left - child.width + 2 * s;
+    }
+    float minX = (float)m.work.left + 4 * s;
+    float maxX = std::max(minX, (float)m.work.right - 4 * s - child.width);
+    x = std::clamp(x, minX, maxX);
+    float maxY = std::max(m.rootTop, (float)m.work.bottom - 4 * s - height);
+    float y = std::clamp(itemTop - 4 * s, m.rootTop, maxY);
+    child.rect = D2D1::RectF(x, y, x + child.width, y + height);
+    m.panels.push_back(child);
+    m.active = (int)m.panels.size() - 1;
+    m.panels[level].hover = item;
+    Paint(m);
+}
+
+void Activate(int level, int item) {
+    State& m = g_menu;
+    if (level < 0 || level >= (int)m.panels.size()) return;
+    Panel& panel = m.panels[level];
+    if (item < 0 || item >= (int)panel.items->size()) return;
+    Node& node = (*panel.items)[item];
+    if (node.separator || !node.enabled) return;
+    if (!node.sub.empty()) {
+        OpenSubmenu(level, item);
+        return;
+    }
+    Finish(node.id);
+}
+
+void OnKey(WPARAM key) {
+    State& m = g_menu;
+    if (m.panels.empty()) return;
+    int level = std::clamp(m.active, 0, (int)m.panels.size() - 1);
+    Panel& panel = m.panels[level];
+    switch (key) {
+        case VK_UP:
+            MoveHover(-1);
+            break;
+        case VK_DOWN:
+            MoveHover(1);
+            break;
+        case VK_HOME:
+            panel.hover = -1;
+            MoveHover(1);
+            break;
+        case VK_END:
+            panel.hover = -1;
+            MoveHover(-1);
+            break;
+        case VK_PRIOR:
+            ScrollPanel(level, -10 * RowHeight(Node{}, m.scale));
+            break;
+        case VK_NEXT:
+            ScrollPanel(level, 10 * RowHeight(Node{}, m.scale));
+            break;
+        case VK_RIGHT:
+            if (panel.hover >= 0) {
+                int item = panel.hover;
+                if (!(*panel.items)[item].sub.empty()) {
+                    OpenSubmenu(level, item);
+                    m.active = (int)m.panels.size() - 1;
+                    m.panels[m.active].hover = -1;
+                    MoveHover(1);
+                }
+            }
+            break;
+        case VK_LEFT:
+            if (level > 0) {
+                int parentItem = m.panels[level].parentItem;
+                CloseDeeper(level - 1);
+                m.active = level - 1;
+                m.panels[level - 1].hover = parentItem;
+                Paint(m);
+            }
+            break;
+        case VK_RETURN:
+            if (panel.hover >= 0) Activate(level, panel.hover);
+            break;
+        case VK_ESCAPE:
+            if (level > 0) {
+                CloseDeeper(level - 1);
+                m.active = level - 1;
+                Paint(m);
+            } else {
+                Finish(0);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void OnMnemonic(WPARAM key) {
+    State& m = g_menu;
+    int level = std::clamp(m.active, 0, (int)m.panels.size() - 1);
+    Panel& panel = m.panels[level];
+    WCHAR letter = key >= L'a' && key <= L'z' ? (WCHAR)(key - L'a' + L'A')
+                                             : (WCHAR)key;
+    for (int i = 0; i < (int)panel.items->size(); i++) {
+        if ((*panel.items)[i].mnemonic != letter) continue;
+        panel.hover = i;
+        Paint(m);
+        Activate(level, i);
+        return;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// The window
+
+LRESULT CALLBACK MenuWndProc(HWND hwnd, UINT message, WPARAM wParam,
+                             LPARAM lParam) {
+    State& m = g_menu;
+    switch (message) {
+        case WM_MOUSEACTIVATE:
+            return MA_ACTIVATE;
+        case WM_ACTIVATE:
+            if (LOWORD(wParam) == WA_INACTIVE && m.running) Finish(0);
+            return 0;
+        case WM_SETCURSOR:
+            SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+            return TRUE;
+        case WM_MOUSEMOVE: {
+            if (m.ignoreFirstMove) {
+                m.ignoreFirstMove = false;
+                return 0;
+            }
+            float x = (float)GET_X_LPARAM(lParam) + m.origin.x;
+            float y = (float)GET_Y_LPARAM(lParam) + m.origin.y;
+            int level = PanelAt(x, y);
+            if (level < 0) {
+                SetHover(-1, -1);  // Over the shadow or outside: keep the levels.
+                return 0;
+            }
+            if (level < (int)m.panels.size() - 1) CloseDeeper(level);
+            int item = HitTest(m.panels[level], x, y);
+            SetHover(level, item);
+            if (item >= 0 && !(*m.panels[level].items)[item].sub.empty()) {
+                if (m.pendingPanel != level || m.pendingItem != item) {
+                    m.pendingPanel = level;
+                    m.pendingItem = item;
+                    SetTimer(hwnd, kSubmenuTimer, kSubmenuDelayMs, nullptr);
+                }
+            } else {
+                m.pendingPanel = m.pendingItem = -1;
+                KillTimer(hwnd, kSubmenuTimer);
+            }
+            return 0;
+        }
+        case WM_LBUTTONDOWN: {
+            float x = (float)GET_X_LPARAM(lParam) + m.origin.x;
+            float y = (float)GET_Y_LPARAM(lParam) + m.origin.y;
+            int level = PanelAt(x, y);
+            if (level < 0) {
+                Finish(0);  // The click that dismisses is swallowed.
+                return 0;
+            }
+            int item = HitTest(m.panels[level], x, y);
+            m.pressedPanel = level;
+            m.pressedItem = item;
+            for (auto& panel : m.panels) panel.pressed = -1;
+            m.panels[level].pressed = item;
+            Paint(m);
+            return 0;
+        }
+        case WM_LBUTTONUP: {
+            float x = (float)GET_X_LPARAM(lParam) + m.origin.x;
+            float y = (float)GET_Y_LPARAM(lParam) + m.origin.y;
+            int level = PanelAt(x, y);
+            int item = level >= 0 ? HitTest(m.panels[level], x, y) : -1;
+            int pressedLevel = m.pressedPanel, pressedItem = m.pressedItem;
+            m.pressedPanel = m.pressedItem = -1;
+            for (auto& panel : m.panels) panel.pressed = -1;
+            if (level < 0) {
+                Finish(0);
+                return 0;
+            }
+            if (level == pressedLevel && item >= 0 && item == pressedItem) {
+                Activate(level, item);
+            } else {
+                SetHover(level, item);
+            }
+            return 0;
+        }
+        case WM_RBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+            Finish(0);
+            return 0;
+        case WM_MOUSEWHEEL: {
+            POINT point{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+            int level = PanelAt((float)point.x, (float)point.y);
+            if (level < 0) level = m.active;
+            m.wheel += GET_WHEEL_DELTA_WPARAM(wParam);
+            float step = 3 * 32 * m.scale;
+            while (m.wheel >= WHEEL_DELTA) {
+                ScrollPanel(level, -step);
+                m.wheel -= WHEEL_DELTA;
+            }
+            while (m.wheel <= -WHEEL_DELTA) {
+                ScrollPanel(level, step);
+                m.wheel += WHEEL_DELTA;
+            }
+            return 0;
+        }
+        case WM_TIMER:
+            if (wParam == kSubmenuTimer) {
+                KillTimer(hwnd, kSubmenuTimer);
+                int level = m.pendingPanel, item = m.pendingItem;
+                m.pendingPanel = m.pendingItem = -1;
+                if (level >= 0 && level < (int)m.panels.size() && item >= 0 &&
+                    item < (int)m.panels[level].items->size() &&
+                    (int)m.panels.size() == level + 1 &&
+                    m.panels[level].hover == item) {
+                    if (!(*m.panels[level].items)[item].sub.empty())
+                        OpenSubmenu(level, item);
+                }
+            } else if (wParam == kAnimationTimer) {
+                float t = AppearAmount(m);
+                if (t >= 1.0f) KillTimer(hwnd, kAnimationTimer);
+                Paint(m);
+            }
+            return 0;
+        case WM_KEYDOWN:
+            OnKey(wParam);
+            return 0;
+        case WM_SYSKEYDOWN:
+            if (wParam == VK_F4 && (GetKeyState(VK_MENU) & 0x8000)) {
+                Finish(0);
+            } else if (wParam != VK_MENU) {
+                OnMnemonic(wParam);
+            }
+            return 0;
+        case WM_CAPTURECHANGED:
+            if (m.running && (HWND)lParam != hwnd) Finish(0);
+            return 0;
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_DESTROY:
+            return 0;
+    }
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+bool EnsureMenuClass() {
+    static bool registered = false;
+    if (registered) return true;
+    WNDCLASSEXW wc{sizeof(wc)};
+    wc.lpfnWndProc = MenuWndProc;
+    wc.hInstance = (HINSTANCE)&__ImageBase;
+    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    wc.lpszClassName = kMenuClass;
+    if (RegisterClassExW(&wc)) {
+        registered = true;
+    } else if (GetLastError() == ERROR_CLASS_ALREADY_EXISTS) {
+        registered = true;
+    }
+    return registered;
+}
+
+void Reset() {
+    State& m = g_menu;
+    if (m.hwnd) {
+        KillTimer(m.hwnd, kAnimationTimer);
+        KillTimer(m.hwnd, kSubmenuTimer);
+    }
+    FreeSurface(m.surface);
+    m.surface = {};
+    m.frame.Reset();
+    m.backdrop.Reset();
+    m.staging.Reset();
+    m.root.clear();
+    m.panels.clear();
+    m.hwnd = nullptr;
+    m.running = false;
+    m.result = 0;
+    m.active = 0;
+    m.ignoreFirstMove = true;
+    m.wheel = 0;
+    m.pressedPanel = m.pressedItem = -1;
+    m.pendingPanel = m.pendingItem = -1;
+    m.width = m.height = 0;
+    m.origin = {};
+    m.rootTop = 0;
+    m.widestChild = m.tallestChild = 0;
+    m.backdropFactor = 1;
+    m.frameBackdrop = false;
+    m.work = {};
+}
+
+}  // namespace LaunchpadMenu
+
+// Reads the HMENU, measures every level and fixes the window rectangle. One
+// window size covers every level that can open, so a submenu never has to
+// resize it and the blurred backdrop is taken exactly once.
+bool Prepare(LaunchpadMenu::State& m, HMENU menu, int x, int y, UINT flags) {
+    using namespace LaunchpadMenu;
+    if (!ReadMenu(menu, m.root)) return false;
+    if (!EnsureTarget()) return false;
+    POINT point{x, y};
+    HMONITOR monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO info{sizeof(info)};
+    if (!GetMonitorInfoW(monitor, &info)) {
+        info.rcWork = RECT{0, 0, GetSystemMetrics(SM_CXSCREEN),
+                           GetSystemMetrics(SM_CYSCREEN)};
+    }
+    m.work = info.rcWork;
+    UINT dpiX = USER_DEFAULT_SCREEN_DPI, dpiY = USER_DEFAULT_SCREEN_DPI;
+    if (FAILED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)))
+        dpiX = USER_DEFAULT_SCREEN_DPI;
+    EnsureFormats(m, dpiX / (float)USER_DEFAULT_SCREEN_DPI);
+    m.generation = g_targetGeneration;
+
+    Panel root;
+    root.items = &m.root;
+    MeasurePanel(m, root);
+    MeasureChildren(m, m.root);
+    m.panels.push_back(root);
+    PlaceRoot(m, point, flags);
+
+    const float s = m.scale;
+    const D2D1_RECT_F rootRect = m.panels[0].rect;
+    float padding = 24 * s;
+    float spread = m.widestChild > 0 ? m.widestChild + 12 * s : 0;
+    float drop = m.tallestChild > 0 ? m.tallestChild + 12 * s : 0;
+    RECT bounds{};
+    bounds.left = (LONG)std::floor(
+        std::max((float)m.work.left, rootRect.left - spread - padding));
+    bounds.top = (LONG)std::floor(
+        std::max((float)m.work.top, rootRect.top - padding));
+    bounds.right = (LONG)std::ceil(
+        std::min((float)m.work.right, rootRect.right + spread + padding));
+    bounds.bottom = (LONG)std::ceil(
+        std::min((float)m.work.bottom, rootRect.bottom + drop + padding));
+    m.origin = POINT{bounds.left, bounds.top};
+    m.width = std::max(1, (int)(bounds.right - bounds.left));
+    m.height = std::max(1, (int)(bounds.bottom - bounds.top));
+    return true;
+}
+
+UINT TrackLaunchpadPopupMenu(HMENU menu, UINT flags, int x, int y, HWND owner,
+                             LPTPMPARAMS params) {
+    using namespace LaunchpadMenu;
+    State& m = g_menu;
+    if (m.running) return 0;
+    Reset();
+    if (!Prepare(m, menu, x, y, flags)) return 0;
+    if (!EnsureMenuClass()) return 0;
+    Wh_Log(L"menu: %zu root items at %d,%d size %dx%d", m.root.size(),
+           m.origin.x, m.origin.y, m.width, m.height);
     bool previousModal = g_modal;
     g_modal = true;
-    g_pressed=-1; g_pressedEmpty=false; g_drag.pending=false;
-    UINT result=TrackPopupMenuEx(menu,flags,x,y,owner,params);
-    if (filter) UnhookWindowsHookEx(filter);
-    g_modal=previousModal;
+    g_pressed = -1;
+    g_pressedEmpty = false;
+    g_drag.pending = false;
+    m.result = 0;
+    m.running = true;
+    m.hwnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED,
+                             kMenuClass, L"", WS_POPUP, m.origin.x,
+                             m.origin.y, m.width, m.height, owner, nullptr,
+                             (HINSTANCE)&__ImageBase, nullptr);
+    if (!m.hwnd) {
+        Wh_Log(L"menu: CreateWindowExW failed: %u", GetLastError());
+        m.running = false;
+        g_modal = previousModal;
+        Reset();
+        return 0;
+    }
+    // The window is still hidden: this is the last frame that shows the grid
+    // without the menu on top of it.
+    CaptureBackdrop(m);
+    m.appearStart = Now();
+    Paint(m);
+    ShowWindow(m.hwnd, SW_SHOWNA);
+    if (!SetForegroundWindow(m.hwnd)) SetActiveWindow(m.hwnd);
+    SetFocus(m.hwnd);
+    SetCapture(m.hwnd);
+    SetTimer(m.hwnd, kAnimationTimer, 8, nullptr);
+
+    MSG message;
+    int quitCode = 0;
+    bool quit = false;
+    while (m.running) {
+        DWORD ready = MsgWaitForMultipleObjectsEx(0, nullptr, INFINITE,
+                                                  QS_ALLINPUT,
+                                                  MWMO_INPUTAVAILABLE);
+        if (ready == WAIT_FAILED) break;
+        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+            if (message.message == WM_QUIT) {
+                quit = true;
+                quitCode = (int)message.wParam;
+                m.running = false;
+                break;
+            }
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+            if (!m.running) break;
+        }
+    }
+
+    if (GetCapture() == m.hwnd) ReleaseCapture();
+    if (m.hwnd) DestroyWindow(m.hwnd);
+    m.hwnd = nullptr;
+    UINT result = m.result;
+    Reset();
+    g_modal = previousModal;
+    Wh_Log(L"menu: closed with command %u", result);
+    if (!quit && g_shown && owner && IsWindowVisible(owner)) {
+        SetForegroundWindow(owner);
+    }
+    if (quit) PostQuitMessage(quitCode);
     return result;
 }
+
+#ifdef SEAMLESS_PREVIEW
+// Offscreen menu render for the smoke harness: lays a menu out exactly as the
+// window would and draws it over the launcher's last frame, so the material can
+// be checked without a window, input or a screen capture. hover and submenu
+// select an item and a level to open. The result is left in
+// LaunchpadMenu::g_menu.surface.
+bool PreviewRenderMenu(HMENU menu, int x, int y, UINT flags, int hover = -1,
+                       int submenu = -1) {
+    using namespace LaunchpadMenu;
+    State& m = g_menu;
+    if (m.running) return false;
+    Reset();
+    if (!Prepare(m, menu, x, y, flags)) return false;
+    CaptureBackdrop(m);
+    if (hover >= 0 && !m.panels.empty() &&
+        hover < (int)m.panels[0].items->size()) {
+        m.panels[0].hover = hover;
+    }
+    if (submenu >= 0 && !m.panels.empty() &&
+        submenu < (int)m.panels[0].items->size()) {
+        OpenSubmenu(0, submenu);
+        if (m.panels.size() > 1) m.panels[1].hover = 1;
+    }
+    return DrawFrame(m);
+}
+#endif
 
 void EndDrag(bool drop);
 void StartDrag();
@@ -3546,91 +5012,11 @@ bool InButton(const D2D1_RECT_F& r, float x, float y) {
                   x, y);
 }
 
-// Mocha blue to mauve across a rect, at an opacity. Falls back to the solid accent.
-ID2D1Brush* HoverBrush(const D2D1_RECT_F& r, float opacity) {
-    if (!g_hoverGradient) {
-        D2D1_GRADIENT_STOP stops[] = {
-            {0, D2D1::ColorF(0x89B4FA)}, {1, D2D1::ColorF(0xCBA6F7)}};
-        ComPtr<ID2D1GradientStopCollection> collection;
-        if (SUCCEEDED(g_target->CreateGradientStopCollection(stops, 2, &collection))) {
-            g_target->CreateLinearGradientBrush(
-                D2D1::LinearGradientBrushProperties(
-                    D2D1::Point2F(r.left, r.top), D2D1::Point2F(r.right, r.top)),
-                collection.Get(), &g_hoverGradient);
-        }
-    }
-    if (!g_hoverGradient) {
-        g_brush->SetColor(Alpha(g_settings.accent, opacity));
-        return g_brush.Get();
-    }
-    g_hoverGradient->SetStartPoint(D2D1::Point2F(r.left, r.top));
-    g_hoverGradient->SetEndPoint(D2D1::Point2F(r.right, r.bottom));
-    g_hoverGradient->SetOpacity(opacity);
-    return g_hoverGradient.Get();
+void DrawHoverBox(const D2D1_RECT_F& box, float radius, float alpha) {
+    if(alpha>.001f)Fill(box,D2D1::ColorF(0xFFFFFF,alpha*.20f*g_settings.glowStrength),radius);
 }
 
-// The clean hover box shared by tiles, search, menu and power buttons: a thin
-// halo of 1px strokes fading outward, a faint face and a crisp edge, all in
-// the blue to mauve gradient.
-void DrawHoverBox(const D2D1_RECT_F& box, float radius, float alpha,
-                  float maxSpread = 1e6f) {
-    if (alpha <= 0.001f) {
-        return;
-    }
-    float s = g_layout.scale;
-    int spread = std::max(1, (int)std::min(g_settings.glowSize * s, maxSpread * s));
-    for (int j = spread; j > 0; --j) {
-        float d = (float)j;
-        float falloff = 1.0f - d / (spread + 1.0f);
-        auto halo = D2D1::RectF(box.left - d, box.top - d, box.right + d, box.bottom + d);
-        g_target->DrawRoundedRectangle(
-            D2D1::RoundedRect(halo, radius + d, radius + d),
-            HoverBrush(halo, alpha * g_settings.glowStrength * 0.055f * falloff * falloff), s);
-    }
-    g_target->FillRoundedRectangle(D2D1::RoundedRect(box, radius, radius),
-                                   HoverBrush(box, alpha * 0.12f));
-    // 1.6 px: a 1 px edge looked jagged on the rounded corners.
-    float w = 1.6f * s, in = w / 2;
-    auto edge = D2D1::RectF(box.left + in, box.top + in, box.right - in, box.bottom - in);
-    g_target->DrawRoundedRectangle(D2D1::RoundedRect(edge, radius - in, radius - in),
-                                   HoverBrush(box, alpha * 0.85f), w);
-}
-
-// A soft accent glow out of a rounded rect: wide overlapping strokes with
-// falling alpha blend into a smooth fade, cheap on the GPU (no blur).
-void DrawGlow(const D2D1_RECT_F& r, float radius, float spread, float alpha,
-              int layers) {
-    float step = spread / layers;
-    float width = std::max(1.0f, g_layout.scale) + step * 2.2f;
-    for (int i = layers; i >= 1; i--) {
-        float t = ((float)i - 0.5f) / layers;
-        float off = spread * t;
-        g_brush->SetColor(Alpha(g_settings.accent, alpha * (1 - t) * 0.35f));
-        g_target->DrawRoundedRectangle(
-            D2D1::RoundedRect(
-                D2D1::RectF(r.left - off, r.top - off, r.right + off,
-                            r.bottom + off),
-                radius + off, radius + off),
-            g_brush.Get(), width);
-    }
-}
-
-void DrawMenuButton() {
-    const D2D1_RECT_F& r = g_layout.menuButton;
-    float s = g_layout.scale;
-    float radius = (r.bottom - r.top) / 2;
-    DrawHoverBox(r, radius, g_btnGlow, 6);
-    float cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
-    g_brush->SetColor(D2D1::ColorF(0xCDD6F4, 0.75f + 0.2f * g_btnGlow));
-    for (int i = -1; i <= 1; i++) {
-        g_target->FillEllipse(
-            D2D1::Ellipse(D2D1::Point2F(cx + i * 4.5f * s, cy), 1.5f * s,
-                          1.5f * s),
-            g_brush.Get());
-    }
-}
-
-void DrawClearButton() {
+void DrawClearButton(float opacity) {
     if (g_openFolder || g_query.empty()) {
         return;
     }
@@ -3638,11 +5024,11 @@ void DrawClearButton() {
     float s = g_layout.scale;
     float radius = (r.bottom - r.top) / 2;
     if (g_clearHover) {
-        Fill(r, D2D1::ColorF(0x45475A, 0.55f), radius);
+        Fill(r, D2D1::ColorF(0xFFFFFF, 0.16f * opacity), radius);
     }
     float cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
     float arm = 4 * s;
-    g_brush->SetColor(D2D1::ColorF(0x7F849C, g_clearHover ? 0.95f : 0.8f));
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF, (g_clearHover ? 0.95f : 0.8f) * opacity));
     g_target->DrawLine(D2D1::Point2F(cx - arm, cy - arm),
                        D2D1::Point2F(cx + arm, cy + arm), g_brush.Get(),
                        1.4f * s);
@@ -3689,7 +5075,7 @@ D2D1_RECT_F PowerButtonRect(int slot) {
 // The slot under the point, counting the gaps so the bar has no dead spots.
 int PowerAt(int x, int y) {
     const Layout& L = g_layout;
-    if (L.powerItems.empty() || !InRect(L.powerBar, (float)x, (float)y)) {
+    if (g_batchBlend>0 || !g_appSelection.empty() || L.powerItems.empty() || !InRect(L.powerBar, (float)x, (float)y)) {
         return -1;
     }
     float pad = (L.powerBar.bottom - L.powerBar.top - L.powerButton) / 2;
@@ -3815,54 +5201,58 @@ void PowerClick(int slot) {
     RunPowerAction((PowerAction)g_layout.powerItems[slot]);
 }
 
-void DrawPowerBar() {
-    const Layout& L = g_layout;
-    if (L.powerItems.empty()) {
-        return;
-    }
-    float s = L.scale;
-    const D2D1_RECT_F& bar = L.powerBar;
-    float radius = (bar.bottom - bar.top) / 2;
-
-    // The pill: Mocha crust, never thinner than 0.94 so the glyphs keep their
-    // contrast over a bright wallpaper, with a Surface2 edge that lifts toward
-    // the accent while the pointer is over the dock.
-    Fill(bar,
-         Alpha(D2D1::ColorF(0x181825),
-               std::max(0.94f, g_settings.chromeOpacity)),
-         radius);
-    D2D1_COLOR_F edge{0x58 / 255.0f, 0x5B / 255.0f, 0x70 / 255.0f, 1};
-    edge.r += (g_settings.accent.r - edge.r) * 0.25f * g_powerDockGlow;
-    edge.g += (g_settings.accent.g - edge.g) * 0.25f * g_powerDockGlow;
-    edge.b += (g_settings.accent.b - edge.b) * 0.25f * g_powerDockGlow;
-    g_brush->SetColor(edge);
+D2D1_RECT_F BatchBar() {
+    float s=g_layout.scale;
+    float width=std::min(312*s,std::max(0.f,g_layout.width-16*s));
+    float bottom=g_layout.height-std::round(std::max(22*s,g_layout.height*.028f));
+    float cx=g_layout.width*.5f;
+    return {cx-width*.5f,bottom-46*s,cx+width*.5f,bottom};
+}
+D2D1_RECT_F ToolBarBounds() {
+    auto batch=BatchBar();
+    auto normal=g_layout.powerBar;
+    if(g_layout.powerItems.empty())normal={(batch.left+batch.right)*.5f,batch.top,(batch.left+batch.right)*.5f,batch.bottom};
+    float t=Ease(g_batchBlend);
+    return {std::lerp(normal.left,batch.left,t),std::lerp(normal.top,batch.top,t),
+            std::lerp(normal.right,batch.right,t),std::lerp(normal.bottom,batch.bottom,t)};
+}
+int BatchActionAt(int x,int y) {
+    if(g_appSelection.empty()||g_batchBlend<1.f||g_batchLaunching)return -1;
+    auto bar=BatchBar();
+    if(!InRect(bar,(float)x,(float)y))return -1;
+    float fraction=(x-bar.left)/(bar.right-bar.left);
+    return fraction<.29f?0:fraction>=.63f?1:-1;
+}
+bool ToolBarConsumes(int x,int y) {
+    return (g_batchBlend>0||!g_appSelection.empty())&&
+        (InRect(ToolBarBounds(),(float)x,(float)y)||
+         (g_batchBlend<1.f&&!g_layout.powerItems.empty()&&InRect(g_layout.powerBar,(float)x,(float)y))||
+         (!g_appSelection.empty()&&InRect(BatchBar(),(float)x,(float)y)));
+}
+void DrawGlassSurface(const D2D1_RECT_F& bar,float radius,float opacity,float hover) {
+    if(!SelectionHasArea(bar)||opacity<=0)return;
+    float shift=2*g_layout.scale;
+    Fill({bar.left,bar.top+shift,bar.right,bar.bottom+shift},D2D1::ColorF(0,opacity*.14f),radius);
+    Fill(bar,D2D1::ColorF(0xE8E8E8,opacity*(.07f+.17f*g_settings.chromeOpacity)),radius);
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF,opacity*(.22f+.20f*hover)));
     g_target->DrawRoundedRectangle(
-        D2D1::RoundedRect(D2D1::RectF(bar.left + 0.5f, bar.top + 0.5f,
-                                      bar.right - 0.5f, bar.bottom - 0.5f),
-                          radius - 0.5f, radius - 0.5f),
-        g_brush.Get(), 1);
+        D2D1::RoundedRect(D2D1::RectF(bar.left+.5f,bar.top+.5f,bar.right-.5f,bar.bottom-.5f),
+                          radius-.5f,radius-.5f),g_brush.Get(),1);
+}
+void DrawGlassPill(const D2D1_RECT_F& bar,float opacity,float hover) {
+    DrawGlassSurface(bar,(bar.bottom-bar.top)/2,opacity,hover);
+}
+void DrawToolBarPill(const D2D1_RECT_F& bar,float opacity) {
+    DrawGlassPill(bar,opacity,g_powerDockGlow);
+}
 
-    DrawHoverBox(bar, radius, g_powerDockGlow, 4);
-
-    // The glows first, so a halo may pass over its neighbours' edges.
-    for (int slot = 0; slot < (int)L.powerItems.size(); slot++) {
-        float glow = g_powerGlow[L.powerItems[slot]];
-        if (glow <= 0.001f) {
-            continue;
-        }
-        glow = glow * glow * (3 - 2 * glow);  // Smoothstep over the fade.
-        const PowerButton& b = kPower[L.powerItems[slot]];
-        // Danger stays red while armed, the rest glow in the accent.
-        D2D1_COLOR_F color = slot == g_powerArmed && b.danger
-                                 ? D2D1::ColorF(0xF38BA8)
-                                 : g_settings.accent;
-        if (slot == g_powerArmed) {
-            continue;
-        }
-        (void)color;
-        D2D1_RECT_F r = PowerButtonRect(slot);
-        DrawHoverBox(r, L.powerButton / 2, glow, 4);
-    }
+void DrawPowerBarContent(float opacity) {
+    const Layout& L=g_layout;
+    if(L.powerItems.empty())return;
+    float s=L.scale;
+    const auto& bar=L.powerBar;
+    float radius=(bar.bottom-bar.top)*.5f;
+    DrawHoverBox(bar,radius,g_powerDockGlow*opacity);
 
     for (int slot = 0; slot < (int)L.powerItems.size(); slot++) {
         const PowerButton& b = kPower[L.powerItems[slot]];
@@ -3870,23 +5260,10 @@ void DrawPowerBar() {
         float half = L.powerButton / 2;
         bool hover = slot == g_powerHover && !g_openFolder;
         bool pressed = hover && slot == g_powerPressed;
-        float glow = g_powerGlow[L.powerItems[slot]];
-        glow = glow * glow * (3 - 2 * glow);
-        D2D1_COLOR_F glyph;
-        if (slot == g_powerArmed) {
-            // Catppuccin red for what ends the session, accent for the rest.
-            Fill(r, b.danger ? D2D1::ColorF(0xF38BA8) : g_settings.accent,
-                 half);
-            glyph = D2D1::ColorF(0x1E1E2E);
-        } else {
-            // Rest: full Mocha text. Hover: brightens to white so the glyph
-            // stands out on the accent glow.
-            D2D1_COLOR_F base{0xCD / 255.0f, 0xD6 / 255.0f, 0xF4 / 255.0f, 1};
-            base.r += (1 - base.r) * glow;
-            base.g += (1 - base.g) * glow;
-            base.b += (1 - base.b) * glow;
-            glyph = Alpha(base, pressed ? 0.6f : 1.0f);
-        }
+        float glow=g_powerGlow[L.powerItems[slot]];
+        float highlight=slot==g_powerArmed?.33f:pressed?.26f:.14f*glow*glow*(3-2*glow);
+        Fill(r,D2D1::ColorF(0xFFFFFF,highlight*opacity),half);
+        auto glyph=D2D1::ColorF(0xFFFFFF,(pressed?.77f:1.f)*opacity);
         if (g_iconFormat) {
             g_brush->SetColor(glyph);
             g_target->DrawText(&b.glyph, 1, g_iconFormat.Get(), r,
@@ -3920,20 +5297,65 @@ void DrawPowerBar() {
     float left = std::round(std::clamp(cx - w / 2, 8 * s, L.width - w - 8 * s));
     float bottom = bar.top - std::round(8 * s);
     D2D1_RECT_F tip = D2D1::RectF(left, bottom - h, left + w, bottom);
-    Fill(tip, Alpha(D2D1::ColorF(0x1E1E2E), 0.92f), h / 2);
-    g_brush->SetColor(D2D1::ColorF(0x45475A));
-    g_target->DrawRoundedRectangle(
-        D2D1::RoundedRect(D2D1::RectF(tip.left + 0.5f, tip.top + 0.5f,
-                                      tip.right - 0.5f, tip.bottom - 0.5f),
-                          h / 2 - 0.5f, h / 2 - 0.5f),
-        g_brush.Get(), 1);
-    g_brush->SetColor(tipSlot == g_powerArmed
-                          ? (b.danger ? D2D1::ColorF(0xF38BA8)
-                                      : g_settings.accent)
-                          : D2D1::ColorF(0xCDD6F4));
+    DrawGlassPill(tip,opacity,0);
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF,opacity));
     g_target->DrawText(text.c_str(), (UINT32)text.size(), g_tipFormat.Get(),
                        tip, g_brush.Get());
 }
+std::wstring CountLabel(PCWSTR key,size_t count) {
+    std::wstring text=Tr(key);
+    auto offset=text.find(L"{0}");
+    if(offset!=std::wstring::npos)text.replace(offset,3,std::to_wstring(count));
+    return text;
+}
+void DrawBatchBar(float sceneOpacity) {
+    float opacity=Ease(g_batchBlend)*sceneOpacity;
+    auto bar=BatchBar();
+    float s=g_layout.scale,width=bar.right-bar.left;
+    float left=bar.left+5*s,right=bar.right-5*s;
+    float middle1=bar.left+width*.29f,middle2=bar.left+width*.63f;
+    D2D1_RECT_F slots[]{{left,bar.top+5*s,middle1,bar.bottom-5*s},
+                        {middle1,bar.top,middle2,bar.bottom},
+                        {middle2,bar.top+5*s,right,bar.bottom-5*s}};
+    std::wstring labels[]{Tr(L"Cancel"),CountLabel(L"Selected {0}",g_batchDisplayCount),
+                          CountLabel(L"Open {0}",g_batchDisplayCount)};
+    for(int i=0;i<3;i++) {
+        auto color=D2D1::ColorF(0xFFFFFF,opacity);
+        int action=i==0?0:i==2?1:-1;
+        if(action>=0) {
+            bool hover=g_batchHover==action;
+            auto accent=D2D1::ColorF(0xFFFFFF);
+            accent.a=opacity*(hover?(g_batchPressed==action?.36f:.25f):i==2?.14f:0.f);
+            Fill(slots[i],accent,18*s);
+            if(i==2)color=D2D1::ColorF(0xFFFFFF,opacity);
+        }
+        g_brush->SetColor(color);
+        g_target->DrawText(labels[i].c_str(),(UINT32)labels[i].size(),g_tipFormat.Get(),slots[i],g_brush.Get());
+    }
+}
+void DrawToolBar(bool afterFolder, float opacity) {
+    if (opacity <= 0.f) return;
+    float blend=Ease(g_batchBlend);
+    if(afterFolder&&(!g_openFolder||blend<=0))return;
+    if(afterFolder||!g_openFolder||blend<=0)
+        DrawToolBarPill(ToolBarBounds(),opacity*(g_layout.powerItems.empty()?blend:1.f));
+    if(!afterFolder&&!g_layout.powerItems.empty()&&blend<1) {
+        if(blend>0)g_target->PushLayer(D2D1::LayerParameters1(D2D1::InfiniteRect(),nullptr,
+            D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,D2D1::IdentityMatrix(),1-blend),nullptr);
+        DrawPowerBarContent(opacity);
+        if(blend>0)g_target->PopLayer();
+    }
+    if(blend>0&&(afterFolder||!g_openFolder))DrawBatchBar(opacity);
+}
+void DrawAppSelectionRect() {
+    if(!g_selectionPointer.active)return;
+    auto r=SelectionIntersection(SelectionRect(),SelectionViewport());
+    if(!SelectionHasArea(r))return;
+    Fill(r,D2D1::ColorF(0xFFFFFF,.13f),3*g_layout.scale);
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF,.80f));
+    g_target->DrawRectangle(r,g_brush.Get(),g_layout.scale);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // The search field as a text editor: caret, selection and the usual keys.
@@ -4198,10 +5620,9 @@ D2D1_RECT_F EditBox(bool folder) {
     }
     const D2D1_RECT_F& r = g_layout.search;
     float s = g_layout.scale;
-    // A few DIP right of the magnifier, and never under the bar's buttons.
-    float right = g_query.empty() ? g_layout.menuButton.left
-                                  : g_layout.clearButton.left;
-    return D2D1::RectF(r.left + 36 * s, r.top, right - 4 * s, r.bottom);
+    if (!SearchExpanded()) return r;
+    float right = g_query.empty() ? r.right - 14*s : g_layout.clearButton.left - 4*s;
+    return D2D1::RectF(r.left+36*s, r.top, std::max(r.left+36*s, right), r.bottom);
 }
 
 // A text field as drawn: its layout, the box it is clipped to, and where the
@@ -4211,13 +5632,28 @@ D2D1_RECT_F EditBox(bool folder) {
 struct EditView {
     ComPtr<IDWriteTextLayout> layout;
     D2D1_RECT_F box;
-    float originX;
+    float originX,originY;
 };
+float SearchTextTop(const D2D1_RECT_F& box) {
+    static UINT version=0;
+    static float inkCenter=0;
+    if(version!=g_formatVersion&&g_searchFormat) {
+        version=g_formatVersion;
+        ComPtr<IDWriteTextLayout> sample;
+        if(SUCCEEDED(g_dwrite->CreateTextLayout(L"Ag中",3,g_searchFormat.Get(),1000,100,&sample))) {
+            sample->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+            DWRITE_OVERHANG_METRICS ink{};
+            if(SUCCEEDED(sample->GetOverhangMetrics(&ink)))inkCenter=(100+ink.bottom-ink.top)/2;
+        }
+    }
+    return (box.top+box.bottom)/2-inkCenter;
+}
 
 EditView GetEditView(bool folder) {
     EditView v{};
     v.box = EditBox(folder);
     v.originX = v.box.left;
+    v.originY = folder?v.box.top:SearchTextTop(v.box);
     IDWriteTextFormat* format =
         folder ? g_messageFormat.Get() : g_searchFormat.Get();
     if (!format || (folder && !g_openFolder)) {
@@ -4230,6 +5666,7 @@ EditView GetEditView(bool folder) {
         return v;
     }
     v.layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+    if(!folder)v.layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
     DWRITE_TEXT_METRICS metrics{};
     v.layout->GetMetrics(&metrics);
     float width = metrics.widthIncludingTrailingWhitespace;
@@ -4296,7 +5733,7 @@ size_t CaretAtPoint(float x) {
     DWRITE_HIT_TEST_METRICS m{};
     float px = std::max(
         std::min(std::max(x, v.box.left), v.box.right) - v.originX, 0.0f);
-    if (FAILED(v.layout->HitTestPoint(px, (v.box.bottom - v.box.top) / 2,
+    if (FAILED(v.layout->HitTestPoint(px, (v.box.bottom + v.box.top) / 2-v.originY,
                                       &trailing, &inside, &m))) {
         return size;
     }
@@ -4305,7 +5742,7 @@ size_t CaretAtPoint(float x) {
 
 // The text, with the selection behind it and a caret that blinks like
 // everywhere else in Windows, when this is the field being edited.
-void DrawEditView(const EditView& v, bool editing, float caretHeight) {
+void DrawEditView(const EditView& v, bool editing, float caretHeight, float opacity = 1.f) {
     if (!v.layout) {
         return;
     }
@@ -4321,19 +5758,19 @@ void DrawEditView(const EditView& v, bool editing, float caretHeight) {
         if (SUCCEEDED(v.layout->HitTestTextRange((UINT32)selFrom,
                                                  (UINT32)(selTo - selFrom), 0,
                                                  0, rects, 8, &count))) {
-            g_brush->SetColor(D2D1::ColorF(0x89B4FA, 0.35f));
+            g_brush->SetColor(D2D1::ColorF(0xFFFFFF, 0.35f * opacity));
             for (UINT32 i = 0; i < count && i < 8; i++) {
                 g_target->FillRectangle(
                     D2D1::RectF(v.originX + rects[i].left,
-                                box.top + rects[i].top,
+                                v.originY + rects[i].top,
                                 v.originX + rects[i].left + rects[i].width,
-                                box.top + rects[i].top + rects[i].height),
+                                v.originY + rects[i].top + rects[i].height),
                     g_brush.Get());
             }
         }
     }
-    g_brush->SetColor(D2D1::ColorF(0xCDD6F4, 0.95f));
-    g_target->DrawTextLayout(D2D1::Point2F(v.originX, box.top), v.layout.Get(),
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF, opacity));
+    g_target->DrawTextLayout(D2D1::Point2F(v.originX, v.originY), v.layout.Get(),
                              g_brush.Get());
     if (editing && CaretVisible()) {
         DWRITE_HIT_TEST_METRICS m{};
@@ -4346,51 +5783,46 @@ void DrawEditView(const EditView& v, bool editing, float caretHeight) {
         float mid = (box.top + box.bottom) / 2;
         Fill(D2D1::RectF(caretX, mid - caretHeight / 2, caretX + caretW,
                          mid + caretHeight / 2),
-             Alpha(g_settings.accent, 0.9f));
+             D2D1::ColorF(0xFFFFFF, 0.9f * opacity));
     }
     g_target->PopAxisAlignedClip();
 }
 
-void DrawSearchBox() {
+void DrawSearchBox(float opacity) {
     const Layout& L = g_layout;
     float s = L.scale;
     const D2D1_RECT_F& r = L.search;
-    float radius = (r.bottom - r.top) / 2;
-    Fill(r, Alpha(D2D1::ColorF(0x1E1E2E), g_settings.chromeOpacity), radius);
-    // Surface1 border at rest, fading out as the hover box takes over.
-    g_brush->SetColor(D2D1::ColorF(0x45475A, 1.0f - g_searchGlow));
-    g_target->DrawRoundedRectangle(
-        D2D1::RoundedRect(D2D1::RectF(r.left + 0.5f, r.top + 0.5f,
-                                      r.right - 0.5f, r.bottom - 0.5f),
-                          radius - 0.5f, radius - 0.5f),
-        g_brush.Get(), 1);
-    DrawHoverBox(r, radius, g_searchGlow, 6);
+    // No resting icon any more: the whole field fades in only while opening,
+    // so at rest the top of the window is just the grid, one row higher.
+    float t = std::clamp(g_searchExpand, 0.f, 1.f);
+    if (t < 0.02f) return;
+    float fade = std::min(1.f, t * 6.f);
+    t = t * t * (3 - 2 * t);
+    DrawGlassPill(r,opacity*fade,g_searchGlow*fade);
 
-    // Magnifying glass.
-    float cx = r.left + 18 * s, cy = (r.top + r.bottom) / 2 - 1 * s;
-    g_brush->SetColor(D2D1::ColorF(0xA6ADC8, 0.85f));
-    g_target->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(cx, cy), 5.5f * s, 5.5f * s),
-                          g_brush.Get(), 1.6f * s);
-    g_target->DrawLine(D2D1::Point2F(cx + 4 * s, cy + 4 * s),
-                       D2D1::Point2F(cx + 8.5f * s, cy + 8.5f * s),
-                       g_brush.Get(), 1.6f * s);
+    float lens=5.5f*s, handle=8.5f*s;
+    // The magnifier rides along with the opening: centred in the pill, 18 px in
+    // once the field is out.
+    float midX = (r.left + r.right) * 0.5f +
+                 (r.left + 18 * s - (r.left + r.right) * 0.5f) * t;
+    float cx=midX+(lens-handle)/2,cy=(r.top+r.bottom+lens-handle)/2;
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF,.85f*opacity*fade));
+    g_target->DrawEllipse(D2D1::Ellipse({cx,cy},lens,lens),g_brush.Get(),1.6f*s);
+    g_target->DrawLine({cx+4*s,cy+4*s},{cx+handle,cy+handle},g_brush.Get(),1.6f*s);
 
-    D2D1_RECT_F text = D2D1::RectF(r.left + 36 * s, r.top,
-                                   L.menuButton.left - 4 * s, r.bottom);
-    if (!g_searchFormat) {
-        return;
+    // The text follows the box out and is clipped to it, so it slides in
+    // instead of popping up at full width.
+    if (g_searchExpand < 0.02f) return;
+    auto edit = GetEditView(false);
+    if (g_query.empty() && g_searchFormat) {
+        auto hint = edit.box;
+        hint.left += 4*s;
+        PCWSTR prompt = Tr(L"Search");
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF, .57f*opacity*fade));
+        g_target->DrawText(prompt, (UINT32)wcslen(prompt), g_searchFormat.Get(),
+                           hint, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
-    if (g_query.empty()) {
-        // The placeholder sits a little right of the caret, so the blinking
-        // bar never touches the "S".
-        D2D1_RECT_F hint = text;
-        hint.left += 7 * s;
-        g_brush->SetColor(D2D1::ColorF(0x7F849C, 0.9f));  // Overlay1.
-        g_target->DrawText(Tr(L"Search"), (UINT32)wcslen(Tr(L"Search")), g_searchFormat.Get(), hint,
-                           g_brush.Get());
-    }
-
-    DrawEditView(GetEditView(false), !g_openFolder, 18 * s);
+    DrawEditView(edit, !g_openFolder, 18 * s, opacity * fade);
 }
 
 void DrawMessage(PCWSTR text) {
@@ -4398,7 +5830,7 @@ void DrawMessage(PCWSTR text) {
     if (!g_messageFormat) {
         return;
     }
-    g_brush->SetColor(D2D1::ColorF(0xA6ADC8, 0.85f));
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF, 0.85f * FlyInChromeOpacity()));
     g_target->DrawText(text, (UINT32)wcslen(text), g_messageFormat.Get(),
                        D2D1::RectF(0, L.viewTop, (float)L.width,
                                    L.viewTop + 120 * L.scale),
@@ -4418,10 +5850,10 @@ void DrawTileIcon(const Tile& tile, const D2D1_RECT_F& r, float opacity) {
     float side = r.right - r.left;
     if (tile.folder) {
         // A rounded square with the first nine apps.
-        Fill(r, D2D1::ColorF(0x313244, 0.55f * opacity), side * 0.22f);
+        Fill(r, D2D1::ColorF(0x424242, 0.55f * opacity), side * 0.22f);
         // A resting edge (Mocha overlay0) so the folder stands off the backdrop.
         float w = 1.25f * g_layout.scale, in = w / 2;
-        g_brush->SetColor(D2D1::ColorF(0x6C7086, 0.6f * opacity));
+        g_brush->SetColor(D2D1::ColorF(0xD0D0D0, 0.6f * opacity));
         g_target->DrawRoundedRectangle(
             D2D1::RoundedRect(D2D1::RectF(r.left + in, r.top + in, r.right - in, r.bottom - in),
                               side * 0.22f - in, side * 0.22f - in),
@@ -4447,9 +5879,9 @@ void DrawTileIcon(const Tile& tile, const D2D1_RECT_F& r, float opacity) {
         g_target->DrawBitmap(bitmap, r, opacity,
                              D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
     } else {
-        Fill(r,D2D1::ColorF(0x45475A,0.7f*opacity),side*0.20f);
+        Fill(r,D2D1::ColorF(0xFFFFFF,0.7f*opacity),side*0.20f);
         auto center=D2D1::Point2F((r.left+r.right)/2,(r.top+r.bottom)/2);
-        g_brush->SetColor(D2D1::ColorF(0xCDD6F4,opacity));
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF,opacity));
         if(IsWebEntry(tile.app->target)) {
             g_target->DrawEllipse(D2D1::Ellipse(center,side*0.28f,side*0.28f),g_brush.Get(),side*0.04f);
             g_target->DrawEllipse(D2D1::Ellipse(center,side*0.12f,side*0.28f),g_brush.Get(),side*0.03f);
@@ -4477,7 +5909,7 @@ const void* MotionKey(const Tile& tile) {
 Cell AnimatedCell(const Tile& tile, Cell cell) {
     if (!Animate()) return cell;
     float entry=(1-GroupTileProgress(tile))*30*g_layout.scale;
-    for (auto rect : {&cell.icon,&cell.label,&cell.highlight}) { rect->left+=entry; rect->right+=entry; }
+    for (auto rect : {&cell.icon,&cell.label,&cell.highlight,&cell.unit}) { rect->left+=entry; rect->right+=entry; }
     float t = std::clamp((float)((Now() - g_tileMotionStart) / 0.20), 0.0f, 1.0f);
     if (t >= 1) return cell;
     for (const auto& motion : g_tileMotion) {
@@ -4485,7 +5917,7 @@ Cell AnimatedCell(const Tile& tile, Cell cell) {
         float remaining = (1-t)*(1-t)*(1-t);
         float dx = (motion.from.x-cell.icon.left)*remaining;
         float dy = (motion.from.y-cell.icon.top)*remaining;
-        for (auto rect : {&cell.icon, &cell.label, &cell.highlight}) {
+        for (auto rect : {&cell.icon, &cell.label, &cell.highlight, &cell.unit}) {
             rect->left += dx; rect->right += dx;
             rect->top += dy; rect->bottom += dy;
         }
@@ -4512,26 +5944,189 @@ struct CachedTileLabel {
     std::wstring name;
     float width = 0, height = 0;
     UINT version = 0;
+    bool wrap=false;
+    float inkTop = 0, inkBottom = 0;
     ComPtr<IDWriteTextLayout> layout;
+    // The name pre-rendered over its soft shadow, padded so the blur fits.
+    // Built on a private device context: the main one is inside a BeginDraw
+    // session whenever tiles are drawn, and one context cannot nest it.
+    ComPtr<ID2D1Bitmap1> shadow;
+    float padX=0, padTop=0, padBottom=0;
 };
 [[clang::no_destroy]] std::map<const void*, CachedTileLabel> g_labelCache;
-IDWriteTextLayout* TileLabel(const Tile& tile, const D2D1_RECT_F& box) {
+bool RenderLabelShadowBitmap(CachedTileLabel& cached);
+CachedTileLabel& TileLabel(const Tile& tile, const D2D1_RECT_F& box,bool wrap) {
     auto& cached = g_labelCache[MotionKey(tile)];
     const auto& name = TileName(tile);
     float width = box.right - box.left, height = box.bottom - box.top;
-    if (!cached.layout || cached.version != g_formatVersion || cached.name != name || cached.width != width || cached.height != height) {
-        cached.name = name; cached.width = width; cached.height = height; cached.version = g_formatVersion;
+    if (!cached.layout || cached.version != g_formatVersion || cached.name != name || cached.width != width || cached.height != height || cached.wrap!=wrap) {
+        cached.name = name; cached.width = width; cached.height = height; cached.version = g_formatVersion; cached.wrap=wrap;
         cached.layout.Reset();
+        cached.shadow.Reset();
+        cached.inkTop = 0;
+        cached.inkBottom = height;
         g_dwrite->CreateTextLayout(name.c_str(), (UINT32)name.size(), g_labelFormat.Get(), width, height, &cached.layout);
+        if(cached.layout) {
+            if(wrap) {
+                static UINT metricsVersion=0;
+                static DWRITE_LINE_METRICS line{};
+                if(metricsVersion!=g_formatVersion) {
+                    metricsVersion=g_formatVersion;
+                    ComPtr<IDWriteTextLayout> sample;
+                    UINT count=0;
+                    if(SUCCEEDED(g_dwrite->CreateTextLayout(L"Ag中",3,g_labelFormat.Get(),1000,100,&sample)))
+                        sample->GetLineMetrics(&line,1,&count);
+                }
+                float advance=height/2;
+                float baseline=std::clamp(line.baseline+(advance-line.height)/2,0.f,advance);
+                cached.layout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM,advance,baseline);
+                cached.layout->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
+            }
+            if(height<g_layout.labelHeight)
+                cached.layout->SetFontSize(std::max(1.f,height/1.3f),{0,(UINT32)name.size()});
+            DWRITE_OVERHANG_METRICS ink{};
+            if (SUCCEEDED(cached.layout->GetOverhangMetrics(&ink))) {
+                cached.inkTop = std::clamp(-ink.top, 0.f, height);
+                cached.inkBottom = std::clamp(height + ink.bottom, cached.inkTop, height);
+            }
+        }
+        // Pre-render text + shadow once per cache rebuild. Best effort: the
+        // draw path falls back to plain DrawTextLayout without the bitmap.
+        RenderLabelShadowBitmap(cached);
     }
-    return cached.layout.Get();
+    return cached;
 }
 
-void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
+// Renders the cached layout as white text over a soft dark shadow into a
+// small bitmap. A private device context keeps this legal at any call time:
+// the visible context sits inside its own BeginDraw session while the frame
+// is drawn, and one context cannot nest BeginDraw on itself. Everything here
+// is device-scoped, so the bitmap draws fine from the visible context.
+bool RenderLabelShadowBitmap(CachedTileLabel& cached) {
+    LabelShadowBitmap out;
+    if (!RenderTextWithShadow(cached.layout.Get(), cached.width, cached.height, out))
+        return false;
+    cached.shadow = out.bitmap;
+    cached.padX = out.padX;
+    cached.padTop = out.padTop;
+    cached.padBottom = out.padBottom;
+    return true;
+}
+
+Cell SpaceTileContents(const Tile& tile, Cell cell) {
+    float height = cell.unit.bottom - cell.unit.top;
+    float icon = cell.icon.bottom - cell.icon.top;
+    float inkTop = 0, inkHeight = 0;
+    if (g_settings.showLabels && g_labelFormat &&
+        cell.label.right > cell.label.left && cell.label.bottom > cell.label.top) {
+        const auto& label = TileLabel(tile, cell.label, cell.wrapLabel);
+        if (label.layout) {
+            inkTop = label.inkTop;
+            inkHeight = label.inkBottom - inkTop;
+        }
+    }
+    float gap = std::max(0.f, height - icon - inkHeight) / (inkHeight > 0 ? 3 : 2);
+    cell.icon.top = cell.unit.top + gap;
+    cell.icon.bottom = cell.icon.top + icon;
+    float boxHeight = cell.label.bottom - cell.label.top;
+    cell.label.top = cell.icon.bottom + gap - inkTop;
+    cell.label.bottom = cell.label.top + boxHeight;
+    return cell;
+}
+
+// The radial lobe is masked by the thin bevel, so distance to the light
+// controls local edge intensity continuously, including around corners.
+// The inner catch approximates the grazing reflection used by glass shaders.
+void DrawTileGlass(const D2D1_RECT_F& unit,D2D1_POINT_2F light,float opacity) {
+    float width=unit.right-unit.left,height=unit.bottom-unit.top;
+    float side=std::min(width,height),s=g_layout.scale;
+    if(side<4||opacity<=.001f)return;
+    float bevel=std::min(1.4f*s,side*.045f);
+    D2D1_RECT_F face{unit.left+bevel,unit.top+bevel,unit.right-bevel,unit.bottom-bevel};
+    auto& glass=g_tileGlass;
+    if(!glass.rim||!glass.surface) {
+        const D2D1_GRADIENT_STOP surface[]={
+            {0,D2D1::ColorF(0xFFFFFF,.14f)},{.35f,D2D1::ColorF(0xFFFFFF,.08f)},
+            {.72f,D2D1::ColorF(0xFFFFFF,.024f)},{1,D2D1::ColorF(0xFFFFFF,0)}};
+        const D2D1_GRADIENT_STOP rim[]={
+            {0,D2D1::ColorF(0xFFFFFF,.82f)},{.24f,D2D1::ColorF(0xFFFFFF,.62f)},
+            {.58f,D2D1::ColorF(0xFFFFFF,.21f)},{1,D2D1::ColorF(0xFFFFFF,0)}};
+        auto make=[&](auto& stops,auto& brush) {
+            if(brush)return;
+            ComPtr<ID2D1GradientStopCollection> colors;
+            if(SUCCEEDED(g_target->CreateGradientStopCollection(stops,ARRAYSIZE(stops),&colors)))
+                g_target->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties({0,0},{0,0},1,1),
+                                                   colors.Get(),&brush);
+        };
+        make(surface,glass.surface);make(rim,glass.rim);
+    }
+    D2D1_POINT_2F center{unit.left+light.x*width,unit.top+light.y*height};
+    auto place=[&](ID2D1RadialGradientBrush* brush,float radius,float strength) {
+        brush->SetCenter(center);
+        brush->SetRadiusX(radius*width);brush->SetRadiusY(radius*height);
+        brush->SetOpacity(opacity*strength);
+    };
+
+    // The contact shadow lives in the cell's narrow perimeter, clear of its neighbours.
+    Fill({face.left,face.top+bevel,face.right,unit.bottom},D2D1::ColorF(0,opacity*.10f));
+    Fill({face.left,face.bottom,face.right,face.bottom+bevel*.5f},D2D1::ColorF(0,opacity*.09f));
+    Fill(face,D2D1::ColorF(0xFFFFFF,.035f*opacity));
+    if(glass.surface) {
+        place(glass.surface.Get(),.34f,1);
+        g_target->FillRectangle(face,glass.surface.Get());
+    }
+    if(glass.rim) {
+        float inner=2*bevel;
+        D2D1_RECT_F catchRect{face.left+inner,face.top+inner,face.right-inner,face.bottom-inner};
+        place(glass.rim.Get(),.51f,1);
+        auto catchEdge=[&](D2D1_POINT_2F from,D2D1_POINT_2F to,float distance) {
+            float facing=std::clamp(1-distance*1.6f,0.f,1.f);
+            glass.rim->SetOpacity(opacity*(.07f+.23f*facing*facing));
+            g_target->DrawLine(from,to,glass.rim.Get(),bevel);
+        };
+        D2D1_POINT_2F tl{catchRect.left,catchRect.top},tr{catchRect.right,catchRect.top};
+        D2D1_POINT_2F bl{catchRect.left,catchRect.bottom},br{catchRect.right,catchRect.bottom};
+        catchEdge(tl,bl,light.x);catchEdge(tr,br,1-light.x);
+        catchEdge(tl,tr,light.y);catchEdge(bl,br,1-light.y);
+        place(glass.rim.Get(),.48f,1);
+        g_target->DrawRectangle(face,glass.rim.Get(),bevel);
+    }
+}
+
+void SetGlassScenePointer() {
+    g_glassScenePointer.reset();
+    if(!g_glassPointer||g_groupEditMode||g_closing||g_drag.active||
+       g_selectionPointer.active||g_searchDrag)return;
+    D2D1::Matrix3x2F transform;
+    g_target->GetTransform(&transform);
+    if(transform.Invert()) {
+        auto point=transform.TransformPoint(*g_glassPointer);
+        if(!ToolBarConsumes((int)point.x,(int)point.y))g_glassScenePointer=point;
+    }
+}
+
+void DrawTile(const Tile& tile, const Cell& c, int i, bool live,
+              float opacity = 1.f, D2D1_POINT_2F labelOffset = {}) {
     if (IsDragged(tile)) {
         return;  // Its place stays empty; the icon follows the pointer.
     }
     float s = g_layout.scale;
+    if(live&&!g_groupEditMode&&i==g_selected) {
+        auto box=c.highlight;
+        box.bottom=std::max(box.bottom,c.label.bottom+labelOffset.y);
+        Fill(box,D2D1::ColorF(0xFFFFFF,.16f*opacity),10*s);
+    }
+    if(live&&!g_groupEditMode&&tile.app) {
+        const auto& bounds=c.unit;
+        bool on=!g_glassClaimed&&g_glassScenePointer&&
+            InRect(bounds,g_glassScenePointer->x,g_glassScenePointer->y);
+        if(on)g_glassClaimed=true;
+        if(auto fade=UpdateGlow(tile.app.get(),on)) {
+            if(on)fade->light={(g_glassScenePointer->x-bounds.left)/(bounds.right-bounds.left),
+                               (g_glassScenePointer->y-bounds.top)/(bounds.bottom-bounds.top)};
+            DrawTileGlass(bounds,fade->light,Ease(fade->alpha)*opacity);
+        }
+    }
     D2D1_MATRIX_3X2_F base;
     bool wiggle = g_wiggle > 0.001f;
     if (wiggle) {
@@ -4547,26 +6142,22 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
                                     angle, D2D1::Point2F(cx, cy)) *
                                 base);
     }
-    if (live) {
-        const void* key = tile.folder ? (const void*)tile.folder.get()
-                                      : (const void*)tile.app.get();
-        float alpha = GlowAlpha(key, i == g_selected || i == g_hover);
-        if (alpha > 0.001f) {
-            auto box = c.highlight;
-            box.bottom = std::max(box.bottom, c.label.bottom + 6 * s);
-            auto color=i==g_selected?g_settings.selectionColor:g_settings.hoverColor;
-            color.a=alpha*0.16f;Fill(box,color,7*s);
-            float radius = 7 * s;
-            DrawHoverBox(box, radius, alpha);
-        }
+    if(live&&!g_groupEditMode&&tile.folder&&i==g_hover)
+        Fill(c.highlight,D2D1::ColorF(0xFFFFFF,.12f*opacity),8*s);
+    if(live&&tile.app&&AppSelected(*tile.app)) {
+        auto bounds=c.highlight;
+        bounds.bottom=std::max(bounds.bottom,c.label.bottom+labelOffset.y+4*s);
+        Fill(bounds,D2D1::ColorF(0xFFFFFF,.15f*opacity),7*s);
+        g_brush->SetColor(D2D1::ColorF(0xFFFFFF,.72f*opacity));
+        g_target->DrawRoundedRectangle(D2D1::RoundedRect(bounds,7*s,7*s),g_brush.Get(),s);
     }
     if (live && i == g_drag.target) {
         float grow = 8 * s;
         Fill(D2D1::RectF(c.icon.left - grow, c.icon.top - grow,
                          c.icon.right + grow, c.icon.bottom + grow),
-             D2D1::ColorF(0x89B4FA, 0.3f), 18 * s);
+             D2D1::ColorF(0xFFFFFF, 0.3f*opacity), 18 * s);
     }
-    float entryAlpha=GroupTileProgress(tile);
+    float entryAlpha=GroupTileProgress(tile)*opacity;
     DrawTileIcon(tile, c.icon, (live && i == g_pressed ? 0.6f : 1.0f)*entryAlpha);
     if(tile.app && tile.app->unavailable) {
         auto badge=c.icon;badge.left=badge.right-18*s;badge.bottom=badge.top+18*s;
@@ -4574,25 +6165,23 @@ void DrawTile(const Tile& tile, const Cell& c, int i, bool live) {
         g_brush->SetColor(D2D1::ColorF(0xFFFFFF,entryAlpha));
         g_target->DrawText(L"!",1,g_tipFormat.Get(),badge,g_brush.Get());
     }
-    if (g_settings.showLabels && g_labelFormat) {
-        // Light shadow so the name reads well over any background.
-        const std::wstring& name = TileName(tile);
-        D2D1_RECT_F shadow = c.label;
-        shadow.top += 1 * s;
-        shadow.bottom += 1 * s;
-        g_brush->SetColor(D2D1::ColorF(0, 0, 0, 0.45f*entryAlpha));
-        auto text = TileLabel(tile, c.label);
-        if(text&&g_settings.labelPlateOpacity>0) {
-            DWRITE_TEXT_METRICS metrics{};text->GetMetrics(&metrics);
-            auto plate=D2D1::RectF(c.label.left+metrics.left-4*s,c.label.top+metrics.top-2*s,
-                c.label.left+metrics.left+std::min(metrics.width,c.label.right-c.label.left)+4*s,c.label.top+metrics.top+metrics.height+2*s);
-            auto color=g_settings.labelPlateColor;color.a=g_settings.labelPlateOpacity*entryAlpha;
-            Fill(plate,color,g_settings.labelRadius*s);
+    if (g_settings.showLabels && g_labelFormat && c.label.right > c.label.left && c.label.bottom > c.label.top) {
+        auto& cached = TileLabel(tile, c.label,c.wrapLabel);
+        if (cached.shadow) {
+            // The pre-rendered name with its soft shadow: one draw, padded so
+            // the blur has room around the text box.
+            g_target->DrawBitmap(cached.shadow.Get(),
+                D2D1::RectF(c.label.left + labelOffset.x - cached.padX,
+                            c.label.top + labelOffset.y - cached.padTop,
+                            c.label.right + labelOffset.x + cached.padX,
+                            c.label.bottom + labelOffset.y + cached.padBottom),
+                entryAlpha, D2D1_INTERPOLATION_MODE_LINEAR);
+        } else {
+            auto* text = cached.layout.Get();
+            g_brush->SetColor(D2D1::ColorF(0xFFFFFF,entryAlpha));
+            if (text) g_target->DrawTextLayout({c.label.left+labelOffset.x, c.label.top+labelOffset.y},
+                                               text, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
         }
-        g_brush->SetColor(D2D1::ColorF(0,0,0,g_settings.labelShadow*entryAlpha));
-        if (text) g_target->DrawTextLayout(D2D1::Point2F(shadow.left, shadow.top), text, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        auto labelColor=g_settings.textColor;labelColor.a=0.98f*entryAlpha;g_brush->SetColor(labelColor);
-        if (text) g_target->DrawTextLayout(D2D1::Point2F(c.label.left, c.label.top), text, g_brush.Get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     if (wiggle) {
         g_target->SetTransform(base);
@@ -4606,9 +6195,9 @@ void DrawFolder() {
     const Layout& L = g_layout;
     float s = L.scale;
     FolderLayout F = GetFolderLayout();
-    auto folderColor=g_settings.groupColor;folderColor.a=g_settings.groupOpacity>0?g_settings.groupOpacity:0.62f;
+    auto folderColor=D2D1::ColorF(0x292929,.62f);
     Fill(F.panel, folderColor, 24 * s);
-    g_brush->SetColor(D2D1::ColorF(0x45475A, 0.35f));
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF, 0.35f));
     g_target->DrawRoundedRectangle(
         D2D1::RoundedRect(D2D1::RectF(F.panel.left + 0.5f, F.panel.top + 0.5f,
                                       F.panel.right - 0.5f,
@@ -4617,10 +6206,6 @@ void DrawFolder() {
         g_brush.Get(), 1);
 
     auto title = FolderTitlePill();
-    Fill(title, D2D1::ColorF(0x1E1E2E, 0.80f), 17*s);
-    g_brush->SetColor(D2D1::ColorF(0x585B70, 0.85f));
-    g_target->DrawRoundedRectangle(D2D1::RoundedRect(title,17*s,17*s),g_brush.Get(),s);
-    DrawHoverBox(title,17*s,(g_folderTitleHover || g_folderRenaming) ? 1.0f : 0.0f,4);
     DrawEditView(GetEditView(true), g_folderRenaming, 20 * s);
 
     const Tiles& apps = g_openFolder->apps;
@@ -4631,6 +6216,10 @@ void DrawFolder() {
     int first = g_folderRow * F.columns;
     int last = std::min((int)apps.size(),
                         (g_folderRow + F.visibleRows) * F.columns);
+    SetGlassScenePointer();
+    if(g_closingFolder==g_openFolder||!g_glassScenePointer||
+       !InRect({F.left,F.top,F.left+F.columns*L.cellWidth,F.top+F.visibleRows*F.cellHeight},
+               g_glassScenePointer->x,g_glassScenePointer->y))g_glassScenePointer.reset();
     for (int i = first; i < last; i++) {
         DrawTile(apps[i], AnimatedCell(apps[i], FolderCellAt(i)), i, true);
     }
@@ -4647,6 +6236,18 @@ void DrawDragged() {
     DrawTileIcon(g_drag.tile, D2D1::RectF(x, y, x + size, y + size), 0.92f);
 }
 
+bool g_scrollHover=false;
+D2D1_RECT_F ScrollThumb() {
+    float maxScroll=MaxScroll();
+    if(g_settings.pages||maxScroll<=0||g_openFolder)return {};
+    const auto& L=g_layout;
+    float track=L.viewBottom-L.viewTop;
+    if(track<=0)return {};
+    float thumb=std::clamp(track*track/L.contentHeight,std::min(40*L.scale,track),track);
+    float top=L.viewTop+(track-thumb)*(g_scroll/maxScroll);
+    float right=L.width-10*L.scale;
+    return {right-4*L.scale,top,right,top+thumb};
+}
 void DrawGrid() {
     const Layout& L = g_layout;
     float s = L.scale;
@@ -4662,33 +6263,91 @@ void DrawGrid() {
         return;
     }
 
-    g_target->PushAxisAlignedClip(
-        D2D1::RectF(0, L.viewTop, (float)L.width, L.viewBottom),
-        D2D1_ANTIALIAS_MODE_ALIASED);
-    int first, last;
-    if (GroupedView()) {
-        DrawGroupHeaders();
-        first = 0; last = (int)g_visible.size();
-    } else if (g_settings.pages) {  // The one or two pages on screen.
-        int page = std::max(0, (int)(g_scroll / L.width));
-        first = page * L.perPage;
-        last = std::min((int)g_visible.size(), (page + 2) * L.perPage);
+    const bool flying = FlyInActive();
+    // Start at the screen edges and restore the normal scroll viewport
+    // as the travelling icons settle into their cells.
+    float viewport = flying ? launchpad_fly_in::SmoothStep(g_appear / .72f) : 1.f;
+    float clipTop = L.viewTop * viewport;
+    float clipBottom = std::lerp((float)L.height, L.viewBottom, viewport);
+    g_target->PushAxisAlignedClip(D2D1::RectF(0, clipTop, (float)L.width, clipBottom),
+                                  D2D1_ANTIALIAS_MODE_ALIASED);
+    if (flying) g_glassScenePointer.reset();
+    else SetGlassScenePointer();
+    if(g_glassScenePointer&&(g_glassScenePointer->y<L.viewTop||g_glassScenePointer->y>=L.viewBottom))
+        g_glassScenePointer.reset();
+    auto drawCell=[&](int i,Cell cell) {
+        if(!g_groupEditMode)cell=AnimatedCell(g_visible[i],cell);
+        if(cell.unit.bottom<=L.viewTop||cell.unit.top>=L.viewBottom||cell.unit.right<=0||cell.unit.left>=L.width)return;
+        if (!flying) {
+            DrawTile(g_visible[i],cell,i,!g_openFolder);
+            return;
+        }
+        auto center = D2D1::Point2F((cell.icon.left + cell.icon.right) * .5f,
+                                    (cell.icon.top + cell.icon.bottom) * .5f);
+        auto pose = FlyInPose(center, 1.8f * std::max(cell.unit.right - cell.unit.left,
+                                                    cell.unit.bottom - cell.unit.top));
+        if (pose.opacity <= 0) return;
+        auto project = [&](D2D1_RECT_F r) {
+            return D2D1::RectF(
+                center.x + pose.dx + (r.left - center.x) * pose.scale,
+                center.y + pose.dy + (r.top - center.y) * pose.scale,
+                center.x + pose.dx + (r.right - center.x) * pose.scale,
+                center.y + pose.dy + (r.bottom - center.y) * pose.scale);
+        };
+        cell.unit = project(cell.unit);
+        if (cell.unit.right <= 0 || cell.unit.left >= L.width ||
+            cell.unit.bottom <= clipTop || cell.unit.top >= clipBottom) return;
+        cell.icon = project(cell.icon);
+        cell.highlight = project(cell.highlight);
+        // Carry the label beneath its icon at the original font size. Keep
+        // its layout width so fractional perspective does not reflow text.
+        float labelDy = pose.dy + (cell.label.top - center.y) * (pose.scale - 1.f);
+        DrawTile(g_visible[i],cell,i,!g_openFolder,pose.opacity,{pose.dx,labelDy});
+    };
+    if(GroupedView()) {
+        DrawGroupGrid();
+        auto resizePreview=GroupResizePreviewGeometry();
+        const auto* preview=resizePreview?&*resizePreview:nullptr;
+        auto drawGroups=[&](bool activeOnly) {
+            DrawGroupHeaders(activeOnly,preview);
+            for(const auto& current:g_groupGeometry) {
+                bool selected=g_groupGesture.moved&&current.group==g_groupGesture.group;
+                bool active=selected&&current.start==g_groupGesture.activeStart;
+                if(active!=activeOnly||(selected&&!active))continue;
+                const auto& geometry=active&&preview?*preview:current;
+                auto area=VisualGroupRect(geometry);
+                if(area.right<=0||area.left>=L.width||area.bottom<=L.viewTop||area.top>=L.viewBottom)continue;
+                bool clip=active||(!flying&&g_groupTransitions.count(geometry.group));
+                if(clip)g_target->PushAxisAlignedClip(area,D2D1_ANTIALIAS_MODE_ALIASED);
+                for(int slot=0;slot<geometry.count;++slot) {
+                    int i=geometry.start+slot;
+                    if(i>=(int)g_visible.size())break;
+                    auto cell=active&&preview?ProjectGroupCell(MakeExpandedGroupCell(geometry,slot)):CellAt(i);
+                    cell=GroupVisualCell(geometry,cell);
+                    if(active&&g_groupGesture.resize&&!GroupIconFits(cell,area))continue;
+                    drawCell(i,cell);
+                }
+                if(clip)g_target->PopAxisAlignedClip();
+            }
+        };
+        drawGroups(false);
+        if(g_groupGesture.moved)drawGroups(true);
+        DrawGroupEditPreview();
     } else {
-        int firstRow = std::max(0, (int)(g_scroll / L.cellHeight));
-        int lastRow =
-            (int)((g_scroll + L.viewBottom - L.viewTop) / L.cellHeight) + 1;
-        first = firstRow * L.columns;
-        last = std::min((int)g_visible.size(), (lastRow + 1) * L.columns);
+        int first,last;
+        if (g_settings.pages) {  // The one or two pages on screen.
+            int page=std::max(0,(int)(g_scroll/L.width));
+            first=page*L.perPage;last=std::min((int)g_visible.size(),(page+2)*L.perPage);
+        } else {
+            int firstRow=std::max(0,(int)(g_scroll/L.cellHeight));
+            int lastRow=(int)((g_scroll+L.viewBottom-L.viewTop)/L.cellHeight)+1;
+            first=firstRow*L.columns;last=std::min((int)g_visible.size(),(lastRow+1)*L.columns);
+        }
+        for(int i=first;i<last;++i)drawCell(i,CellAt(i));
     }
-    for (int i = first; i < last; i++) {
-        if(GroupedView()&&g_freeGroupLayout&&g_groupCells[i].icon.right<=g_groupCells[i].icon.left)continue;
-        Cell cell = AnimatedCell(g_visible[i], CellAt(i));
-        if (cell.label.bottom < L.viewTop || cell.icon.top > L.viewBottom || cell.icon.right < 0 || cell.icon.left > L.width) continue;
-        DrawTile(g_visible[i], cell, i, !g_openFolder);
-    }
-    if(GroupedView())DrawGroupEditPreview();
     g_target->PopAxisAlignedClip();
 
+    float chrome = FlyInChromeOpacity();
     if (g_settings.pages) {
         // One dot per page; the current one is brighter.
         if (L.pages >= 1) {
@@ -4698,7 +6357,7 @@ void DrawGrid() {
             float current = g_scroll / L.width;
             for (int i = 0; i < L.pages; i++) {
                 float closeness = std::max(0.0f, 1 - std::abs(current - i));
-                g_brush->SetColor(D2D1::ColorF(0xCDD6F4, 0.25f + 0.65f * closeness));
+                g_brush->SetColor(D2D1::ColorF(0xFFFFFF, chrome * (0.25f + 0.65f * closeness)));
                 g_target->FillEllipse(
                     D2D1::Ellipse(D2D1::Point2F(left + i * step, L.dotsY), r, r),
                     g_brush.Get());
@@ -4707,27 +6366,8 @@ void DrawGrid() {
         return;
     }
 
-    // Subtle scroll bar, only when there's something to scroll.
-    float maxScroll = MaxScroll();
-    if (maxScroll > 0) {
-        float track = L.viewBottom - L.viewTop;
-        float thumb = std::max(40 * s, track * track / L.contentHeight);
-        float top = L.viewTop + (track - thumb) * (g_scroll / maxScroll);
-        float right = (float)L.width - 10 * s;
-        // Blue to mauve, top to bottom, like every scrollbar in the Seamless mods.
-        D2D1_RECT_F bar = D2D1::RectF(right - 4 * s, top, right, top + thumb);
-        D2D1_GRADIENT_STOP stops[2] = {{0, D2D1::ColorF(0x89B4FA, 0.85f)}, {1, D2D1::ColorF(0xCBA6F7, 0.85f)}};
-        ComPtr<ID2D1GradientStopCollection> coll;
-        if (!g_scrollGradient && SUCCEEDED(g_target->CreateGradientStopCollection(stops, 2, &coll)))
-            g_target->CreateLinearGradientBrush(
-                D2D1::LinearGradientBrushProperties(D2D1::Point2F(bar.left, bar.top), D2D1::Point2F(bar.left, bar.bottom)),
-                coll.Get(), &g_scrollGradient);
-        if (g_scrollGradient) {
-            g_scrollGradient->SetStartPoint(D2D1::Point2F(bar.left, bar.top));
-            g_scrollGradient->SetEndPoint(D2D1::Point2F(bar.left, bar.bottom));
-            g_target->FillRoundedRectangle(D2D1::RoundedRect(bar, 2 * s, 2 * s), g_scrollGradient.Get());
-        }
-    }
+    auto bar=ScrollThumb();
+    if(SelectionHasArea(bar))Fill(bar,D2D1::ColorF(0xFFFFFF,chrome*(g_scrollHover?.62f:.32f)),2*s);
 }
 
 void Render() {
@@ -4739,13 +6379,12 @@ void Render() {
     if (!EnsureFrame(L.width, L.height)) {
         return;
     }
-    // The halo is blurred once per size, outside the frame's BeginDraw.
-    if ((g_hover >= 0 || g_selected >= 0) &&
-        g_settings.glowStrength > 0.001f) {
-        EnsureGlowBitmap((int)L.icon, L.scale);
-    }
     g_target->SetTarget(g_frame.Get());
     float W = (float)L.width, H = (float)L.height;
+    const bool flyIn = g_settings.iconFlyIn && !g_groupEditMode;
+    float background = flyIn ? launchpad_fly_in::SmoothStep(g_appear / .58f) : 1.f;
+    float chrome = FlyInChromeOpacity();
+    float windowOpacity = flyIn ? 1.f : Ease(g_appear);
     g_target->BeginDraw();
     g_target->SetTransform(D2D1::Matrix3x2F::Identity());
     // Minimum alpha instead of zero: fully transparent pixels of a layered
@@ -4754,31 +6393,32 @@ void Render() {
     if (g_settings.blurMode == BlurMode::Custom) {
         if (ID2D1Bitmap* bitmap = GetBackdropBitmap()) {
             g_target->DrawBitmap(
-                bitmap, D2D1::RectF(0, 0, W, H), 1,
+                bitmap, D2D1::RectF(0, 0, W, H), background,
                 D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
                 D2D1::RectF(0, 0, g_backdropImage.sourceWidth,
                             g_backdropImage.sourceHeight));
         }
     }
-    Fill(D2D1::RectF(0, 0, W, H), Alpha(g_settings.tint, g_settings.opacity));
-    if(g_settings.backgroundDim>0)Fill(D2D1::RectF(0,0,W,H),D2D1::ColorF(0,0,0,g_settings.backgroundDim));
+    Fill(D2D1::RectF(0, 0, W, H), Alpha(g_settings.tint, g_settings.opacity * background));
+    if(g_settings.backgroundDim>0)Fill(D2D1::RectF(0,0,W,H),D2D1::ColorF(0,0,0,g_settings.backgroundDim*background));
 
-    // When opening, the grid arrives from slightly larger, like in Launchpad.
-    float zoom = 1.06f - 0.06f * Ease(g_appear);
+    float zoom = flyIn || g_groupEditMode ? 1.f : 1.06f - 0.06f * Ease(g_appear);
     g_target->SetTransform(
         D2D1::Matrix3x2F::Scale(zoom, zoom, D2D1::Point2F(W / 2, H / 2)));
-    DrawSearchBox();
-    DrawMenuButton();
-    DrawClearButton();
-    if (g_layoutReadOnly || g_fullBackupBusy) {
+    if (chrome > 0.f) {
+        DrawSearchBox(chrome);
+        DrawClearButton(chrome);
+    }
+    if (chrome > 0.f && (g_layoutReadOnly || g_fullBackupBusy)) {
         PCWSTR warning=Tr(L"Layout data is unreadable or unsupported: changes are read-only. Restore a verified backup.");
         if(g_fullBackupBusy)warning=Tr(L"Complete backup/import in progress…");
-        g_brush->SetColor(D2D1::ColorF(0xFAB387));
+        g_brush->SetColor(D2D1::ColorF(0xFAB387, chrome));
         g_target->DrawText(warning,(UINT32)wcslen(warning),g_tipFormat.Get(),
             {20*L.scale,L.search.bottom,(float)L.width-20*L.scale,L.viewTop},g_brush.Get());
     }
+    g_glassClaimed=false;
     DrawGrid();
-    DrawPowerBar();
+    DrawToolBar(false, chrome);
     // A closing folder keeps drawing until its fade ends.
     std::shared_ptr<Folder> realOpen = g_openFolder;
     if (!g_openFolder && g_closingFolder) {
@@ -4789,7 +6429,7 @@ void Render() {
         float e = Ease(std::clamp(g_folderAnim, 0.0f, 1.0f));
         // Dim the grid, then lay the folder's glass over it: a blur of the
         // pixels just drawn, read back from the surface when they changed.
-        Fill(D2D1::RectF(0, 0, W, H), D2D1::ColorF(0x11111B, 0.35f * e));
+        Fill(D2D1::RectF(0, 0, W, H), D2D1::ColorF(0x171717, 0.35f * e * chrome));
         D2D1_MATRIX_3X2_F m;
         g_target->GetTransform(&m);
         D2D1_RECT_F panel = GetFolderLayout().panel;
@@ -4817,11 +6457,11 @@ void Render() {
             g_target->SetTarget(g_frame.Get());
             g_target->BeginDraw();
         }
-        if (e < 0.999f) {
+        if (e * chrome < 0.999f) {
             g_target->PushLayer(
                 D2D1::LayerParameters1(D2D1::InfiniteRect(), nullptr,
                                        D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-                                       D2D1::IdentityMatrix(), e),
+                                       D2D1::IdentityMatrix(), e * chrome),
                 nullptr);
             folderLayer = true;
         }
@@ -4834,7 +6474,11 @@ void Render() {
     }
     g_openFolder = realOpen;
     DrawDragged();
+    g_target->SetTransform(D2D1::Matrix3x2F::Scale(zoom,zoom,D2D1::Point2F(W/2,H/2)));
+    DrawAppSelectionRect();
+    DrawToolBar(true, chrome);
     g_target->SetTransform(D2D1::Matrix3x2F::Identity());
+    DrawGroupEditBar();
 
     if (g_target->EndDraw() == D2DERR_RECREATE_TARGET) {
         ResetTarget();
@@ -4843,7 +6487,7 @@ void Render() {
     if (UseGpuPresenter()) {
         if (g_presenter.Ensure(g_wnd, g_d3d.Get(), L.width, L.height)) {
             g_presenter.Position(g_wnd, L.area);
-            if (g_presenter.Present(g_d3d.Get(), g_frame.Get(), Ease(g_appear))) {
+            if (g_presenter.Present(g_d3d.Get(), g_frame.Get(), windowOpacity)) {
                 DXGI_FRAME_STATISTICS statistics{};
                 if (g_presenter.Statistics(statistics)) g_metrics.Presented(statistics);
                 g_metrics.Rendered((Now() - renderStarted) * 1000);
@@ -4859,7 +6503,7 @@ void Render() {
     PresentFrame();
     POINT dst{L.area.left, L.area.top}, src{0, 0};
     SIZE size{L.width, L.height};
-    BLENDFUNCTION blend{AC_SRC_OVER, 0, (BYTE)std::lround(255 * Ease(g_appear)),
+    BLENDFUNCTION blend{AC_SRC_OVER, 0, (BYTE)std::lround(255 * windowOpacity),
                         AC_SRC_ALPHA};
     UpdateLayeredWindow(g_wnd, nullptr, &dst, &size, g_surface.dc, &src, 0,
                         &blend, ULW_ALPHA);
@@ -4878,9 +6522,14 @@ void StartFrames() {
 void HideNow() {
 #ifndef SEAMLESS_PREVIEW
     if (g_shown) ResetTaskbarStartButtons();
+    // The taskbar is about to be revealed: drop any checked latch the keyboard
+    // path left on the Start button, or the user sees a clicked-state capsule
+    // with no menu behind it.
+    ClearStartButtonLatch(L"latch-hide");
 #endif
     CancelGroupPointer();
-    g_groupEditMode=false;
+    CancelGroupEdit();
+    ClearAppSelection();g_batchBlend=0;g_batchDisplayCount=0;g_groupTransitions.clear();
     if(!g_freeGroupLayout)g_groupPositions.clear();
     g_groupDropFolder.reset(); g_groupDropSlot = -1;
     FinishMetrics();
@@ -4895,7 +6544,7 @@ void HideNow() {
     std::fill(std::begin(g_powerGlow), std::end(g_powerGlow), 0.0f);
     g_powerDockGlow = 0;
     if (g_openFolder) {
-        SaveTiles();  // Keeps a new folder name.
+        SaveFolderName();
         g_openFolder = nullptr;
     }
     g_closingFolder = nullptr;
@@ -4906,12 +6555,14 @@ void HideNow() {
     g_shown = false;
     g_closing = false;
     g_appear = 0;
+    g_appearVelocity = 0;
     g_backdropImage = {};
     g_panelBlur = {};
     FreeSurface(g_surface);
     g_trackingMouse = false;
-    g_menuHover = g_clearHover = g_searchHover = false;
-    g_searchGlow = g_btnGlow = 0;
+    g_scrollHover = false;
+    g_clearHover = g_searchHover = false;
+    g_searchGlow = 0;
 }
 
 float AdvanceTransition(float value, float target, double elapsed, int durationMs) {
@@ -4944,7 +6595,10 @@ void OnFrame() {
 
     float target = g_closing ? 0.0f : 1.0f;
     if (g_appear != target) {
-        g_appear = AdvanceTransition(g_appear, target, dt, g_closing ? g_settings.closeMs : g_settings.openMs);
+        int duration = g_closing ? g_settings.closeMs : g_settings.openMs;
+        g_appear = g_settings.iconFlyIn
+            ? launchpad_fly_in::Advance(g_appear, g_appearVelocity, target, dt, duration)
+            : AdvanceTransition(g_appear, target, dt, duration);
         animating |= g_appear != target;
     }
     if (g_scroll != g_scrollTarget) {
@@ -4981,7 +6635,7 @@ void OnFrame() {
 
     // The search bar's accent glow eases in and out, about 140 ms.
     float glowTarget =
-        g_searchHover || g_clearHover || !g_query.empty() ? 1.0f : 0.0f;
+        g_searchHover || g_clearHover || SearchExpanded() ? 1.0f : 0.0f;
     if (g_searchGlow != glowTarget) {
         g_searchGlow +=
             (glowTarget - g_searchGlow) * (Animate() ? 1 - std::exp(-dt * 18) : 1);
@@ -4990,15 +6644,18 @@ void OnFrame() {
         }
         animating = true;
     }
-    float btnTarget = g_menuHover ? 1.0f : 0.0f;
-    if (g_btnGlow != btnTarget) {
-        g_btnGlow += (btnTarget - g_btnGlow) * (Animate() ? 1 - std::exp(-dt * 18) : 1);
-        if (std::abs(btnTarget - g_btnGlow) < 0.01f) {
-            g_btnGlow = btnTarget;
+    // The search field itself: 44 px pill at rest, 240 px field open, with the
+    // box, its magnifier and its text sliding together about 200 ms.
+    float expandTarget = SearchExpanded() ? 1.0f : 0.0f;
+    if (g_searchExpand != expandTarget) {
+        g_searchExpand +=
+            (expandTarget - g_searchExpand) * (Animate() ? 1 - std::exp(-dt * 16) : 1);
+        if (std::abs(expandTarget - g_searchExpand) < 0.01f) {
+            g_searchExpand = expandTarget;
         }
+        LayoutSearch();
         animating = true;
     }
-
     // The power dock glows fade over about 140 ms.
     for (int slot = 0; slot < (int)g_layout.powerItems.size(); slot++) {
         float& value = g_powerGlow[g_layout.powerItems[slot]];
@@ -5026,6 +6683,22 @@ void OnFrame() {
         animating = true;
     }
     if (g_groupHeaderDragging) { GroupHeaderTick(); animating=true; }
+    if(g_groupGesture.moved)animating|=TickGroupGesture();
+    for(auto it=g_groupTransitions.begin();it!=g_groupTransitions.end();) {
+        bool done=GroupEase(it->second.started)>=1;
+        animating|=!done;
+        if(done&&!g_groupGesture.moved)it=g_groupTransitions.erase(it);
+        else ++it;
+    }
+    if(g_groupResizeHover&&g_groupResizeGlow<1) {
+        g_groupResizeGlow=std::min(1.f,g_groupResizeGlow+(float)(dt/.14));
+        animating=true;
+    }
+    float batchTarget=g_appSelection.empty()?0.f:1.f;
+    if(g_batchBlend!=batchTarget) {
+        g_batchBlend=AdvanceTransition(g_batchBlend,batchTarget,dt,Animate()?140:0);
+        animating=true;
+    }
 
     if (g_closing && g_appear <= 0) {
         HideNow();
@@ -5104,12 +6777,16 @@ void Open() {
     EnsureFormats(L.scale);
 
     g_query.clear();
+    g_searchActivated = false;
+    g_searchExpand = 0;
     g_caret = g_anchor = 0;
     g_hist[0] = {};  // A fresh search starts a fresh history.
     g_searchDrag = false;
     TouchCaret();
+    g_glassPointer.reset();
+    for(auto& fade:g_glowFades)fade={};
     g_hover = g_selected = g_pressed = -1;
-    g_scroll = g_scrollTarget = 0;
+    g_scroll = g_scrollTarget = g_groupPagePan = 0;
     g_wheelDelta = 0;
     g_openFolder = nullptr;
     g_tileMotion.clear();
@@ -5120,9 +6797,9 @@ void Open() {
     ComputeLayout();
 
     // The background screenshot is taken before any of the mod's windows appear.
-    if (g_settings.blurMode == BlurMode::Custom) {
-        CaptureBackdrop(L.area, g_settings.blurAmount / 100.0f * 60 * L.scale);
-    }
+    // DWM modes use this pre-open blur only as a documented approximation.
+    // It cannot include DWM material/noise or later changes behind the window.
+    CaptureBackdrop(L.area,g_settings.blurMode==BlurMode::None?0:g_settings.blurAmount/100.0f*60*L.scale);
     if (UsesDwmBackdrop()) {
         ApplyBackdropEffect();
     }
@@ -5130,6 +6807,7 @@ void Open() {
     g_shown = true;
     g_closing = false;
     g_appear = Animate() ? 0 : 1;
+    g_appearVelocity = 0;
     Render();
     ShowWindow(g_wnd, SW_SHOW);
     if (g_metrics.active) g_metrics.visibleMs = (Now() - requested) * 1000;
@@ -5146,7 +6824,7 @@ void Open() {
 }
 
 void Close() {
-    if (!g_shown || g_closing) {
+    if (!g_shown || g_closing || !ConfirmGroupEditClose()) {
         return;
     }
     FinishMetrics();
@@ -5156,7 +6834,7 @@ void Close() {
     DisarmPower();
     EndDrag(false);
     if (g_openFolder) {
-        SaveTiles();  // Keeps a new folder name.
+        SaveFolderName();
     }
     if (GetCapture() == g_wnd) {
         ReleaseCapture();
@@ -5170,6 +6848,17 @@ void Toggle() {
     } else {
         Open();
     }
+}
+
+// A lone Windows key tap can reach the window twice: the keyboard hook reports
+// the tap, and Windows' own request for Start follows it into the ShowStartView
+// hook. Both describe one keystroke, so the first one to arrive acts as the
+// toggle and the other is dropped.
+bool FirstOfKeystroke() {
+    double t = Now();
+    if (t - g_keyToggleAt < 0.15) return false;
+    g_keyToggleAt = t;
+    return true;
 }
 
 // A packaged app with no Start-menu shortcut: runas on its raw AppsFolder
@@ -5201,16 +6890,19 @@ void ElevateViaTempLnk(const std::wstring& target) {
     }
 }
 
-void LaunchTarget(const std::wstring& target, PCWSTR verb = nullptr, const App* entry) {
+bool RequestLaunch(const std::wstring& target,PCWSTR verb,const App* entry,bool quiet=false) {
     SHELLEXECUTEINFOW sei{sizeof(sei)};
-    sei.fMask = SEE_MASK_ASYNCOK;
+    sei.fMask = quiet ? SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI : SEE_MASK_ASYNCOK;
     sei.lpVerb = verb;
     sei.lpFile = target.c_str();
     // Normal activations retain arguments and working directory from entry edits.
     if (entry) {sei.lpParameters=entry->arguments.empty()?nullptr:entry->arguments.c_str();sei.lpDirectory=entry->workingDirectory.empty()?nullptr:entry->workingDirectory.c_str();}
     sei.nShow = SW_SHOWNORMAL;
     AllowSetForegroundWindow(ASFW_ANY);
-    if (ShellExecuteExW(&sei)) Close();
+    return ShellExecuteExW(&sei);
+}
+void LaunchTarget(const std::wstring& target, PCWSTR verb = nullptr, const App* entry) {
+    if (RequestLaunch(target,verb,entry)) Close();
     else {
         bool previous=g_modal;
         g_modal=true;
@@ -5219,6 +6911,33 @@ void LaunchTarget(const std::wstring& target, PCWSTR verb = nullptr, const App* 
         if(g_shown)ForceForeground(g_wnd);
     }
 }
+template<typename Request>
+std::vector<std::wstring> RequestSelectedApps(const AppSelection& selection,Request request) {
+    std::vector<std::wstring> failures;
+    for(const auto& app:selection)if(!request(*app))failures.push_back(app->name);
+    return failures;
+}
+void LaunchSelectedApps() {
+    if(g_batchLaunching||g_appSelection.empty())return;
+    g_batchLaunching=true;
+    bool wasModal=std::exchange(g_modal,true);
+    auto selection=g_appSelection;
+    g_batchHover=-1;
+    auto failures=RequestSelectedApps(selection,[](const App& app){
+        return RequestLaunch(app.target,nullptr,&app,true);
+    });
+    ClearAppSelection();
+    if(!failures.empty()) {
+        std::wstring message=CountLabel(L"Could not open {0} selected apps.",failures.size());
+        for(size_t i=0;i<std::min<size_t>(failures.size(),8);i++)message+=L"\n"+failures[i];
+        if(failures.size()>8)message+=L"\n…";
+        MessageBoxW(g_wnd,message.c_str(),Tr(L"Launch failed"),MB_OK|MB_ICONWARNING);
+    }
+    g_modal=wasModal;g_batchLaunching=false;
+    if(failures.size()<selection.size())Close();
+    else Render();
+}
+
 
 // The settings window, from the "..." menu. Its overrides are saved in this
 // mod's writable storage. A later Windhawk edit to the same key takes priority.
@@ -5235,10 +6954,10 @@ static void SetState(PCWSTR key, int value) { Wh_SetIntValue(key, value); }
 static std::wstring StateKey(PCWSTR window, PCWSTR field) { return std::wstring(window)+L"_"+field; }
 static void ApplyDarkWindow(HWND hwnd) { BOOL dark=TRUE; DwmSetWindowAttribute(hwnd,20,&dark,sizeof(dark)); }
 namespace mocha {
-constexpr UINT32 base = 0x1E1E2E, mantle = 0x181825, crust = 0x11111B,
-                 surface0 = 0x313244, surface1 = 0x45475A, surface2 = 0x585B70,
-                 overlay0 = 0x6C7086, overlay1 = 0x7F849C, overlay2 = 0x9399B2,
-                 subtext0 = 0xA6ADC8, subtext1 = 0xBAC2DE, text = 0xCDD6F4,
+constexpr UINT32 base = 0x242424, mantle = 0x1D1D1D, crust = 0x171717,
+                 surface0 = 0x343434, surface1 = 0x494949, surface2 = 0x606060,
+                 overlay0 = 0x777777, overlay1 = 0x909090, overlay2 = 0xA0A0A0,
+                 subtext0 = 0xB4B4B4, subtext1 = 0xCCCCCC, text = 0xFFFFFF,
                  lavender = 0xB4BEFE, blue = 0x89B4FA, sapphire = 0x74C7EC,
                  sky = 0x89DCEB, teal = 0x94E2D5, green = 0xA6E3A1,
                  yellow = 0xF9E2AF, peach = 0xFAB387, maroon = 0xEBA0AC,
@@ -5357,6 +7076,67 @@ static const std::vector<std::wstring>& Set_InstalledFontFamilies() {
     }();
     return families;
 }
+
+// The monitors connected right now, in the order ChosenMonitor() numbers them:
+// the main one first, then the others left to right (then top to bottom). Each
+// label carries the panel's friendly name and resolution, so two screens of
+// the same model stay apart. Values are the "1".."N" the setting already
+// stores, so a choice keeps working with the static Windhawk settings block.
+// The strings land in `keep`, which only ever grows: the settings fields hold
+// c_str()s of them for as long as a settings window lives.
+static void Set_MonitorLabels(
+    std::vector<std::pair<std::wstring, std::wstring>>& keep) {
+    struct Entry {
+        bool primary;
+        RECT rc;
+        WCHAR device[32];
+    };
+    std::vector<Entry> monitors;
+    EnumDisplayMonitors(
+        nullptr, nullptr,
+        [](HMONITOR monitor, HDC, LPRECT, LPARAM param) -> BOOL {
+            MONITORINFOEXW mi{};
+            mi.cbSize = sizeof(mi);
+            if (GetMonitorInfoW(monitor, &mi)) {
+                Entry e{(mi.dwFlags & MONITORINFOF_PRIMARY) != 0,
+                        mi.rcMonitor, {}};
+                wcscpy_s(e.device, mi.szDevice);
+                ((std::vector<Entry>*)param)->push_back(std::move(e));
+            }
+            return TRUE;
+        },
+        (LPARAM)&monitors);
+    std::stable_sort(monitors.begin(), monitors.end(),
+                     [](const Entry& a, const Entry& b) {
+                         if (a.primary != b.primary) {
+                             return a.primary;
+                         }
+                         if (a.rc.left != b.rc.left) {
+                             return a.rc.left < b.rc.left;
+                         }
+                         return a.rc.top < b.rc.top;
+                     });
+    for (size_t i = 0; i < monitors.size(); i++) {
+        auto& e = monitors[i];
+        DISPLAY_DEVICEW dd{sizeof(dd)};
+        // iDevNum 0 under the monitor's device name reads the panel itself,
+        // not the adapter: DeviceString is what the display applet shows.
+        PCWSTR friendly =
+            EnumDisplayDevicesW(e.device, 0, &dd, 0) && dd.DeviceString[0]
+                ? dd.DeviceString
+                : L"";
+        int w = (int)(e.rc.right - e.rc.left), h = (int)(e.rc.bottom - e.rc.top);
+        WCHAR buf[288];
+        if (friendly[0]) {
+            swprintf_s(buf, L"%ls %d · %ls (%d×%d)", launchpad_i18n::Text(L"Monitor").c_str(),
+                       (int)i + 1, friendly, w, h);
+        } else {
+            swprintf_s(buf, L"%ls %d (%d×%d)", launchpad_i18n::Text(L"Monitor").c_str(),
+                       (int)i + 1, w, h);
+        }
+        keep.emplace_back(std::to_wstring((int)i + 1), buf);
+    }
+}
 static std::vector<SetField> Set_MakeFields() {
     using K = SetField;
     std::vector<SetField> fields = {
@@ -5364,6 +7144,7 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Check, L"gpuPresenter", L"GPU composition", L"Use GPU composition for smoother animation. Turn off for the compatibility renderer.", L"1", {}, 0, 100, 1, L"Rendering"},
 {K::Check, L"performanceLogging", L"Record performance", L"Record opening latency, frame intervals and rendering cost in the mod storage folder.", L"1", {}, 0, 100, 1, L"Rendering"},
 {K::Number, L"frameRateLimit", L"Frame rate limit", L"0 follows the selected monitor. Other values cap animation updates without changing the monitor.", L"0", {}, 0, 1000, 1, L"Rendering"},
+{K::Choice, L"launchpadAnimation", L"Launchpad animation style", L"Choose how the launchpad opens and closes.", L"iconFlyIn", {{L"iconFlyIn", L"iOS icon fly-in"}, {L"classic", L"Classic zoom and fade"}}, 0, 100, 1, L"Motion"},
 {K::Number, L"openDuration", L"Open duration (ms)", L"Duration of the opening transition.", L"280", {}, 60, 1500, 1, L"Motion"},
 {K::Number, L"closeDuration", L"Close duration (ms)", L"Duration of the closing transition.", L"180", {}, 60, 1500, 1, L"Motion"},
 {K::Number, L"folderDuration", L"Folder duration (ms)", L"Duration of folder expansion and collapse.", L"180", {}, 60, 1500, 1, L"Motion"},
@@ -5373,18 +7154,14 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Number, L"horizontalSpacing", L"Horizontal icon spacing", L"Preferred horizontal space between icons, in DIP.", L"56", {}, 8, 240, 1, L"Grid"},
 {K::Number, L"verticalSpacing", L"Vertical icon spacing", L"Additional space between icon rows, in DIP.", L"16", {}, 0, 180, 1, L"Grid"},
 {K::Number, L"groupWidth", L"Group width", L"Preferred group width in DIP. 0 adapts to the screen and number of groups.", L"0", {}, 0, 1600, 1, L"Expanded groups"},
-{K::Number, L"groupSpacing", L"Group spacing", L"Space between groups, in DIP.", L"32", {}, 8, 160, 1, L"Expanded groups"},
+{K::Number, L"groupSpacing", L"Group spacing", L"Minimum horizontal and vertical space between groups, in DIP.", L"32", {}, 8, 160, 1, L"Expanded groups"},
 {K::Choice, L"groupFlow", L"Group arrangement", L"Arrange groups in columns or use one full-width group per row.", L"columns", {{L"columns", L"Responsive columns"}, {L"rows", L"Full-width rows"}}, 0, 100, 1, L"Expanded groups"},
 {K::Choice, L"groupNavigation", L"Group navigation", L"Large groups continue on the next page when paging is selected.", L"scroll", {{L"scroll", L"Vertical scrolling"}, {L"pages", L"Horizontal pages"}}, 0, 100, 1, L"Expanded groups"},
 {K::Choice, L"themeMode", L"Theme mode", L"Choose a preset, follow Windows, or keep your own colors.", L"custom", {{L"custom", L"Custom"}, {L"light", L"Light"}, {L"dark", L"Dark"}, {L"system", L"Follow Windows"}}, 0, 100, 2, L"Theme"},
-{K::Color, L"textColor", L"Text color", L"Application and group names in the custom theme.", L"#CDD6F4", {}, 0, 100, 2, L"Theme"},
 {K::Color, L"groupColor", L"Group background color", L"Group and folder background in the custom theme.", L"#1E1E2E", {}, 0, 100, 2, L"Theme"},
 {K::Number, L"groupOpacity", L"Group background opacity", L"0–100 percent. Zero preserves transparent expanded groups.", L"0", {}, 0, 100, 2, L"Theme"},
 {K::Color, L"hoverColor", L"Hover color", L"Background color of the application under the pointer.", L"#89B4FA", {}, 0, 100, 2, L"Theme"},
 {K::Color, L"selectionColor", L"Selection color", L"Background color of the keyboard-selected application.", L"#CBA6F7", {}, 0, 100, 2, L"Theme"},
-{K::Number, L"labelPlateOpacity", L"Name backplate opacity", L"Protect names from bright window glare. Zero turns the backplate off.", L"65", {}, 0, 100, 2, L"Readability"},
-{K::Number, L"labelRadius", L"Name backplate corner radius", L"Corner radius in DIP, independent of icon size.", L"6", {}, 0, 24, 2, L"Readability"},
-{K::Number, L"labelShadow", L"Name shadow strength", L"0–100 percent, combined with the name backplate.", L"45", {}, 0, 100, 2, L"Readability"},
 {K::Number, L"backgroundDim", L"Background dimming", L"Additional darkening of the blurred background, 0–80 percent.", L"0", {}, 0, 80, 2, L"Readability"},
 // Custom settings end
 {K::Choice, L"interfaceLanguage", L"Interface language", L"Follow Windows display language. Save to apply; app names stay unchanged.", L"auto", {{L"auto", L"Automatic (Windows)"}, {L"zh-CN", L"Simplified Chinese"}, {L"en", L"English"}}, 0, 100, 2, L"Language"},
@@ -5393,10 +7170,10 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Choice, L"shiftWinKeyAction", L"Shift + Windows key", L"", L"start", {{L"grid", L"Open this grid"}, {L"start", L"Open the original Start"}, {L"program", L"Run the program below"}}, 0, 100, 0, L"Open Launchpad"},
 {K::Choice, L"startButtonAction", L"Start button", L"The taskbar Start button, the Standalone Dock's, and every other way Start opens that is not the keyboard.", L"grid", {{L"grid", L"Open this grid"}, {L"start", L"Open the original Start"}, {L"program", L"Run the program below"}}, 0, 100, 0, L"Open Launchpad"},
 {K::Text, L"program", L"Program", L"What \"Run the program below\" starts. A command line such as \"C:\\Program Files\\App\\app.exe\" --flag, or a shortcut, file, folder or web address", L"", {}, 0, 100, 0, L"Open Launchpad"},
-{K::Choice, L"monitor", L"Monitor", L"Where the grid opens. Monitors 2 to 4 are the other monitors, counted left to right. If the picked monitor is not connected, it opens where the mouse is.", L"mouse", {{L"mouse", L"The monitor with the mouse"}, {L"1", L"Main monitor"}, {L"2", L"Monitor 2"}, {L"3", L"Monitor 3"}, {L"4", L"Monitor 4"}}, 0, 100, 1, L"Grid"},
+{K::Choice, L"monitor", L"Monitor", L"Where the grid opens. The list shows the monitors connected right now, main first, then the others left to right. If the picked monitor is not connected, it opens where the mouse is.", L"mouse", {{L"mouse", L"The monitor with the mouse"}}, 0, 100, 1, L"Grid"},
 {K::Choice, L"appSource", L"Apps to show", L"With pinned apps, search still finds every app. Right-click an app to pin or unpin it.", L"allApps", {{L"allApps", L"Start menu apps (the All apps list)"}, {L"desktop", L"Desktop icons"}, {L"both", L"Start menu apps and desktop icons"}, {L"pinned", L"Only the apps you pin"}}, 0, 100, 1, L"Grid"},
 {K::Choice, L"gridLayout", L"Layout", L"How the grid is arranged.", L"groups", {{L"scroll", L"One list that scrolls up and down"}, {L"pages", L"Pages that flip left and right, like Launchpad"}, {L"groups", L"Expanded groups"}}, 0, 100, 1, L"Grid"},
-{K::Number, L"gridColumns", L"Columns", L"0 to 30. 0 picks a number that fits the screen (Suggested: 0).", L"0", {}, 0, 30, 1, L"Grid"},
+{K::Number, L"globalColumns", L"Columns per row", L"Global grid columns, 1–30. 0 keeps the saved density or estimates it for a new layout. Preview changes in the layout editor.", L"0", {}, 0, 30, 1, L"Grid"},
 {K::Check, L"coverScreen", L"Cover the whole screen", L"On, the grid also covers the taskbar, side bars and the Standalone Dock. Off, they stay visible.", L"0", {}, 0, 100, 1, L"Grid"},
 {K::Number, L"gridIconSize", L"Icon size", L"24 to 192 (Suggested: 56). Pixels at 100% scaling.", L"56", {}, 24, 192, 1, L"Grid"},
 {K::Check, L"showLabels", L"Icon labels", L"On, the app name shows under each icon. Off, icons only.", L"1", {}, 0, 100, 1, L"Grid"},
@@ -5425,8 +7202,20 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Check, L"nativeSettingsTitleBar", L"Native Windows title bar", L"Use the Windows title bar and window buttons for this settings window. Applies when you save.", L"0", {}, 0, 100, 2, L"Settings window"},
 {K::Check, L"settingsTrayIcon", L"Tray icon", L"A Launchpad icon in the system tray. Click it to open these settings, right-click it for a menu.", L"1", {}, 0, 100, 2, L"Settings window"}
     };
+    std::erase_if(fields,[](const SetField& field) {
+        std::wstring_view key=field.key;
+        return key==L"groupColor"||key==L"groupOpacity"||key==L"hoverColor"||
+               key==L"selectionColor"||key==L"accentColor"||key==L"glowSize";
+    });
     for (auto& f : fields) if (wcscmp(f.key, L"uiFont") == 0)
         for (const auto& name : Set_InstalledFontFamilies()) f.options.emplace_back(name.c_str(), name.c_str());
+    static std::vector<std::pair<std::wstring, std::wstring>> monitorLabels;  // Only grows.
+    size_t labelBase = monitorLabels.size();
+    Set_MonitorLabels(monitorLabels);
+    for (auto& f : fields) if (wcscmp(f.key, L"monitor") == 0)
+        for (size_t i = labelBase; i < monitorLabels.size(); i++)
+            f.options.emplace_back(monitorLabels[i].first.c_str(),
+                                   monitorLabels[i].second.c_str());
     return fields;
 }
 
@@ -5458,8 +7247,9 @@ constexpr float kSetFootBtnH = 36, kSetFootPad = 8, kSetFootH = kSetFootBtnH + 2
 // The glass tint is one layer over the whole window, title bar included, so the two always match.
 constexpr float kSetGlassTint = 0.55f, kSetNativeFade = 56;
 constexpr int kSetChipCount = 10;
-constexpr UINT32 kSetChips[kSetChipCount] = {mocha::blue,   mocha::sapphire, mocha::teal, mocha::green, mocha::yellow,
-                                             mocha::peach,  mocha::red,      mocha::pink, mocha::mauve, mocha::lavender};
+constexpr UINT32 kSetChips[kSetChipCount] = {
+    0x000000,0x171717,0x292929,0x424242,0x626262,0x808080,0xA0A0A0,0xC0C0C0,0xE0E0E0,0xFFFFFF
+};
 constexpr UINT_PTR kSetTimerId = 1;
 constexpr PCWSTR kSetKofiUrl = L"https://ko-fi.com/DavidHiFi";
 constexpr PCWSTR kSetAuthorUrl = L"https://github.com/DavidHiFi";
@@ -6046,8 +7836,8 @@ static D2D1_RECT_F Set_ScrollThumb(const SetWindow& w) {
 
 // ---- Painting ---------------------------------------------------------------
 
-static D2D1_COLOR_F Set_A1(float a) { return D2DColorRef(RGB(137,180,250), a); }
-static D2D1_COLOR_F Set_A2(float a) { return D2DColorRef(RGB(203,166,247), a); }
+static D2D1_COLOR_F Set_A1(float a) { return D2DColorRef(RGB(224,224,224), a); }
+static D2D1_COLOR_F Set_A2(float a) { return D2DColorRef(RGB(255,255,255), a); }
 
 static float Set_Ease(float t) {
     t = std::clamp(t, 0.0f, 1.0f);
@@ -6066,7 +7856,7 @@ struct SetPaint {
         sb->SetColor(D2DColor(rgb, a * fade));
         return sb.get();
     }
-    // Blue to mauve, left to right across r.
+    // Soft white highlight across the control.
     SetCom<ID2D1LinearGradientBrush> G(const D2D1_RECT_F& r, float a = 1) {
         SetCom<ID2D1LinearGradientBrush> out;
         D2D1_GRADIENT_STOP stops[2] = {{0, Set_A1(a * fade)}, {1, Set_A2(a * fade)}};
@@ -6121,8 +7911,8 @@ static void Set_HoverIds(const SetHit& h, int ids[2]) {
 static bool Set_Valid(const SetWindow& w, int k) { return k >= 0 && k < (int)w.fields.size(); }
 
 // Value boxes: a dark fill between mantle and surface0 (crust read as black), a resting
-// overlay0 edge, and the blue to mauve ring on hover or while open.
-constexpr UINT32 kSetBoxFill = 0x232434;
+// overlay0 edge, and the white highlight on hover or while open.
+constexpr UINT32 kSetBoxFill = 0x303030;
 static void Set_DrawBox(SetPaint& p, SetWindow& w, int k, const D2D1_RECT_F& box, bool active) {
     p.Round(box, 8, kSetBoxFill);
     float g = std::max(Set_GlowOf(w, 6000 + k), active ? 1.0f : 0.0f);
@@ -6197,7 +7987,7 @@ static void Set_DrawRow(SetPaint& p, SetWindow& w, const SetItem& it) {
             bool rec = w.recording == k;
             Set_DrawBox(p, w, k, b, rec);
             if (rec) {
-                p.Text(w.fValue.get(), Tr(L"Press keys..."), {b.left + 12, b.top, b.right - 10, b.bottom}, mocha::blue);
+                p.Text(w.fValue.get(), Tr(L"Press keys..."), {b.left + 12, b.top, b.right - 10, b.bottom}, mocha::text);
             } else if (f.cur.empty()) {
                 p.Text(w.fValue.get(), Tr(L"Not set"), {b.left + 12, b.top, b.right - 10, b.bottom}, mocha::overlay0);
             } else {
@@ -6302,11 +8092,11 @@ static void Set_DrawBanner(SetPaint& p, SetWindow& w, const SetItem& it) {
     p.Text(w.fHint.get(), it.text, {r.left + 16, r.top + 14, r.right - 16, r.bottom - 8}, mocha::peach);
 }
 
-// A floating dock: soft shadow, mantle fill, a quiet 1px edge at rest and the blue to mauve
+// A floating dock: soft shadow, mantle fill, a quiet 1px edge at rest and the white highlight
 // edge as the pointer comes over it.
 static void Set_DrawDock(SetPaint& p, SetWindow& w, const D2D1_RECT_F& d, float rad, float fill, float glow) {
     p.Round({d.left, d.top + 3, d.right, d.bottom + 5}, rad + 2, mocha::crust, w.glass ? 0.28f : 0.5f);
-    p.Round(d, rad, mocha::mantle, fill);  // Hover lights only the edge: a wash showed as a blue blob down the left.
+    p.Round(d, rad, mocha::mantle, fill);
     D2D1_RECT_F in{d.left + 0.5f, d.top + 0.5f, d.right - 0.5f, d.bottom - 0.5f};
     p.rt->DrawRoundedRectangle(D2D1::RoundedRect(in, rad, rad), p.B(mocha::surface1, 0.75f * (1 - glow)), 1);
     p.GradRing(d, rad, glow, 1.5f);
@@ -6368,7 +8158,7 @@ static void Set_DrawRail(SetPaint& p, SetWindow& w) {
         if (w.kbd && w.focus == -10 - i) p.GradRing(r, 8, 1, 2);
         UINT32 c = act ? mocha::text : mocha::subtext1;
         // The glyph sits in a fixed 44-wide slot, so it stays centered in the collapsed rail.
-        p.Glyph(w.fIcon.get(), kSetPages[i].glyph, {r.left, r.top, r.left + 44, r.bottom}, act ? mocha::blue : mocha::subtext0);
+        p.Glyph(w.fIcon.get(), kSetPages[i].glyph, {r.left, r.top, r.left + 44, r.bottom}, act ? mocha::text : mocha::subtext0);
         p.Text(w.fLabel.get(), Tr(kSetPages[i].name), {r.left + 50, r.top + 8, r.left + w.railW - 24, r.bottom}, c, textA);
     }
 #ifdef WH_MOD_VERSION
@@ -6405,13 +8195,13 @@ static void Set_DrawFooter(SetPaint& p, SetWindow& w) {
 }
 
 
-// Every scrollbar thumb in every mod: a top to bottom blue to mauve gradient, brighter while
+// Neutral scrollbar thumb, brighter while
 // hovered or dragged. Never a flat grey thumb.
 static void Set_ThumbFill(SetPaint& p, const D2D1_RECT_F& r, float a) {
     if (r.bottom <= r.top) return;
     float rad = (r.right - r.left) / 2;
     SetCom<ID2D1LinearGradientBrush> g;
-    D2D1_GRADIENT_STOP stops[2] = {{0, D2DColor(mocha::blue, a * p.fade)}, {1, D2DColor(mocha::mauve, a * p.fade)}};
+    D2D1_GRADIENT_STOP stops[2] = {{0, D2DColor(mocha::text, a * p.fade)}, {1, D2DColor(mocha::text, a * p.fade)}};
     SetCom<ID2D1GradientStopCollection> coll;
     if (SUCCEEDED(p.rt->CreateGradientStopCollection(stops, 2, coll.put())) &&
         SUCCEEDED(p.rt->CreateLinearGradientBrush(
@@ -6453,8 +8243,8 @@ static void Set_DrawPopup(SetPaint& p, SetWindow& w) {
             p.GradFill(it, 6, 0.28f);
             p.GradRing(it, 6, 0.6f, 1);
         }
-        p.Text(w.fValue.get(), Tr(f.options[i].second), {it.left + 10, it.top, it.right - 28, it.bottom}, sel ? mocha::blue : mocha::text);
-        if (sel) p.Glyph(w.fIconS.get(), 0xE73E, {it.right - 28, it.top, it.right - 6, it.bottom}, mocha::blue);
+        p.Text(w.fValue.get(), Tr(f.options[i].second), {it.left + 10, it.top, it.right - 28, it.bottom}, sel ? mocha::text : mocha::text);
+        if (sel) p.Glyph(w.fIconS.get(), 0xE73E, {it.right - 28, it.top, it.right - 6, it.bottom}, mocha::text);
     }
     if (scrolls) {
         float track = r.bottom - r.top - 12, th = std::max(24.0f, track * vis / n);
@@ -6488,7 +8278,7 @@ static D2D1_RECT_F Set_CapTitleRect(const SetWindow& w) {
 static void Set_DrawMark(SetPaint& p, IDWriteTextFormat* glyph, const D2D1_RECT_F& r, float a) {
     float s = r.right - r.left;
     SetCom<ID2D1LinearGradientBrush> g;
-    D2D1_GRADIENT_STOP stops[2] = {{0, D2DColor(mocha::blue, a * p.fade)}, {1, D2DColor(mocha::mauve, a * p.fade)}};
+    D2D1_GRADIENT_STOP stops[2] = {{0, D2DColor(mocha::text, a * p.fade)}, {1, D2DColor(mocha::text, a * p.fade)}};
     SetCom<ID2D1GradientStopCollection> coll;
     if (SUCCEEDED(p.rt->CreateGradientStopCollection(stops, 2, coll.put())) &&
         SUCCEEDED(p.rt->CreateLinearGradientBrush(
@@ -7403,7 +9193,7 @@ static void Set_ApplyFrame(SetWindow& w) {
         DwmEnableBlurBehindWindow(hwnd, &bb);
         if (bb.hRgnBlur) DeleteObject(bb.hRgnBlur);
         if (setComposition) {
-            SetAccentPolicy policy{4 /* ACCENT_ENABLE_ACRYLICBLURBEHIND */, 2, (int)0x012E1E1E, 0};  // same as the launcher grid
+            SetAccentPolicy policy{4 /* ACCENT_ENABLE_ACRYLICBLURBEHIND */, 2, (int)0x01242424, 0};  // same as the launcher grid
             SetCompositionData data{19 /* WCA_ACCENT_POLICY */, &policy, sizeof(policy)};
             setComposition(hwnd, &data);
         }
@@ -7982,7 +9772,17 @@ void EnsureVisible(int index) {
     if (GroupedView() && index < (int)g_groupCells.size()) {
         EnsureFreeGroupVisible(index);
         auto cell = g_groupCells[index];
-        if (g_settings.pages) g_scrollTarget = std::floor(cell.icon.left / L.width) * L.width;
+        if (g_settings.pages) {
+            int page=std::max(0,(int)std::floor(cell.icon.left/L.width));
+            float target=page*(float)L.width;
+            if(target!=g_scrollTarget)g_groupPagePan=0;
+            g_scrollTarget=target;
+            if(g_squareGridColumns) {
+                if(cell.icon.top-g_groupPagePan<L.viewTop)g_groupPagePan=cell.icon.top-L.viewTop;
+                if(cell.label.bottom-g_groupPagePan>L.viewBottom)g_groupPagePan=cell.label.bottom-L.viewBottom;
+                g_groupPagePan=std::clamp(g_groupPagePan,0.f,MaxPagePan(page));
+            }
+        }
         else {
             if (cell.icon.top - g_scrollTarget < L.viewTop) g_scrollTarget = cell.icon.top - L.viewTop;
             if (cell.label.bottom - g_scrollTarget > L.viewBottom) g_scrollTarget = cell.label.bottom - L.viewBottom;
@@ -7991,7 +9791,13 @@ void EnsureVisible(int index) {
         return;
     }
     if (g_settings.pages) {
-        g_scrollTarget = (index / L.perPage) * (float)L.width;
+        float target=(index/L.perPage)*(float)L.width;
+        if(target!=g_scrollTarget)g_groupPagePan=0;
+        g_scrollTarget=target;
+        auto cell=MakeSquareCell(0,L.viewTop+((index%L.perPage)/L.columns)*L.cellHeight,L.cellWidth);
+        if(cell.icon.top-g_groupPagePan<L.viewTop)g_groupPagePan=cell.icon.top-L.viewTop;
+        if(cell.label.bottom-g_groupPagePan>L.viewBottom)g_groupPagePan=cell.label.bottom-L.viewBottom;
+        g_groupPagePan=std::clamp(g_groupPagePan,0.f,MaxPagePan(index/L.perPage));
         return;
     }
     int row = index / L.columns;
@@ -8010,7 +9816,9 @@ void ScrollRows(int rows) {
         float width = (float)g_layout.width;
         float target =
             (std::lround(g_scrollTarget / width) + (rows > 0 ? 1 : -1)) * width;
+        float previous=g_scrollTarget;
         g_scrollTarget = std::clamp(target, 0.0f, MaxScroll());
+        if(previous!=g_scrollTarget)g_groupPagePan=0;
         StartFrames();
         return;
     }
@@ -8056,6 +9864,7 @@ void OpenFolder(std::shared_ptr<Folder> folder) {
     g_folderRenaming = false;
     g_folderTitleHover = false;
     g_openFolder = std::move(folder);
+    g_folderOriginalName=g_openFolder->name;
     g_closingFolder = nullptr;
     g_folderAnim = Animate() ? 0.0f : 1.0f;
     if (g_folderAnim < 1) {
@@ -8081,11 +9890,11 @@ void CloseFolder() {
     }
     g_folderRenaming = false;
     g_folderTitleHover = false;
+    SaveFolderName();
     g_openFolder = nullptr;
     g_hover = g_selected = g_pressed = -1;
     g_searchDrag = false;
     SetCaret(g_query.size(), false);
-    SaveTiles();  // Keeps a new name.
     Refresh();
 }
 
@@ -8103,7 +9912,11 @@ void ActivateItem(int index) {
 
 // Where the click doesn't count as one on empty space.
 bool ClickKeepsOpen(int x, int y) {
-    if (GroupAtPoint(x,y) >= 0) return true;
+    if(ToolBarConsumes(x,y))return true;
+    // A section is a caption and a run of icons, not a panel: its empty space
+    // is empty space, and clicking there closes the grid like anywhere else.
+    // Only the caption itself stays a target, since it starts a drag.
+    if (GroupedView() && GroupAtPoint(x, y, true) >= 0) return true;
     return g_openFolder ? InRect(GetFolderLayout().panel, (float)x, (float)y)
                         : InRect(g_layout.search, (float)x, (float)y) ||
                               PowerAt(x, y) >= 0;
@@ -8586,6 +10399,8 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
             AppendMenuW(menu, MF_POPUP, (UINT_PTR)groups, Tr(L"Move to group"));
             AppendMenuW(menu, MF_STRING, 91, Tr(L"Remove from group"));
         }
+        AppendMenuW(menu, MF_STRING, 95, Tr(L"Rename"));
+        if(g_displayNames.count(key)&&!g_displayNames[key].custom.empty())AppendMenuW(menu,MF_STRING,96,Tr(L"Restore original name"));
         AppendMenuW(menu, MF_STRING, 92, Tr(L"Edit entry…"));
         if (tile.app->manual) AppendMenuW(menu, MF_STRING, 93, Tr(L"Delete manual entry"));
         if (IsWebEntry(tile.app->target)) AppendMenuW(menu, MF_STRING, 94, Tr(L"Refresh website icon"));
@@ -8638,6 +10453,12 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     DestroyMenu(menu);
 
     int size = g_appsKey & 0xFFFF;
+    if(tile.app&&(command==95||command==96)) {
+        auto name=command==95?PromptGroupName(hwnd,tile.app->name,L"Application name",160):std::wstring();
+        if(command==95&&name.empty())return;
+        if(!SetDisplayName(tile.app,name))MessageBoxW(hwnd,Tr(L"Could not save entry."),Tr(L"Application name"),MB_OK|MB_ICONWARNING);
+        g_labelCache.clear();Refresh();return;
+    }
     if (tile.app && command==92) {EditEntry(hwnd,tile.app);return;}
     if (tile.app && command==93) {DeleteManualEntry(tile.app);return;}
     if (tile.app && command==94) {g_customIcons.erase(AppKey(*tile.app));SaveCustomIcons();StartWebIconFetch(AppKey(*tile.app),tile.app->target);return;}
@@ -8740,7 +10561,7 @@ void ShowSelectedMenu() {
 
 // The "..." menu, below the button, or at the pointer after a right-click on
 // empty space.
-void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
+void ShowOptionsMenu(HWND hwnd, POINT pt) {
     enum { kOpenSettings = 1, kRestoreAll, kSort, kRestoreFirst = 100 };
     // Removed apps that are still installed, A to Z like the list.
     std::vector<std::shared_ptr<App>> removed;
@@ -8758,8 +10579,11 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     AppendMenuW(menu, MF_STRING, 56, Tr(L"Create complete backup…"));
     AppendMenuW(menu, MF_STRING, 57, Tr(L"Import complete backup…"));
     if(g_settings.groups)AppendMenuW(menu,MF_STRING,55,Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
+    if(g_groupEditMode)AppendMenuW(menu,MF_STRING,58,Tr(L"Cancel group editing"));
     if (g_settings.groups) AppendMenuW(menu, MF_STRING, 50, Tr(L"New group"));
     AppendMenuW(menu, MF_STRING, 51, Tr(L"Restore layout backup"));
+    if(g_settings.groups&&GetFileAttributesW((GroupPositionFile()+L".bak").c_str())!=INVALID_FILE_ATTRIBUTES)
+        AppendMenuW(menu,MF_STRING,59,Tr(L"Restore previous group geometry"));
     AppendMenuW(menu, MF_STRING, 52, Tr(L"Import layout file"));
     AppendMenuW(menu, MF_STRING, 53, Tr(L"Export layout file"));
     HMENU sub = CreatePopupMenu();
@@ -8776,19 +10600,21 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
     AppendMenuW(menu,
                 MF_STRING | (!g_appsLoaded ? MF_GRAYED : 0),
                 kSort, Tr(g_settings.groups ? L"Sort apps within groups" : L"Sort A to Z"));
-    UINT flags = TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY |
-                 (underButton ? TPM_RIGHTALIGN | TPM_TOPALIGN : 0);
+    UINT flags = TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY;
     g_modal = true;
     int command = TrackLaunchpadPopupMenu(menu, flags, pt.x, pt.y, hwnd, nullptr);
     g_modal = false;
     DestroyMenu(menu);
 
 #ifdef SEAMLESS_PREVIEW
-    if (command == 90) { PostMessageW(hwnd, WM_APP_QUIT, 0, 0); return; }
+    if (command == 90) { if(ConfirmGroupEditClose())PostMessageW(hwnd, WM_APP_QUIT, 0, 0); return; }
 #endif
+    if(command==58){CancelGroupEdit();return;}
+    if(g_groupEditMode&&command!=55)return;
     if (command == 50) { CreateGroup(hwnd); return; }
     if (command == 51 || command == 52) { ImportOrRestoreLayout(hwnd, command == 51); return; }
     if (command == 53) { ExportLayout(hwnd); return; }
+    if (command == 59) { RestoreGroupGeometry(hwnd); return; }
     if (command == 54) { EditEntry(hwnd); return; }
     if (command == 55) { ToggleGroupEdit(); return; }
     if (command == 56 || command == 57) { ShowFullBackupDialog(hwnd,command==57); return; }
@@ -8831,7 +10657,7 @@ void ShowOptionsMenu(HWND hwnd, POINT pt, bool underButton) {
             }
             ArrangeTiles(lines);
             DropGoneFolder();
-            g_scroll = g_scrollTarget = 0;
+            g_scroll = g_scrollTarget = g_groupPagePan = 0;
             SaveTiles();
             Refresh();
         }
@@ -8842,7 +10668,7 @@ void QueryChanged() {
     UpdateFilter();
     g_hover = -1;
     g_selected = g_query.empty() || g_visible.empty() ? -1 : 0;
-    g_scroll = g_scrollTarget = 0;
+    g_scroll = g_scrollTarget = g_groupPagePan = 0;
     ComputeLayout();
     StartFrames();  // The glow eases in as typing starts.
     Render();
@@ -8869,6 +10695,7 @@ void PasteText() {
 }
 
 void OnChar(WCHAR ch) {
+    if(g_groupEditMode)return;
     if (g_openFolder && !g_folderRenaming) return;
     if (g_drag.active || g_drag.pending) {
         return;
@@ -8935,6 +10762,9 @@ void OnChar(WCHAR ch) {
         InsertAtCaret(std::wstring(1, ch));
         EditDone();
         EditChanged();
+        // Typing is how the field opens now: there is no resting icon to
+        // click, so a keystroke both fills and reveals the field.
+        if (!g_openFolder) g_searchActivated = true;
     }
 }
 
@@ -8985,13 +10815,20 @@ void MoveGroupSelection(WPARAM key) {
 }
 
 void OnKeyDown(WPARAM key) {
+    if(g_groupEditMode&&key==VK_RETURN){ToggleGroupEdit();return;}
     if(key==VK_ESCAPE&&g_groupEditMode) {
         if(g_groupGesture.group) {
-            g_groupGesture={};
-            if(GetCapture()==g_wnd)ReleaseCapture();
-            Render();
-        } else ToggleGroupEdit();
+            ResetGroupGesture(true);
+            Refresh();
+        } else CancelGroupEdit();
         return;
+    }
+    if(g_groupEditMode||g_batchLaunching)return;
+    if(key==VK_ESCAPE&&(!g_appSelection.empty()||g_selectionPointer.pending||g_selectionPointer.app)) {
+        ClearAppSelection();
+        g_pressed=-1;g_pressedEmpty=false;
+        if(GetCapture()==g_wnd)ReleaseCapture();
+        Render();return;
     }
     if (key == VK_ESCAPE && g_groupHeaderPressed) {
         CancelGroupPointer(); if (GetCapture() == g_wnd) ReleaseCapture(); Render(); return;
@@ -9004,7 +10841,7 @@ void OnKeyDown(WPARAM key) {
         g_folderRenaming = false;
         g_searchDrag = false;
         g_anchor = g_caret;
-        SaveTiles();
+        SaveFolderName();
         Render();
         return;
     }
@@ -9036,8 +10873,14 @@ void OnKeyDown(WPARAM key) {
             } else if (!g_query.empty()) {
                 EditPush(0);  // Ctrl+Z brings the cleared search back.
                 g_query.clear();
+                g_searchActivated = false;
                 g_caret = g_anchor = 0;
                 QueryChanged();
+            } else if (g_searchActivated) {
+                g_searchActivated = false;
+                LayoutSearch();
+                StartFrames();
+                Render();
             } else {
                 Close();
             }
@@ -9184,6 +11027,15 @@ LRESULT CALLBACK KeyboardHook(int code, WPARAM wParam, LPARAM lParam) {
                 if (!otherKey && withShift && wnd &&
                     !FindWindowW(kHelperClass, nullptr)) {
                     PostMessageW(wnd, WM_APP_SHIFT_WIN, 0, 0);
+                } else if (!otherKey && !withShift && wnd &&
+                           g_winKeyAction.load() == KeyAction::Grid) {
+                    // A plain tap: Windows would open Start here, and the mod
+                    // answers that in the ShowStartView hook. A second tap never
+                    // reaches that hook, so the window decides by its own state
+                    // whether this one closes the grid. The key only drives the
+                    // grid when it is set to: on Start or on a program, Windows
+                    // keeps this tap.
+                    PostMessageW(wnd, WM_APP_WIN_TAP, 0, 0);
                 }
             }
         } else if (shift && !up && winDown) {
@@ -9222,6 +11074,31 @@ bool OwnsTaskbar() {
 
 #ifndef SEAMLESS_PREVIEW
 #include "launchpad_start_button.h"
+#include "launchpad_start_xaml.h"
+#endif
+
+#ifndef SEAMLESS_PREVIEW
+// The ExperienceToggleButton hooks install either at mod init (module already
+// mapped) or through the LoadLibraryExW watch. A taskbar module loaded through
+// an import table never passes that watch, and then a mouse click latches the
+// button's checked state with no hook in sight and nothing clears it. Poll for
+// the module from the launcher thread instead and install on first sight;
+// a ShowStartView request runs the same check as a last-resort self-heal.
+void EnsureXamlStartHooks(bool viaTimer) {
+    static bool attempted = false;
+    if (g_xamlStartVisibleOriginal) {
+        if (viaTimer) KillTimer(g_wnd, kTimerXamlHook);
+        return;
+    }
+    if (attempted || (!GetModuleHandleW(L"Taskbar.View.dll") &&
+                      !GetModuleHandleW(L"ExplorerExtensions.dll")))
+        return;
+    attempted = true;
+    if (viaTimer) KillTimer(g_wnd, kTimerXamlHook);
+    bool ok = HookXamlStartVisibility();
+    if (ok) Wh_ApplyHookOperations();
+    StartStateTrace(ok ? L"xaml-hook-lazy-ok" : L"xaml-hook-lazy-fail");
+}
 #endif
 
 using XamlLauncher_ShowStartView_t = HRESULT(WINAPI*)(void* pThis,
@@ -9232,23 +11109,48 @@ HRESULT WINAPI XamlLauncher_ShowStartView_Hook(void* pThis,
                                                int showMethod,
                                                int showFlags) {
     Wh_Log(L"> method %d, flags %d", showMethod, showFlags);
-    KeyAction action = GetTickCount64() < g_shiftWinUntil
+    const bool shiftWin = GetTickCount64() < g_shiftWinUntil;
+    const bool keyboard = IsKeyboardShow(showMethod, showFlags);
+    KeyAction action = shiftWin
                            ? g_shiftWinKeyAction.load()
-                       : IsKeyboardShow(showMethod, showFlags)
+                       : keyboard
                            ? g_winKeyAction.load()
                            : g_startButtonAction.load();
     g_shiftWinUntil = 0;
+#ifndef SEAMLESS_PREVIEW
+    // The keyboard path never reaches the toggle or pointer hooks, so the
+    // show request is the only record of it in the state trace.
+    {
+        std::wstring note = std::wstring(L"show-") +
+                            (shiftWin ? L"shiftwin" : keyboard ? L"key" : L"button") +
+                            L"-m" + std::to_wstring(showMethod) +
+                            L"-f" + std::to_wstring(showFlags) +
+                            (action == KeyAction::Grid ? L"-grid"
+                             : action == KeyAction::Start ? L"-start"
+                                                          : L"-program");
+        StartStateTrace(note.c_str());
+    }
+    // A mouse click reaches here even when the XAML hooks never installed.
+    // Install them now so the latch this click left on the button is the
+    // last one; every later click is intercepted inside OnToggle itself.
+    EnsureXamlStartHooks(false);
+#endif
     HWND wnd = g_wnd;
     if (action == KeyAction::Start || !wnd) {
 #ifndef SEAMLESS_PREVIEW
         g_startButtonReplacementActive = false;
+        g_nativeStartPassthrough=true;
 #endif
         return XamlLauncher_ShowStartView_Original(pThis, showMethod,
                                                    showFlags);
     }
+#ifndef SEAMLESS_PREVIEW
+    g_nativeStartPassthrough=false;
+    g_startButtonReplacementActive=true;
+#endif
     PostMessageW(wnd, action == KeyAction::Program ? WM_APP_RUN
                                                    : WM_APP_TOGGLE,
-                 0, 0);
+                 !shiftWin && !keyboard, 0);
     return S_OK;
 }
 
@@ -9257,8 +11159,9 @@ HRESULT WINAPI XamlLauncher_ShowStartView_Hook(void* pThis,
 
 
 void OnAppsLoaded(AppList* list, int key) {
+    if(g_groupEditMode){delete list;g_appsTime=0;return;}
     if (g_fullImportBusy) { delete list; return; }
-    if (g_drag.active || g_modal || g_groupHeaderPressed) {
+    if (g_drag.active || g_modal || g_groupHeaderPressed || !g_appSelection.empty() || g_selectionPointer.pending) {
         // Not under a dragged icon or an open menu: read again on the next
         // open.
         delete list;
@@ -9266,7 +11169,7 @@ void OnAppsLoaded(AppList* list, int key) {
         return;
     }
     if (g_openFolder) {
-        SaveTiles();  // A name being typed.
+        SaveFolderName();
         g_openFolder = nullptr;
     }
     g_apps = list ? std::move(*list) : AppList{};
@@ -9275,6 +11178,7 @@ void OnAppsLoaded(AppList* list, int key) {
     g_appsLoaded = true;
     g_appsKey = key;
     ApplyEntries(key & 0xFFFF);
+    ApplyDisplayNames();
     LoadTiles();
     ApplyCustomIcons(key & 0xFFFF);
     if (key != AppsKey()) {
@@ -9339,7 +11243,7 @@ static HICON MakeTrayIcon(int size) {
                 }
             cover /= ss * ss; dot /= ss * ss;
             float t = std::clamp((x + y) / (2.0f * n), 0.0f, 1.0f);
-            // 0x89B4FA to 0xCBA6F7, with the dots in crust (0x11111B).
+            // 0x89B4FA to 0xCBA6F7, with the dots in crust (0x171717).
             float r = (0x89 + (0xCB - 0x89) * t), g = (0xB4 + (0xA6 - 0xB4) * t), b = (0xFA + (0xF7 - 0xFA) * t);
             float k = cover > 0 ? dot / cover : 0;
             r = r * (1 - k) + 0x11 * k; g = g * (1 - k) + 0x11 * k; b = b * (1 - k) + 0x1B * k;
@@ -9410,7 +11314,7 @@ static void OnTrayMessage(HWND hwnd, LPARAM lParam) {
             int cmd = TrackLaunchpadPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, pt.x, pt.y, hwnd, nullptr);
             DestroyMenu(menu);
 #ifdef SEAMLESS_PREVIEW
-            if (cmd == 90) PostMessageW(hwnd, WM_APP_QUIT, 0, 0);
+            if (cmd == 90 && ConfirmGroupEditClose()) PostMessageW(hwnd, WM_APP_QUIT, 0, 0);
 #endif
             if (cmd == 1) OpenSettingsWindow();
             if (cmd == 2) PostMessageW(hwnd, WM_APP_TOGGLE, 0, 0);
@@ -9429,10 +11333,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_APP + 20: OpenSettingsWindow(); return 0;
         case WM_APP + 62:
             if (g_shown) {
+                if(!ConfirmGroupEditClose())return 0;
                 auto query = g_query;
+                bool searchActivated = g_searchActivated;
                 HideNow();
                 Open();
                 g_query = std::move(query);
+                g_searchActivated = searchActivated;
+                // Open() starts the field collapsed; a reload keeps the text,
+                // so the field starts where that text says it belongs instead
+                // of folding up and growing again.
+                g_searchExpand = SearchExpanded() ? 1.f : 0.f;
                 g_caret = g_anchor = g_query.size();
                 UpdateFilter();
                 ComputeLayout();
@@ -9448,12 +11359,33 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 #ifndef SEAMLESS_PREVIEW
             ResetTaskbarStartButtons(true);
 #endif
+            // The keyboard hook reports the same Windows key tap that produced
+            // this request, so only the first of the pair toggles.
+            if (!FirstOfKeystroke()) {
+                return 0;
+            }
             // Clicking the taskbar's Start button while this one is open first
             // takes the focus (which closes it) and then asks for Start: that
             // click was meant to close it.
-            if ((!g_shown || g_closing) && Now() - g_lastClosed < 0.5) {
+            if ((!g_settings.iconFlyIn || wParam) && (!g_shown || g_closing) &&
+                Now() - g_lastClosed < 0.5) {
+                if (g_settings.iconFlyIn) g_lastClosed = 0;
                 return 0;
             }
+            Toggle();
+            return 0;
+
+        case WM_APP_WIN_TAP:
+            // A lone Windows key tap. The grid follows the key itself rather
+            // than Windows' idea of Start: once the mod answered the first
+            // show, Windows believes Start is up and says nothing on the next
+            // tap, so the key is the only reliable source for closing.
+            if (!FirstOfKeystroke()) {
+                return 0;
+            }
+#ifndef SEAMLESS_PREVIEW
+            ResetTaskbarStartButtons(true);
+#endif
             Toggle();
             return 0;
 
@@ -9464,7 +11396,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case kFullBackupDone: OnFullBackupDone(hwnd); return 0;
 
         case WM_APP_RELOAD:
-            if (g_fullImportBusy) return 0;
+            if (g_fullImportBusy || !ConfirmGroupEditClose()) return 0;
             if (g_shown) HideNow(); // Save an edited folder using the previous layout mode.
             LoadSettings();
             g_labelFormat.Reset();
@@ -9480,7 +11412,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_APP_RUN:
-            if (g_fullImportBusy) return 0;
+            if (g_fullImportBusy || !ConfirmGroupEditClose()) return 0;
 #ifndef SEAMLESS_PREVIEW
             ResetTaskbarStartButtons(true);
 #endif
@@ -9501,6 +11433,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 return 0;
             }
             if (g_shown && g_shiftWinKeyAction == KeyAction::Start) {
+                if(!ConfirmGroupEditClose())return 0;
                 HideNow();
             }
             if (wParam == 1) {
@@ -9548,7 +11481,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     break;
                 case kTimerCaret:
                     // The search caret blinks by plain redraws.
-                    if (g_shown && (!g_openFolder || g_folderRenaming)) {
+                    if (g_shown && (g_openFolder ? g_folderRenaming : SearchExpanded())) {
                         Render();
                     }
                     break;
@@ -9563,10 +11496,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                         }
                     }
                     break;
+#ifndef SEAMLESS_PREVIEW
+                case kTimerXamlHook:
+                    // The taskbar's XAML module may load long after this mod:
+                    // watch for it and install the start-button hooks then.
+                    if (OwnsTaskbar()) {
+                        EnsureXamlStartHooks(true);
+                    } else {
+                        KillTimer(hwnd, kTimerXamlHook);
+                    }
+                    break;
+#endif
             }
             return 0;
 
         case WM_ACTIVATE:
+#ifdef SEAMLESS_PREVIEW
+            if(Preview::uiCheck)return 0;
+#endif
             if (LOWORD(wParam) == WA_INACTIVE && g_shown && !g_closing &&
                 !g_modal) {
                 g_lastClosed = Now();
@@ -9574,13 +11521,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             return 0;
 
+        case WM_SETCURSOR:
+            if(LOWORD(lParam)==HTCLIENT&&g_groupEditMode) {
+                POINT pt{};GetCursorPos(&pt);ScreenToClient(hwnd,&pt);
+                if((g_groupGesture.group&&g_groupGesture.resize)||GroupResizeAt(pt.x,pt.y)>=0) {
+                    SetCursor(LoadCursorW(nullptr,IDC_SIZENWSE));return TRUE;
+                }
+            }
+            break;
         case WM_MOUSEMOVE: {
             if (!g_trackingMouse) {
                 TRACKMOUSEEVENT tme{sizeof(tme), TME_LEAVE, hwnd, 0};
                 g_trackingMouse = TrackMouseEvent(&tme);
             }
             int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
-            if (GroupPointerMove(x,y)) return 0;
+            bool pointerChanged=!g_glassPointer||g_glassPointer->x!=x||g_glassPointer->y!=y;
+            g_glassPointer=D2D1::Point2F((float)x,(float)y);
+            auto bar=ScrollThumb();
+            bool scrollHover=SelectionHasArea(bar)&&InButton(bar,(float)x,(float)y);
+            if(std::exchange(g_scrollHover,scrollHover)!=scrollHover)Render();
+            if (GroupPointerMove(x,y)||MoveAppSelection(x,y)) return 0;
+            UpdateGroupResizeHover(x,y);
+            int batchHover=BatchActionAt(x,y);
+            if(batchHover!=g_batchHover){g_batchHover=batchHover;StartFrames();}
             if (g_searchDrag) {
                 SetCaret(CaretAtPoint((float)x), true);
                 Render();
@@ -9604,36 +11567,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 Render();
             }
             int hover = ItemAt(x, y);
-            bool menuHover =
-                !g_openFolder && InButton(g_layout.menuButton, (float)x, (float)y);
             bool clearHover = !g_openFolder && !g_query.empty() &&
                               InButton(g_layout.clearButton, (float)x, (float)y);
-            bool searchHover = !g_openFolder && !menuHover && !clearHover &&
+            bool searchHover = !g_openFolder && !clearHover &&
+                               g_searchExpand > 0.02f &&
                                InRect(g_layout.search, (float)x, (float)y);
             int powerHover = g_openFolder ? -1 : PowerAt(x, y);
-            if (hover != g_hover || menuHover != g_menuHover ||
+            if (hover != g_hover ||
                 clearHover != g_clearHover ||
                 searchHover != g_searchHover ||
                 powerHover != g_powerHover) {
                 g_hover = hover;
-                g_menuHover = menuHover;
                 g_clearHover = clearHover;
                 g_searchHover = searchHover;
                 g_powerHover = powerHover;
-                StartFrames();  // The bar's glow eases between states.
-                Render();
                 StartFrames();
             }
+            if(pointerChanged&&!g_groupEditMode&&(g_glassClaimed||g_openFolder||
+               (y>=g_layout.viewTop&&y<g_layout.viewBottom)))StartFrames();
             return 0;
         }
 
         case WM_MOUSELEAVE:
+            g_glassPointer.reset();
+            if(std::exchange(g_scrollHover,false))Render();
             g_folderTitleHover = false;
+            g_batchHover=-1;UpdateGroupResizeHover(-1,-1);StartFrames();
             g_trackingMouse = false;
-            if (g_hover >= 0 || g_menuHover || g_clearHover || g_searchHover ||
+            if (g_hover >= 0 || g_clearHover || g_searchHover ||
                 g_powerHover >= 0) {
                 g_hover = -1;
-                g_menuHover = false;
                 g_clearHover = false;
                 g_searchHover = false;
                 g_powerHover = -1;
@@ -9644,10 +11607,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_LBUTTONDOWN: {
-            if (g_modal) { g_pressed=-1; g_pressedEmpty=false; return 0; }
+            if (g_modal||g_batchLaunching) { g_pressed=-1; g_pressedEmpty=false; return 0; }
             int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
             if (g_closing) {
                 return 0;  // A click during the closing fade does nothing.
+            }
+            if(int action=GroupEditButtonAt(x,y);action>=0) {
+                g_groupEditButton=action;SetCapture(hwnd);Render();return 0;
+            }
+            if(ToolBarConsumes(x,y)) {
+                g_batchPressed=BatchActionAt(x,y);
+                if(g_batchPressed>=0)SetCapture(hwnd);
+                Render();return 0;
             }
             if (GroupPointerDown(hwnd,x,y)) return 0;
             if (!g_openFolder) {
@@ -9661,17 +11632,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 if (g_powerArmed >= 0) {
                     DisarmPower();  // A click elsewhere cancels the prompt.
                 }
-                if (InButton(g_layout.menuButton, (float)x, (float)y)) {
-                    POINT pt{(LONG)g_layout.menuButton.right,
-                             (LONG)g_layout.menuButton.bottom + 4};
-                    ClientToScreen(hwnd, &pt);
-                    ShowOptionsMenu(hwnd, pt, true);
-                    return 0;
-                }
                 if (!g_query.empty() &&
                     InButton(g_layout.clearButton, (float)x, (float)y)) {
                     EditPush(0);  // Ctrl+Z brings the cleared search back.
                     g_query.clear();
+                    g_searchActivated = true;
                     g_caret = g_anchor = 0;
                     g_clearHover = false;
                     QueryChanged();
@@ -9679,18 +11644,35 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 }
                 int dot = PageDotAt(x, y);
                 if (dot >= 0) {
-                    g_scrollTarget = dot * (float)g_layout.width;
+                    float target=dot*(float)g_layout.width;
+                    if(g_scrollTarget!=target)g_groupPagePan=0;
+                    g_scrollTarget=target;
                     StartFrames();
                     return 0;
                 }
             }
-            bool editHit = InRect(g_openFolder ? FolderTitlePill() : EditBox(false), (float)x, (float)y);
+            if(g_groupEditMode){FreeGroupPointerDown(hwnd,x,y);return 0;}
+            // The resting field is invisible, so it also stops taking clicks:
+            // only a field that has opened (typing or a kept-activated clear)
+            // takes pointer input. Folder renaming keeps its own pill.
+            bool editHit = (g_openFolder || g_searchExpand > 0.02f) &&
+                           InRect(g_openFolder ? FolderTitlePill() : g_layout.search,
+                                  (float)x, (float)y);
             if (g_openFolder && g_folderRenaming && !editHit) {
                 g_folderRenaming = false;
-                SaveTiles();
+                SaveFolderName();
             }
             if (editHit) {
-                if (g_openFolder) g_folderRenaming = true;
+                if (g_openFolder) {
+                    g_folderRenaming = true;
+                } else {
+                    g_searchActivated = true;
+                    if (g_query.empty()) {
+                        g_selected = -1;
+                        LayoutSearch();
+                        StartFrames();
+                    }
+                }
                 // A click in the search field, or in an open folder's name,
                 // places the caret; holding the button and moving selects
                 // text. A second click on the same spot selects the word.
@@ -9719,7 +11701,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SetCapture(hwnd);
             g_pressed = ItemAt(x, y);
             g_pressedEmpty = g_pressed < 0 && !ClickKeepsOpen(x, y);
-            g_drag.pending = g_pressed >= 0 && g_query.empty();
+            if(g_pressed>=0&&Items()[g_pressed].app&&((wParam&MK_CONTROL)||!g_appSelection.empty()))
+                g_selectionPointer.app=Items()[g_pressed].app;
+            else if(g_pressed<0&&(!g_openFolder||InRect(GetFolderLayout().panel,(float)x,(float)y))) {
+                g_selectionPointer.base=g_appSelection;
+                g_selectionPointer.baseKeys=g_selectedAppKeys;
+                g_selectionPointer.start=g_selectionPointer.end={x,y};
+                g_selectionPointer.pending=true;
+            }
+            g_drag.pending = g_pressed >= 0 && !g_selectionPointer.app && g_appSelection.empty() && g_query.empty();
             g_drag.pressTime = Now();
             g_drag.start = {x, y};
             if (g_drag.pending) {
@@ -9731,12 +11721,43 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         case WM_LBUTTONUP: {
             int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+            if(g_groupEditButton>=0) {
+                int action=std::exchange(g_groupEditButton,-1);
+                if(GetCapture()==hwnd)ReleaseCapture();
+                if(action==GroupEditButtonAt(x,y)) {
+                    if(action==0)CancelGroupEdit();
+                    else if(action==1)EqualizeGroupSpacing();
+                    else FinishGroupEdit();
+                } else Render();
+                return 0;
+            }
+            if(g_groupGesture.group)FreeGroupPointerMove(x,y);
             if (GroupPointerUp(hwnd)) return 0;
+            if(g_batchPressed>=0) {
+                int action=std::exchange(g_batchPressed,-1);
+                if(GetCapture()==hwnd)ReleaseCapture();
+                if(action==BatchActionAt(x,y)) {
+                    if(action==0)ClearAppSelection();
+                    else LaunchSelectedApps();
+                }
+                Render();return 0;
+            }
+            if(g_selectionPointer.pending)MoveAppSelection(x,y);
+            auto selection=std::exchange(g_selectionPointer,{});
+            if(selection.active||selection.app) {
+                g_pressed=-1;g_pressedEmpty=false;
+                if(GetCapture()==hwnd)ReleaseCapture();
+                int index=ItemAt(x,y);
+                if(selection.app&&index>=0&&Items()[index].app==selection.app)ToggleAppSelection(selection.app);
+                Render();return 0;
+            }
             g_searchDrag = false;
             bool dragged = g_drag.active;
             // ReleaseCapture fires WM_CAPTURECHANGED synchronously, and that
             // handler clears the press; snapshot it before the capture goes.
             int powerPressed = g_powerPressed;
+            int pressed = std::exchange(g_pressed,-1);
+            bool pressedEmpty = std::exchange(g_pressedEmpty,false);
             EndDrag(true);  // Before the capture goes, which would undo it.
             if (GetCapture() == hwnd) {
                 ReleaseCapture();
@@ -9749,17 +11770,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 Render();
                 return 0;
             }
-            int pressed = g_pressed;
-            bool pressedEmpty = g_pressedEmpty;
-            g_pressed = -1;
-            g_pressedEmpty = false;
             if (dragged) {
                 return 0;
             }
             int item = ItemAt(x, y);
             if (pressed >= 0 && item == pressed) {
                 ActivateItem(item);
-            } else if (pressedEmpty && item < 0 && !ClickKeepsOpen(x, y)) {
+            } else if (pressedEmpty && item < 0 && g_appSelection.empty() && !ClickKeepsOpen(x, y)) {
                 // Clicking on empty space closes, like in Launchpad.
                 if (g_openFolder) {
                     CloseFolder();
@@ -9773,6 +11790,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
 
         case WM_CAPTURECHANGED:
+            if(g_selectionPointer.active) {
+                g_appSelection=std::move(g_selectionPointer.base);SelectionChanged();
+            }
+            g_selectionPointer={};
+            g_pressed=-1;g_pressedEmpty=false;g_batchPressed=-1;g_groupEditButton=-1;
             CancelGroupPointer();
             EndDrag(false);  // Another window took the mouse.
             g_searchDrag = false;
@@ -9780,26 +11802,40 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_RBUTTONUP: {
-            if (g_drag.active) {
+            if (g_drag.active||g_groupGesture.group||g_selectionPointer.pending||g_batchLaunching) {
                 return 0;
             }
             int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+            if(ToolBarConsumes(x,y))return 0;
             POINT pt{x, y};
             ClientToScreen(hwnd, &pt);
             int item = ItemAt(x, y);
             int group = GroupAtPoint(x,y);
-            if (item < 0 && group >= 0) {
+            if (group >= 0 && (item < 0 || g_groupEditMode)) {
                 ShowGroupMenu(hwnd,g_groupGeometry[group].group,pt);
             } else if (item >= 0) {
                 ShowTileMenu(hwnd, item, pt);
             } else if (!g_openFolder) {
-                ShowOptionsMenu(hwnd, pt, false);
+                ShowOptionsMenu(hwnd, pt);
             }
             return 0;
         }
 
         case WM_MOUSEWHEEL:
         case WM_MOUSEHWHEEL:
+            if(msg==WM_MOUSEWHEEL&&!g_openFolder&&!(GET_KEYSTATE_WPARAM(wParam)&MK_SHIFT)&&
+                g_settings.pages) {
+                int page=std::max(0,(int)std::lround(g_scroll/std::max(1,g_layout.width)));
+                float limit=MaxPagePan(page);
+                float next=std::clamp(g_groupPagePan-GET_WHEEL_DELTA_WPARAM(wParam)*
+                    g_layout.cellHeight/WHEEL_DELTA,0.f,limit);
+                if(next!=g_groupPagePan) {
+                    g_groupPagePan=next;
+                    if(g_groupGesture.group)FreeGroupPointerMove(g_groupGesture.at.x,g_groupGesture.at.y);
+                    Render();
+                    return 0;
+                }
+            }
             if(msg==WM_MOUSEWHEEL&&!g_openFolder&&ScrollFreeGroup(hwnd,lParam,GET_WHEEL_DELTA_WPARAM(wParam)))return 0;
             if (g_openFolder) {
                 if (msg == WM_MOUSEWHEEL) {
@@ -9879,7 +11915,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             RefreshSystemAnimations();
             if(msg==WM_SETTINGCHANGE&&g_settings.theme==L"system")PostMessageW(hwnd,WM_APP_RELOAD,0,0);
             if (g_shown && (msg == WM_DISPLAYCHANGE || wParam == SPI_SETWORKAREA)) {
-                HideNow();
+                if(ConfirmGroupEditClose())HideNow();
             }
             break;
 
@@ -9957,11 +11993,20 @@ DWORD WINAPI StartThread(void*) {
     HWND wnd = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED,
                                kWindowClass, L"Start", WS_POPUP, 0, 0, 0, 0,
                                nullptr, nullptr, instance, nullptr);
+#ifdef SEAMLESS_PREVIEW
+    // Isolated UI QA only: let automation enumerate the otherwise tool-only canvas.
+    if(Preview::uiCheck&&wnd) {
+        auto style=GetWindowLongPtrW(wnd,GWL_EXSTYLE);
+        SetWindowLongPtrW(wnd,GWL_EXSTYLE,(style&~WS_EX_TOOLWINDOW)|WS_EX_APPWINDOW);
+        SetWindowTextW(wnd,L"RYJS Launchpad UI validation");
+    }
+#endif
     bool ok = g_d2d && g_dwrite && g_backdrop && wnd;
     if (ok) {
         g_wnd = wnd;
 #ifndef SEAMLESS_PREVIEW
         StartButtonHooksStart();
+        SetTimer(wnd, kTimerXamlHook, 1000, nullptr);
 #endif
         g_taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
         ChangeWindowMessageFilterEx(wnd, g_taskbarCreated, MSGFLT_ALLOW, nullptr);
@@ -10027,6 +12072,11 @@ DWORD WINAPI StartThread(void*) {
     CancelGroupPointer();
     std::vector<ExpandedGroupGeometry>().swap(g_groupGeometry);
     std::vector<Cell>().swap(g_groupCells);
+    g_groupTransitions.clear();
+    g_groupResizeHover.reset();
+    g_selectionPointer={};
+    AppSelection().swap(g_appSelection);
+    std::unordered_set<std::wstring>().swap(g_selectedAppKeys);
     g_groupEntryOrder.clear();
     g_openFolder = nullptr;
     g_drag = {};
@@ -10120,6 +12170,7 @@ BOOL Wh_ModInit() {
         CloseHandle(g_integrationLease); g_integrationLease = nullptr;
         return FALSE;
     }
+    HookXamlStartVisibility();
     g_readyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     g_thread = CreateThread(nullptr, 0, StartThread, nullptr, 0, nullptr);
     if (!g_thread) {
