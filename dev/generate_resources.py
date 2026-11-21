@@ -177,6 +177,7 @@ def main():
     packed = packed.replace('#include "launchpad_settings_store.h"', (MOD / 'launchpad_settings_store.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
     packed = packed.replace('#include "launchpad_start_button.h"', (MOD / 'launchpad_start_button.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
     packed = packed.replace('#include \"ryjs_data.h\"', (MOD / 'ryjs_data.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
+    packed = packed.replace('#include "launchpad_lifecycle.h"', (MOD / 'launchpad_lifecycle.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
     for fragment in ['launchpad_start_xaml.h', 'launchpad_contrast.inc', 'launchpad_groups_layout.inc', 'launchpad_groups_actions.inc', 'launchpad_svg.inc', 'launchpad_entries.inc', 'launchpad_display_names.inc', 'launchpad_group_positions.inc', 'launchpad_group_edit.inc', 'launchpad_web_icons.inc', 'launchpad_entry_editor.inc', 'launchpad_full_backup.inc', 'launchpad_backup_script.inc']:
         if (MOD / fragment).exists(): packed = packed.replace('#include "' + fragment + '"', (MOD / fragment).read_text(encoding='utf-8'))
     includes = set(re.findall(r'^\s*#\s*include\s*"([^"]+)"', packed, flags=re.M))

@@ -3,17 +3,28 @@
 #include <cstdio>
 void Preview_RunSmoke(HWND) {}
 int failures=0, checks=0;
+DWORD WINAPI LatchTicketThread(void*) {
+    for (int i=0;i<2000;i++) { StartLatchTicket ticket; }
+    return 0;
+}
 void Check(bool value,const char* label) { ++checks; if (!value) { ++failures; printf("FAIL: %s\n",label); } }
 int wmain(int argc,wchar_t** argv) {
-    if(argc==3&&std::wstring_view(argv[1])==L"--launch-probe") {
-        std::ofstream marker{std::filesystem::path(argv[2])};
-        marker<<"launched";
-        return marker?0:1;
-    }
+    setvbuf(stdout,nullptr,_IONBF,0);  // Keep the log up to a crash.
     CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
     WCHAR executable[32768]{};GetModuleFileNameW(nullptr,executable,ARRAYSIZE(executable));
     auto cases=std::filesystem::path(executable).parent_path()/(L"feature-data-"+std::to_wstring(GetTickCount64()));
     std::filesystem::create_directories(cases);Preview::directory=cases.wstring();
+    if ((argc==3||argc==4)&&std::wstring_view(argv[1])==L"--web-icon-probe") {
+        App site;
+        site.target=argv[2];
+        site.websiteUrl=ResolveWebsiteUrl(site);
+        StartWebIconFetch(site);
+        if (g_webWorkers.empty()||WaitForSingleObject(g_webWorkers.front(),45000)!=WAIT_OBJECT_0) return 2;
+        StopWebIcons();
+        bool loaded=LoadWebsiteIcon(64,site);
+        // The loopback fixture serves a red icon behind a redirect and a bad candidate.
+        return loaded&&(argc==4||site.pixels[32*64+32]==0xffff0000) ? 0 : 1;
+    }
     for (int hz : {60,120,144,165,240}) {
         float value=0;
         for (int i=0;i<hz;i++) value=AdvanceTransition(value,1,0.28/hz,280);
@@ -104,8 +115,29 @@ int wmain(int argc,wchar_t** argv) {
     Check(WebIconPath(L"ryjs-entry:C:\\?*test").find(L"?*")==std::wstring::npos,"cache name never contains path input");
     auto candidates=WebsiteIconCandidates(L"<link rel='shortcut icon' data-href='wrong' href='../icons/site.png?a=1&amp;b=2'>",L"https://example.org/path/page");
     Check(candidates.size()==2&&candidates[0]==L"https://example.org/icons/site.png?a=1&b=2"&&candidates[1]==L"https://example.org/favicon.ico","website icon declaration resolves relative URL and fallback");
+    candidates=WebsiteIconCandidates(L"<base href='/theme/'><link rel='not-an-icon' href='/junk'><link rel='icon'><link rel='apple-touch-icon' href='touch.png'><link rel='icon' href='logo.svg'>",L"https://example.org/page");
+    Check(candidates==std::vector<std::wstring>{L"https://example.org/theme/logo.svg",L"https://example.org/theme/touch.png",L"https://example.org/favicon.ico"},
+          "website candidates prefer actual icon links and honor the declared base");
+    auto shortcut=cases/L"website.url";
+    std::ofstream(shortcut)<<"[InternetShortcut]\r\nURL=https://example.org/site\r\n";
+    App website;website.target=shortcut.wstring();
+    Check(ResolveWebsiteUrl(website)==L"https://example.org/site","Internet shortcuts use the destination favicon");
+    website.target=L"C:\\Browser\\chrome.exe";website.arguments=L"--profile-directory=Default --app=\"https://example.org/site\"";
+    Check(ResolveWebsiteUrl(website)==L"https://example.org/site","browser app arguments use the destination favicon");
+    std::ofstream(cases/L"invalid-favicon.ico")<<"<html>Unavailable</html>";
+    Check(!LoadIconFile((cases/L"invalid-favicon.ico").wstring(),64,website,false),"HTML cannot become a cached shell icon");
     std::ofstream(cases/L"icon.svg")<<"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='red'/></svg>";
     App svg;Check(LoadSvgIcon((cases/L"icon.svg").wstring(),128,svg)&&svg.iconSize==128&&!svg.pixels.empty(),"SVG icon rasterizes at requested DPI size");
+    WriteLines(StoragePath(L"icons.txt"),{L"icon\t"+AppKey(*refreshed)+L"\t"+(cases/L"icon.svg").wstring()});
+    ApplyCustomIcons(64);
+    const auto savedIcon=g_customIcons.at(AppKey(*refreshed));
+    Check(IsManagedIcon(savedIcon)&&std::filesystem::exists(CustomIconPath(savedIcon)),"legacy external icon migrates to launcher storage");
+    std::filesystem::remove(cases/L"icon.svg");
+    refreshed->pixels.clear();
+    g_customIcons.clear();
+    ApplyCustomIcons(64);
+    Check(refreshed->iconSize==64&&!refreshed->pixels.empty()&&g_customIcons.at(AppKey(*refreshed))==savedIcon,
+          "custom icon reloads after deleting its original and re-reading the mapping");
     UpdateFilter();g_layout.width=1600;g_layout.height=1000;g_layout.scale=1;ComputeLayout();
     Check(!g_freeGroupLayout&&LoadGroupPositions()&&!g_freeGroupLayout,"missing geometry preserves legacy layout mode");
     auto membership=ArrangementLines();
@@ -347,12 +379,17 @@ int wmain(int argc,wchar_t** argv) {
     // Deliver native messages to the same window procedure used in the preview and mod.
     g_settings.animations=false;g_requestedAnimations=false;
     g_settings.groups=false;g_scroll=g_scrollTarget=0;
+    auto probeExecutable=cases.parent_path()/L"test_launch_probe.exe";
+    if (!std::filesystem::is_regular_file(probeExecutable)) {
+        fputs("The windowless launch probe is missing. Run dev/Test-Features.ps1.\n",stderr);
+        return 1;
+    }
     AppSelection probes;
     for(int n=0;n<3;n++) {
         auto app=std::make_shared<App>();app->name=L"Probe "+std::to_wstring(n);
-        app->target=n==1?(cases/L"missing.exe").wstring():executable;
+        app->target=n==1?(cases/L"missing.exe").wstring():probeExecutable.wstring();
         app->stableKey=L"selection-probe-"+std::to_wstring(n);
-        app->arguments=L"--launch-probe "+std::to_wstring(n)+L".txt";
+        app->arguments=std::to_wstring(n)+L".txt";
         app->workingDirectory=cases.wstring();
         probes.push_back(app);
     }
@@ -387,13 +424,28 @@ int wmain(int argc,wchar_t** argv) {
     auto bar=BatchBar();int cancelX=(int)bar.left+12,cancelY=(int)(bar.top+bar.bottom)/2;
     send(WM_LBUTTONDOWN,MK_LBUTTON,cancelX,cancelY);send(WM_LBUTTONUP,0,cancelX,cancelY);
     Check(g_appSelection.empty()&&g_batchBlend==0,"batch toolbar Cancel clears selection through native input");
-    click(0,0);
     auto waitForMarker=[&](PCWSTR filename){
         // Process startup on a busy machine can take several seconds; a short
         // window here reports a launch failure that never happened.
         for(int tries=0;tries<750&&!std::filesystem::exists(cases/filename);tries++)Sleep(20);
         return std::filesystem::exists(cases/filename);
     };
+    if (argc==2&&std::wstring_view(argv[1])==L"--keyboard-batch") {
+        for (int index : {0,2}) {
+            auto app=std::make_shared<App>(*probes[index]);
+            auto marker=cases/(L"keyboard-"+std::to_wstring(index)+L".txt");
+            app->arguments=L"\""+marker.wstring()+L"\"";
+            g_appSelection.push_back(std::move(app));
+        }
+        SelectionChanged();
+        SendMessageW(g_wnd,WM_KEYDOWN,VK_RETURN,0);
+        Check(waitForMarker(L"keyboard-0.txt")&&waitForMarker(L"keyboard-2.txt")&&g_appSelection.empty(),
+              "Enter launches both selected applications through the native key handler");
+        DestroyWindow(g_wnd);
+        printf("Keyboard batch launch: %s\n",failures?"failed":"passed");
+        return failures?1:0;
+    }
+    click(0,0);
     Check(waitForMarker(L"0.txt")&&g_appSelection.empty(),"ordinary click requests launch with entry arguments and working directory");
     std::filesystem::remove(cases/L"0.txt");
     std::vector<std::wstring> requested;
@@ -492,12 +544,216 @@ int wmain(int argc,wchar_t** argv) {
               "the menu class name is stable within one image");
         Reset();
     }
+    g_settings.groups=false;
+    g_tiles={{probes[0],nullptr},{probes[1],nullptr}};
+    g_apps={probes[0],probes[1]};
+    UpdateFilter();ComputeLayout();
+    g_shown=true;g_appear=1;
+    g_requestedAnimations=true;g_systemAnimations=true;
+    auto type=[&](std::wstring_view text){
+        for (WCHAR character : text) SendMessageW(g_wnd,WM_CHAR,character,0);
+    };
+    auto clickBackground=[&]{
+        const int y=g_layout.height/2;
+        send(WM_LBUTTONDOWN,MK_LBUTTON,2,y);send(WM_LBUTTONUP,0,2,y);
+    };
+    type(L"Probe ");
+    Check(g_searchGridTransition==0&&g_frameTimer,"typing starts the search grid animation");
+    g_lastFrame=Now()-0.08;OnFrame();
+    const float progress=g_searchGridTransition;
+    type(L"1");
+    Check(progress>0&&progress<1&&g_searchGridTransition==progress&&
+          g_visible.size()==1&&g_visible[0].app==probes[1],"typing refines results without restarting the transition");
+    clickBackground();
+    Check(g_shown&&!g_closing&&!SearchExpanded()&&g_visible.size()==2&&
+          g_searchGridTransition==0,"the first background click animates back to the main grid");
+    g_lastFrame=Now()-0.2;OnFrame();
+    Check(g_searchGridTransition==1,"the search return animation finishes");
+    clickBackground();
+    Check(g_closing,"the second background click closes the launcher");
+    g_requestedAnimations=false;OnFrame();
+    g_shown=true;g_appear=1;
+    type(L"no matches");
+    Check(g_visible.empty()&&g_searchGridTransition==1,"reduced motion switches immediately to empty results");
+    clickBackground();
+    Check(g_shown&&!g_closing&&!SearchExpanded()&&g_searchGridTransition==1,
+          "empty results also return to the main grid without animation");
+    HideNow();
     DestroyWindow(g_wnd);g_wnd=nullptr;
+    // Deleting the ungrouped block must remove its apps, not rebuild the same
+    // block: that was the "cannot delete it" behaviour.
+    {
+        g_shown=false;
+        g_settings.groups=true;
+        g_layoutReadOnly=false;g_groupPositionsReadOnly=false;g_dataReadOnly=false;g_entriesReadOnly=false;
+        ClearGroupPositions();g_tiles.clear();
+        auto inbox=InboxGroup();
+        auto app=std::make_shared<App>();app->name=L"InboxProbe";app->target=L"C:\\inbox-probe.exe";
+        g_apps={app};inbox->apps.push_back({app,nullptr});
+        auto key=AppKey(*app);
+        DeleteGroup(inbox);
+        Check(g_hidden.count(key)==1,"deleting the ungrouped block removes its apps");
+        Check(std::none_of(g_tiles.begin(),g_tiles.end(),[](const Tile& tile){
+                  return tile.folder&&tile.folder->inbox;}),
+              "deleting the ungrouped block does not recreate it");
+        g_hidden.erase(key);g_apps.clear();g_tiles.clear();
+    }
+    // Multi-select delete takes exactly the selected apps off the grid.
+    {
+        auto first=std::make_shared<App>();first->name=L"DelA";first->target=L"C:\\del-a.exe";
+        auto second=std::make_shared<App>();second->name=L"DelB";second->target=L"C:\\del-b.exe";
+        auto keep=std::make_shared<App>();keep->name=L"Keep";keep->target=L"C:\\keep.exe";
+        g_apps={first,second,keep};
+        g_tiles={{first,nullptr},{second,nullptr},{keep,nullptr}};
+        g_appSelection={first,second};SelectionChanged();
+        DeleteSelectedApps();
+        Check(g_hidden.count(AppKey(*first))==1&&g_hidden.count(AppKey(*second))==1,
+              "multi-select delete removes every selected app");
+        Check(!g_hidden.count(AppKey(*keep)),"multi-select delete leaves the other apps alone");
+        Check(g_tiles.size()==1&&g_tiles[0].app==keep,"the grid keeps only the unselected app");
+        Check(g_appSelection.empty()&&g_selectedAppKeys.empty(),"the selection is cleared after deleting");
+        g_hidden.clear();g_apps.clear();g_tiles.clear();
+    }
     Check(WriteLines(GroupPositionFile(),{L"schema\t999\tgroup-geometry"}),"future geometry fixture saved");
     ClearGroupPositions();Check(!LoadGroupPositions()&&g_layoutReadOnly&&!SaveGroupPositions(),"unknown group geometry blocks layout writes");
     g_layoutReadOnly=false;g_groupPositionsReadOnly=false;g_freeGroupLayout=false;
     Check(WriteLines(StoragePath(L"entries-v1.txt"),{L"schema\t99\tentries"}),"future version fixture saved");
     Check(!LoadEntries()&&g_entriesReadOnly&&!SaveEntries()&&!SaveTiles(),"unsupported entries refuse entry and layout writes");
+    // A predecessor that cannot be validated must not be migrated halfway, and
+    // it must not leave the mod read-only forever either.
+    {
+        auto root=std::filesystem::path(cases)/(L"migration-"+std::to_wstring(GetTickCount64()));
+        auto source=root/L"local@seamless-launchpad",target=root/L"data-v1";
+        std::filesystem::create_directories(source);
+        { std::ofstream bad(source/L"groups-legacy.txt"); bad<<"app\tC:\\x.exe\n"; }
+        auto readAll=[](const std::filesystem::path& file) {
+            std::ifstream input(file,std::ios::binary);
+            return std::string(std::istreambuf_iterator<char>(input),{});
+        };
+        auto before=readAll(source/L"groups-legacy.txt");
+        Check(!ryjs_data::Prepare(source.wstring(),target.wstring(),[](const std::wstring&){return true;}),
+              "an unreadable predecessor is rejected instead of half-migrated");
+        Check(!std::filesystem::exists(target),"a rejected migration leaves no data-v1");
+        Check(std::filesystem::exists(source/L"groups-legacy.txt")&&readAll(source/L"groups-legacy.txt")==before,
+              "a rejected migration does not modify the predecessor folder");
+        Check(ryjs_data::Prepare(L"",target.wstring(),[](const std::wstring&){return true;})&&
+              std::filesystem::exists(target/L"ryjs-storage.ini"),
+              "a fresh empty data folder is created after a rejected migration");
+        WriteMigrationNote(target.wstring(),source.wstring());
+        Check(std::filesystem::exists(target/L"migration-note.txt"),
+              "the skipped migration is recorded beside the new data");
+    }
+    // The queued start-button reset is the only callback that runs in another
+    // thread's message loop; its drain is what keeps unload from running it.
+    {
+        g_startLatchIdle=CreateEventW(nullptr,FALSE,FALSE,nullptr);
+        Check(WaitForStartLatchResets(5),"nothing queued needs no wait");
+        g_startLatchPending=1;
+        Check(!WaitForStartLatchResets(30),"a reset that never completes times out instead of hanging unload");
+        auto finish=[](void*)->DWORD{Sleep(30);FinishStartLatchReset();return 0;};
+        HANDLE worker=CreateThread(nullptr,0,finish,nullptr,0,nullptr);
+        Check(WaitForStartLatchResets(3000),"the drain returns once the queued reset finishes");
+        WaitForSingleObject(worker,INFINITE);CloseHandle(worker);
+        Check(g_startLatchPending.load()==0,"the queued-reset counter is back to zero");
+        CloseHandle(g_startLatchIdle);g_startLatchIdle=nullptr;
+    }
+    // The two interleavings the unload has to survive: the queued callback
+    // finishing before the submitter returns, and after it.
+    {
+        g_startLatchIdle=CreateEventW(nullptr,FALSE,FALSE,nullptr);
+        {
+            StartLatchTicket invocation;              // U1: the call itself
+            g_startLatchPending.fetch_add(1);         // U2: the queued lambda
+            FinishStartLatchReset();                  // lambda runs first
+            Check(g_startLatchPending.load()==1,
+                  "a callback that finishes first leaves only the invocation unit");
+        }
+        Check(g_startLatchPending.load()==0,
+              "returning releases the invocation unit exactly once");
+        {
+            StartLatchTicket invocation;              // U1
+            g_startLatchPending.fetch_add(1);         // U2
+        }
+        Check(g_startLatchPending.load()==1,"a queued unit outlives its submitter");
+        FinishStartLatchReset();
+        Check(g_startLatchPending.load()==0,"the queued unit releases exactly once");
+        CloseHandle(g_startLatchIdle);g_startLatchIdle=nullptr;
+    }
+    // Under contention every unit still releases exactly once: a negative
+    // count would make the drain unreachable, and a leaked one would pin.
+    {
+        g_startLatchIdle=CreateEventW(nullptr,FALSE,FALSE,nullptr);
+        HANDLE threads[4]{};
+        for(auto& thread:threads) thread=CreateThread(nullptr,0,LatchTicketThread,nullptr,0,nullptr);
+        Check(WaitForMultipleObjects(4,threads,TRUE,60000)==WAIT_OBJECT_0,
+              "all latch ticket threads finish");
+        for(auto& thread:threads) CloseHandle(thread);
+        Check(g_startLatchPending.load()==0,"concurrent latch units all release their count");
+        FinishStartLatchReset();
+        Check(g_startLatchPending.load()==0,"a stray release cannot make the count negative");
+        CloseHandle(g_startLatchIdle);g_startLatchIdle=nullptr;
+    }
+    // Repeated enable/disable in one process: the teardown has to drop every
+    // holder, not just the containers the grid draws from.
+    {
+        auto app=std::make_shared<App>();app->name=L"Probe";app->target=L"C:\\probe.exe";
+        auto group=InboxGroup();group->name=L"Probe";
+        group->apps.push_back({app,nullptr});
+        g_tiles.push_back({nullptr,group});
+        g_groupPositions[group]=GroupPosition{};
+        g_groupRows[group]=1;
+        g_groupEditSnapshot[group]=GroupPosition{};
+        g_groupEditRows[group]=1;
+        g_openFolder=group;
+        g_closingFolder=group;
+        g_groupResizeHover=group;
+        g_groupHeaderPressed=group;
+        g_groupDropFolder=group;
+        g_groupHeaderDragging=group;
+        g_drag.tile=Tile{app,nullptr};
+        g_appSelection.push_back(app);
+        g_selectionPointer.app=app;
+        auto weak=std::weak_ptr(group);
+        group.reset();app.reset();
+        ReleaseLauncherResources();
+        Check(weak.expired(),"the teardown releases every group and folder holder");
+        Check(g_groupPositions.empty()&&g_groupRows.empty()&&g_groupEditSnapshot.empty()&&g_groupEditRows.empty(),
+              "the group layout maps are cleared");
+        Check(!g_openFolder&&!g_closingFolder&&!g_groupResizeHover&&!g_drag.tile.app&&!g_drag.tile.folder&&
+              g_appSelection.empty()&&!g_selectionPointer.app,"every pointer holder is empty after the teardown");
+        ReleaseLauncherResources();
+        Check(g_tiles.empty()&&!g_wnd,"a second teardown on an empty state is harmless");
+        App bad;bad.iconSize=64;
+        Check(!WriteIconPng(L"unused.png",bad),"the PNG writer refuses a buffer that does not match the icon size");
+    }
+    // Review item 1, end to end: a saved group holds an app, the app holds a
+    // GPU bitmap, and the bitmap holds the device. The teardown has to break
+    // that chain, or every disable/update leaks the whole device tree.
+    {
+        for (int cycle=0;cycle<3;cycle++) {
+            // StartThread creates the factories before the window; recreate
+            // them each cycle so this matches one enable after each disable.
+            if (!g_d2d) D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED,g_d2d.GetAddressOf());
+            if (!g_dwrite) DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,__uuidof(IDWriteFactory),(IUnknown**)g_dwrite.GetAddressOf());
+            if (!EnsureTarget()) { printf("SKIP: no D3D device in this environment; GPU release cycle not exercised\n"); break; }
+            ComPtr<ID2D1Bitmap1> bitmap;
+            D2D1_BITMAP_PROPERTIES1 props=D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_NONE,
+                D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED));
+            Check(SUCCEEDED(g_target->CreateBitmap(D2D1::SizeU(4,4),nullptr,0,props,&bitmap))&&bitmap,
+                  "a GPU bitmap can be created on the grid device");
+            auto app=std::make_shared<App>();app->name=L"GpuProbe";app->target=L"C:\\gpu.exe";
+            app->bitmap=bitmap;app->iconSize=4;app->pixels.assign(16,0);
+            auto group=InboxGroup();group->apps.push_back({app,nullptr});
+            g_groupPositions[group]=GroupPosition{};g_groupRows[group]=1;
+            g_closingFolder=group;
+            auto weak=std::weak_ptr(group);
+            bitmap.Reset();app.reset();group.reset();
+            ReleaseLauncherResources();
+            Check(weak.expired(),"a group holding a GPU bitmap does not survive the teardown");
+            Check(!g_target&&!g_d2dDevice&&!g_d3d,"the device objects are released with the groups");
+            Check(g_groupPositions.empty()&&!g_closingFolder,"the layout holders are empty after the cycle");
+        }
+    }
     printf("Feature checks: %d, failures: %d\n",checks,failures);
     return failures?1:0;
 }

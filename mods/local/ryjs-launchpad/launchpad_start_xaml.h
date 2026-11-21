@@ -29,11 +29,81 @@ void StartStateTrace(PCWSTR event,int checked=-2,int pressed=-2,int hover=-2,int
 // live on the taskbar's UI thread, so the reset is posted through the
 // element's own dispatcher.
 static winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton> g_startButtonElement;
+// Written by the taskbar's XAML hooks and read by the launcher thread when the
+// grid hides, so every access copies the reference under a lock. Resolving it
+// (weak_ref::get) happens outside the lock: that call goes into XAML, and a
+// lock held across it could deadlock with the taskbar thread.
+SRWLOCK g_startButtonElementLock = SRWLOCK_INIT;
+struct StartButtonLock {
+    StartButtonLock() { AcquireSRWLockExclusive(&g_startButtonElementLock); }
+    ~StartButtonLock() { ReleaseSRWLockExclusive(&g_startButtonElementLock); }
+};
 static void RememberStartButton(const winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton& element) {
-    try {g_startButtonElement=winrt::make_weak(element);} catch(...) {}
+    using Weak = winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton>;
+    try {
+        Weak weak = winrt::make_weak(element);
+        Weak replaced;
+        {
+            StartButtonLock lock;
+            replaced = std::move(g_startButtonElement);  // Move out: no Release under the lock.
+            g_startButtonElement = weak;                 // AddRef of the new reference.
+        }
+        // The replaced reference is released here, outside the lock: a Release
+        // that had to go through a proxy must never wait on a thread that is
+        // waiting for this lock.
+    } catch(...) {}
+}
+static winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton> StartButtonElement() {
+    StartButtonLock lock;
+    return g_startButtonElement;
+}
+// Drops the reference at unload. The move keeps the Release outside the lock,
+// for the same reason as above.
+void ForgetStartButton() {
+    winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton> replaced;
+    StartButtonLock lock;
+    replaced = std::move(g_startButtonElement);
+}
+// A queued reset is a lambda in this image, so it may not outlive the module.
+// The counter, the gate and the drain live in launchpad_lifecycle.h; the gate
+// is closed in Wh_ModBeforeUninit and Wh_ModUninit waits for the count.
+// The body runs on the thread that owns the element.
+static void ClearStartButtonLatchNow(const winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton& element,const wchar_t* why) {
+    try {
+        auto checked=element.IsChecked();
+        // A null checked state is the three-state "indeterminate" —
+        // it reads as neither true nor false but still paints a
+        // pressed-looking capsule, so it counts as a latch too.
+        bool latch=!checked||checked.Value();
+        if(latch)element.IsChecked(winrt::box_value(false).as<winrt::Windows::Foundation::IReference<bool>>());
+        // The keyboard path also leaves the keyboard focus ring on the
+        // button: Start would hand it focus and move it away on close,
+        // and neither happens when the menu is replaced.
+        int focus=-2;
+        auto control=element.try_as<winrt::Windows::UI::Xaml::Controls::Control>();
+        if(control) {
+            focus=(int)control.FocusState();
+            if(control.FocusState()!=winrt::Windows::UI::Xaml::FocusState::Unfocused)
+                control.Focus(winrt::Windows::UI::Xaml::FocusState::Unfocused);
+            // The capsule is painted by the template's visual states,
+            // not by the logical properties above; a replaced toggle
+            // can leave the state machine stuck mid-gesture. Force the
+            // template back to its resting states as well.
+            winrt::Windows::UI::Xaml::VisualStateManager::GoToState(control,L"Normal",false);
+            winrt::Windows::UI::Xaml::VisualStateManager::GoToState(control,L"Unfocused",false);
+        }
+        StartStateTrace(why,latch?0:-1,element.IsPressed(),element.IsPointerOver(),focus);
+    } catch(...) {}
 }
 void ClearStartButtonLatch(const wchar_t* why) {
-    auto element=g_startButtonElement.get();
+    // The call itself is one unit of work: it runs module code right now, on a
+    // hook thread that can still be inside this function when the unload
+    // starts. Counting it is what stops the drain from seeing zero while this
+    // thread has not even reached the queue yet.
+    StartLatchTicket invocation;
+    if(g_startLatchStopping.load())return;
+    auto weak=StartButtonElement();
+    auto element=weak.get();  // Resolve outside the lock.
     if(!element) {
         // No hook has seen the button yet: the clear could not run. Trace it,
         // so a silent no-op is never mistaken for a working reset.
@@ -42,33 +112,23 @@ void ClearStartButtonLatch(const wchar_t* why) {
     }
     try {
         auto dispatcher=element.Dispatcher();
-        dispatcher.RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,[element,why]() {
-            try {
-                auto checked=element.IsChecked();
-                // A null checked state is the three-state "indeterminate" —
-                // it reads as neither true nor false but still paints a
-                // pressed-looking capsule, so it counts as a latch too.
-                bool latch=!checked||checked.Value();
-                if(latch)element.IsChecked(winrt::box_value(false).as<winrt::Windows::Foundation::IReference<bool>>());
-                // The keyboard path also leaves the keyboard focus ring on the
-                // button: Start would hand it focus and move it away on close,
-                // and neither happens when the menu is replaced.
-                int focus=-2;
-                auto control=element.try_as<winrt::Windows::UI::Xaml::Controls::Control>();
-                if(control) {
-                    focus=(int)control.FocusState();
-                    if(control.FocusState()!=winrt::Windows::UI::Xaml::FocusState::Unfocused)
-                        control.Focus(winrt::Windows::UI::Xaml::FocusState::Unfocused);
-                    // The capsule is painted by the template's visual states,
-                    // not by the logical properties above; a replaced toggle
-                    // can leave the state machine stuck mid-gesture. Force the
-                    // template back to its resting states as well.
-                    winrt::Windows::UI::Xaml::VisualStateManager::GoToState(control,L"Normal",false);
-                    winrt::Windows::UI::Xaml::VisualStateManager::GoToState(control,L"Unfocused",false);
-                }
-                StartStateTrace(why,latch?0:-1,element.IsPressed(),element.IsPointerOver(),focus);
-            } catch(...) {}
-        });
+        // The queued lambda is a second unit with its own count. It is released
+        // by the lambda, or right here when queueing fails; the two paths are
+        // mutually exclusive because RunAsync only fails when it did not queue.
+        // Always queued, never inline: two of the callers are themselves XAML
+        // property-changed and visibility hooks, and writing IsChecked or
+        // moving the focus from inside one of those re-enters the state
+        // machine.
+        g_startLatchPending.fetch_add(1);
+        if(g_startLatchStopping.load()) {FinishStartLatchReset();return;}
+        try {
+            dispatcher.RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,[element,why]() {
+                // RAII: the queued unit is released even if the body ever
+                // unwinds, so the drain cannot be left with a stuck count.
+                struct Release { ~Release(){ FinishStartLatchReset(); } } release;
+                ClearStartButtonLatchNow(element,why);
+            });
+        } catch(...) {FinishStartLatchReset();}  // The dispatcher is already gone.
     } catch(...) {}
 }
 winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton StartToggleElement(void* object) {
@@ -137,6 +197,8 @@ void WINAPI XamlStartCheckedChangeHook(void* pThis,void* sender,void* property) 
 using XamlStartVisible_t=HRESULT(WINAPI*)(void*,bool);
 XamlStartVisible_t g_xamlStartVisibleOriginal=nullptr;
 std::atomic<bool> g_xamlStartInstalling{false};
+// The module image HookSymbols was already tried on; see HookXamlStartVisibility.
+std::atomic<HMODULE> g_xamlAttemptedModule{nullptr};
 using XamlLoadLibrary_t=HMODULE(WINAPI*)(LPCWSTR,HANDLE,DWORD);
 XamlLoadLibrary_t g_xamlLoadLibraryOriginal=nullptr;
 bool HookXamlStartVisibility();
@@ -184,8 +246,6 @@ HRESULT WINAPI XamlStartVisibleHook(void* object,bool visible) {
 }
 bool HookXamlStartVisibility() {
     if(g_xamlStartVisibleOriginal)return true;
-    if(g_xamlStartInstalling.exchange(true))return false;
-    struct InstallingGuard {~InstallingGuard(){g_xamlStartInstalling=false;}} guard;
     auto module=GetModuleHandleW(L"Taskbar.View.dll");
     if(!module)module=GetModuleHandleW(L"ExplorerExtensions.dll");
     if(!module){
@@ -205,6 +265,15 @@ bool HookXamlStartVisibility() {
         }
         Wh_Log(L"XAML taskbar not loaded; waiting for its module load.");return false;
     }
+    // HookSymbols installs whatever it resolves before it reports failure, so a
+    // second attempt on the same image would queue the same hooks again. One
+    // attempt per loaded module is enough; a different base address means the
+    // module was reloaded and the hooks really are gone.
+    if(g_xamlAttemptedModule.load()==module)
+        return g_xamlStartVisibleOriginal!=nullptr;
+    if(g_xamlStartInstalling.exchange(true))return false;
+    g_xamlAttemptedModule=module;
+    struct InstallingGuard {~InstallingGuard(){g_xamlStartInstalling=false;}} guard;
     // Taskbar.View.dll, ExplorerExtensions.dll
     WindhawkUtils::SYMBOL_HOOK taskbarViewHooks[]={
         {{LR"(public: virtual int __cdecl winrt::impl::produce<struct winrt::Taskbar::implementation::ExperienceToggleButton,struct winrt::Windows::UI::Xaml::Controls::Primitives::IToggleButtonOverrides>::OnToggle(void))"},

@@ -66,7 +66,10 @@ bool ConfirmGroupEditClose() {
     bool modal=std::exchange(g_modal,true);
     g_groupClosePrompt=true;
     int choice=IDCANCEL;
-    // Resolve dynamically so Windhawk's single-file module has no new linker requirement.
+    // Resolved dynamically on purpose. A static import of TaskDialogIndirect
+    // needs comctl32 v6, which only processes with the side-by-side manifest
+    // get; everywhere else the whole module fails to load with
+    // STATUS_ENTRYPOINT_NOT_FOUND (the test host does, and so can explorer).
     using TaskDialogProc=decltype(&TaskDialogIndirect);
     bool shown=false;
     if(HMODULE controls=LoadLibraryW(L"comctl32.dll")) {

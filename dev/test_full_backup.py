@@ -138,6 +138,29 @@ class FullBackupTests(unittest.TestCase):
         result = self.run_job('import', storage=str(self.root / 'legacy-destination'), expected_hash=checked['hash'])
         self.assertEqual(result['status'], 'ok', result)
 
+    def test_managed_icon_and_website_cache_survive_restoring_to_a_new_directory(self):
+        icon = Path(r'custom-icons\{12345678-1234-1234-1234-123456789abc}.png')
+        favicon = Path(r'web-icons\0123456789abcdef.ico')
+        mapping = f'icon\tmanual:rdp\t{icon}\n'
+        (self.storage / 'icons.txt').write_text(mapping, encoding='utf-8')
+        for relative, content in ((icon, b'custom image'), (favicon, b'website image')):
+            path = self.storage / relative
+            path.parent.mkdir()
+            path.write_bytes(content)
+        self.icon.unlink()
+        self.exported()
+        _, files = layout_backup.verify(self.archive)
+        self.assertIn('data/' + icon.as_posix(), files)
+        self.assertIn('data/' + favicon.as_posix(), files)
+        checked = self.run_job('inspect')
+        self.assertEqual(checked['status'], 'ok', checked)
+        destination = self.root / 'portable-destination'
+        restored = self.run_job('import', storage=str(destination), expected_hash=checked['hash'])
+        self.assertEqual(restored['status'], 'ok', restored)
+        self.assertEqual((destination / 'icons.txt').read_text(encoding='utf-8'), mapping)
+        self.assertEqual((destination / icon).read_bytes(), b'custom image')
+        self.assertEqual((destination / favicon).read_bytes(), b'website image')
+
     def test_geometry_v4_round_trip(self):
         path = self.storage / 'group-geometry-layout-pinned.txt'
         geometry = (

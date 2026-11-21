@@ -22,8 +22,10 @@ bool LoadSvgIcon(const std::wstring& path,int size,App& app) {
     properties.bitmapOptions=D2D1_BITMAP_OPTIONS_CPU_READ|D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
     if(FAILED(context->CreateBitmap(D2D1::SizeU(side,side),nullptr,0,properties,&readback))||FAILED(readback->CopyFromBitmap(nullptr,target.Get(),nullptr)))return false;
     D2D1_MAPPED_RECT mapped{};if(FAILED(readback->Map(D2D1_MAP_OPTIONS_READ,&mapped)))return false;
-    app.pixels.resize((size_t)side*side);app.iconSize=side;
-    for(UINT y=0;y<side;y++)std::copy_n((UINT32*)(mapped.bits+y*mapped.pitch),side,app.pixels.data()+y*side);
-    readback->Unmap();app.bitmap.Reset();app.generation=0;
-    return std::any_of(app.pixels.begin(),app.pixels.end(),[](UINT32 p){return (p>>24)!=0;});
+    std::vector<UINT32> pixels((size_t)side*side);
+    for(UINT y=0;y<side;y++)std::copy_n((UINT32*)(mapped.bits+y*mapped.pitch),side,pixels.data()+y*side);
+    readback->Unmap();
+    if(!std::any_of(pixels.begin(),pixels.end(),[](UINT32 p){return (p>>24)!=0;}))return false;
+    app.pixels=std::move(pixels);app.iconSize=side;app.bitmap.Reset();app.generation=0;
+    return true;
 }

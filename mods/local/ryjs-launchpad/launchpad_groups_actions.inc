@@ -103,12 +103,38 @@ void CreateGroup(HWND hwnd) {
     g_tiles.push_back({nullptr, group}); SaveTiles(); Refresh();
 }
 
+// Removes a group. A real group hands its apps to the ungrouped block, which
+// keeps them in the launcher. Deleting the ungrouped block itself means "these
+// apps are not wanted here": they are removed like "Remove from this grid",
+// because moving them into a new inbox would only bring the same block back.
+void DeleteGroup(const std::shared_ptr<Folder>& group) {
+    if (g_groupPositionsReadOnly || g_layoutReadOnly || g_dataReadOnly) return;
+    int index = IndexOf(g_tiles, {nullptr, group});
+    if (index >= 0) g_tiles.erase(g_tiles.begin() + index);
+    if (group->inbox) {
+        for (const auto& tile : group->apps) {
+            if (!tile.app) continue;
+            if (PinnedOnly()) g_pins.erase(AppKey(*tile.app));
+            else g_hidden.insert(AppKey(*tile.app));
+        }
+        if (PinnedOnly()) SavePins();
+    } else if (!group->apps.empty()) {
+        auto inbox = InboxGroup();
+        size_t offset = inbox->apps.size() + inbox->unavailable.size();
+        for (const auto& missing : group->unavailable)
+            inbox->unavailable.emplace_back(offset + missing.first, missing.second);
+        inbox->apps.insert(inbox->apps.end(), group->apps.begin(), group->apps.end());
+    }
+    SaveTiles();
+    Refresh();
+}
+
 void ShowGroupMenu(HWND hwnd, const std::shared_ptr<Folder>& group, POINT point) {
     HMENU menu = CreatePopupMenu();
     AppendMenuW(menu, MF_STRING, 1, Tr(L"Rename group"));
     AppendMenuW(menu, MF_STRING, 2, Tr(L"Move group earlier"));
     AppendMenuW(menu, MF_STRING, 3, Tr(L"Move group later"));
-    AppendMenuW(menu, MF_STRING, 4, Tr(L"Delete group"));
+    AppendMenuW(menu, MF_STRING, 4, Tr(group->inbox?L"Delete these apps":L"Delete group"));
     AppendMenuW(menu, MF_STRING, 5, Tr(L"New group"));
     AppendMenuW(menu, MF_STRING, 6, Tr(g_groupEditMode?L"Finish group editing":L"Edit group layout"));
     AppendMenuW(menu, MF_STRING, 7, Tr(group->collapsed?L"Show as expanded group":L"Show as traditional folder"));
@@ -150,12 +176,8 @@ void ShowGroupMenu(HWND hwnd, const std::shared_ptr<Folder>& group, POINT point)
     } else if (command == 2 || command == 3) {
         MoveGroup(group, IndexOf(g_tiles, {nullptr,group}) + (command == 2 ? -1 : 1));
     } else if (command == 4) {
-        int index = IndexOf(g_tiles, {nullptr,group});
-        if (index >= 0) g_tiles.erase(g_tiles.begin() + index);
-        auto inbox = InboxGroup();
-        size_t offset=inbox->apps.size()+inbox->unavailable.size();
-        for (const auto& missing : group->unavailable) inbox->unavailable.emplace_back(offset+missing.first,missing.second);
-        inbox->apps.insert(inbox->apps.end(), group->apps.begin(), group->apps.end());
+        DeleteGroup(group);
+        return;
     } else if (command == 5) { CreateGroup(hwnd); return; }
     if (command) { SaveTiles(); Refresh(); }
 }
@@ -226,17 +248,23 @@ bool GroupPointerUp(HWND hwnd) {
     Refresh(); return true;
 }
 
+void RunBackupArchive(HWND owner, bool importing, const std::wstring& path);
+
 void ImportOrRestoreLayout(HWND hwnd, bool restore) {
     std::wstring path = StoragePath(LayoutFile()) + L".bak";
     if (!restore) {
         WCHAR file[MAX_PATH]{};
-        auto filter = std::wstring(Tr(L"Launchpad layout files")) + L'\0' + L"*.txt;*.bak" + L'\0' + L'\0';
+        auto filter = std::wstring(Tr(L"Launchpad layout files")) + L'\0' + L"*.zip;*.txt;*.bak" + L'\0' + L'\0';
         OPENFILENAMEW dialog{sizeof(dialog)};
         dialog.hwndOwner=hwnd; dialog.lpstrFilter=filter.c_str(); dialog.lpstrFile=file; dialog.nMaxFile=ARRAYSIZE(file);
         dialog.lpstrTitle=Tr(L"Import layout file"); dialog.Flags=OFN_FILEMUSTEXIST|OFN_NOCHANGEDIR;
         g_modal=true; BOOL selected=GetOpenFileNameW(&dialog); g_modal=false;
         if (!selected) return;
         path=file;
+        if (EndsWith(ToLower(path), L".zip")) {
+            RunBackupArchive(hwnd, true, path);
+            return;
+        }
     }
     auto records = ReadLines(path);
     std::wstring content;
@@ -275,19 +303,35 @@ void ImportOrRestoreLayout(HWND hwnd, bool restore) {
     Refresh();
 }
 
+UINT_PTR CALLBACK LayoutExportHook(HWND dialog, UINT message, WPARAM, LPARAM data) {
+    if (message == WM_NOTIFY) {
+        auto notification = reinterpret_cast<const OFNOTIFYW*>(data);
+        if (notification->hdr.code == CDN_TYPECHANGE)
+            SendMessageW(GetParent(dialog), CDM_SETDEFEXT, 0,
+                         reinterpret_cast<LPARAM>(notification->lpOFN->nFilterIndex == 2 ? L"txt" : L"zip"));
+    }
+    return 0;
+}
+
 void ExportLayout(HWND hwnd) {
+    WCHAR file[32768] = L"ryjs-layout";
+    auto filter = std::wstring(Tr(L"Layout, icons and settings (ZIP)")) + L'\0' + L"*.zip" + L'\0' +
+                  Tr(L"Current layout only (TXT)") + L'\0' + L"*.txt" + L'\0' + L'\0';
+    OPENFILENAMEW dialog{sizeof(dialog)};
+    dialog.hwndOwner=hwnd; dialog.lpstrFilter=filter.c_str(); dialog.lpstrFile=file; dialog.nMaxFile=ARRAYSIZE(file);
+    dialog.nFilterIndex=1; dialog.lpstrDefExt=L"zip"; dialog.lpstrTitle=Tr(L"Export layout file");
+    dialog.Flags=OFN_OVERWRITEPROMPT|OFN_NOCHANGEDIR|OFN_EXPLORER|OFN_ENABLEHOOK;
+    dialog.lpfnHook=LayoutExportHook;
+    g_modal=true; BOOL selected=GetSaveFileNameW(&dialog); g_modal=false;
+    if (!selected) return;
+    if (EndsWith(ToLower(file), L".zip")) {
+        RunBackupArchive(hwnd, false, file);
+        return;
+    }
     if ((!g_layoutReadOnly && !g_dataReadOnly && !SaveTiles()) || g_layoutReadOnly || g_dataReadOnly) {
         MessageBoxW(hwnd,Tr(L"Could not export the layout. Use a full backup to preserve unreadable data."),Tr(L"Export layout file"),MB_OK|MB_ICONWARNING);
         return;
     }
-    WCHAR file[32768] = L"ryjs-layout.txt";
-    auto filter = std::wstring(Tr(L"Launchpad layout files")) + L'\0' + L"*.txt" + L'\0' + L'\0';
-    OPENFILENAMEW dialog{sizeof(dialog)};
-    dialog.hwndOwner=hwnd; dialog.lpstrFilter=filter.c_str(); dialog.lpstrFile=file; dialog.nMaxFile=ARRAYSIZE(file);
-    dialog.lpstrDefExt=L"txt"; dialog.lpstrTitle=Tr(L"Export layout file");
-    dialog.Flags=OFN_OVERWRITEPROMPT|OFN_NOCHANGEDIR;
-    g_modal=true; BOOL selected=GetSaveFileNameW(&dialog); g_modal=false;
-    if (!selected) return;
     auto current=StoragePath(LayoutFile());
     if (_wcsicmp(file,current.c_str())==0 || !CopyFileW(current.c_str(),file,FALSE))
         MessageBoxW(hwnd,Tr(L"Could not save the layout. The previous layout was kept."),Tr(L"Export layout file"),MB_OK|MB_ICONWARNING);

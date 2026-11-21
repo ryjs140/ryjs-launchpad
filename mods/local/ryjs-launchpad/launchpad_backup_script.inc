@@ -86,6 +86,11 @@ function Safe-Entry([string]$name) {
         if (!$part -or $part -in @('.','..') -or $part.EndsWith('.') -or $part.EndsWith(' ') -or $part -match '[<>"|?*\x00-\x1F]' -or $part -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)') { throw 'Unsafe archive filename.' }
     }
 }
+function Managed-IconEntry([string]$path) {
+    if ($path -match '^custom-icons\\\{[0-9a-f-]{36}\}\.png$') {
+        return 'data/' + $path.Replace('\','/')
+    }
+}
 function Validate-Data($manifest,$files) {
     $effective=Object-Map $manifest.effective_settings
     foreach ($p in $effective.GetEnumerator()) { if ($p.Value -isnot [string]) { throw 'Invalid effective setting.' } }
@@ -212,6 +217,8 @@ function Validate-Data($manifest,$files) {
         foreach ($line in ($utf8.GetString($files['data/icons.txt']) -split '\r?\n')) {
             if (!$line) { continue }
             $f=$line.Split("`t")
+            $managed=Managed-IconEntry $f[2]
+            if ($managed -and $files.ContainsKey($managed)) { continue }
             if (!$icons.ContainsKey($f[2])) { throw 'Custom icon was not included in the backup.' }
         }
     }
@@ -281,6 +288,11 @@ function Export-Complete {
             if (!$line) { continue }
             $f=$line.Split("`t")
             if ($f.Count -ne 3 -or $f[0] -ne 'icon') { throw 'Invalid custom icon mapping.' }
+            $managed=Managed-IconEntry $f[2]
+            if ($managed) {
+                if (!$files.ContainsKey($managed)) { throw 'Stored custom icon is missing.' }
+                continue
+            }
             $blob=[IO.File]::ReadAllBytes($f[2])
             $name='assets/'+(Hash-Bytes $blob)+[IO.Path]::GetExtension($f[2]).ToLowerInvariant()
             $files[$name]=$blob
@@ -288,6 +300,16 @@ function Export-Complete {
         }
     }
     $instructions=@'
+RYJS Launchpad complete backup
+
+To restore it, choose "Import complete backup" in the launcher, pick this ZIP,
+review the verification summary and confirm.
+An import restores the layout, the settings and the icons only. The source/ and
+binary/ entries exist for backups made by older tools; they are never installed
+or executed.
+The data that was in place before the import is kept next to data-v1 in a
+.before-import-* folder.
+
 RYJS Launchpad 完整备份
 在启动器菜单选择“导入完整备份”，选中本 ZIP，校验后确认即可。
 导入仅恢复布局、设置和图标；source/binary 仅用于兼容旧备份，不会安装或执行。

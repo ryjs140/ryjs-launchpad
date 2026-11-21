@@ -14,7 +14,7 @@ bool PickEntryFile(HWND owner,std::wstring& path,bool icon=false) {
     if (icon) return PickIconFile(owner,path);
     WCHAR file[32768]{};
     OPENFILENAMEW dialog{sizeof(dialog)}; dialog.hwndOwner=owner;
-    dialog.lpstrFilter=L"Programs, shortcuts and Remote Desktop\0*.exe;*.lnk;*.rdp\0All files\0*.*\0\0";
+    dialog.lpstrFilter=L"Programs, shortcuts and Remote Desktop\0*.exe;*.lnk;*.url;*.rdp\0All files\0*.*\0\0";
     dialog.lpstrFile=file; dialog.nMaxFile=ARRAYSIZE(file);
     dialog.Flags=OFN_EXPLORER|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR;
     if (!GetOpenFileNameW(&dialog)) return false;
@@ -157,15 +157,21 @@ void EditEntry(HWND owner,const std::shared_ptr<App>& existing=nullptr,const std
     ApplyEntryRecord(*app,key,record,IconPixels());
     ApplyDisplayName(*app);
     if (created) g_apps.push_back(app);
-    if (!icon.empty()) {if(LoadIconFile(icon,IconPixels(),*app)){g_customIcons[key]=icon;SaveCustomIcons();}}
-    else if (g_customIcons.erase(key)) {SaveCustomIcons();}
+    auto previousIcon=g_customIcons.find(key);
+    if ((previousIcon==g_customIcons.end() ? !icon.empty() : previousIcon->second!=icon) &&
+        !SetCustomIcon(key,icon)) {
+        MessageBoxW(owner,Tr(L"Could not save the selected icon."),Tr(L"Add or edit entry"),MB_OK|MB_ICONWARNING);
+    }
+    auto custom=g_customIcons.find(key);
+    if(custom!=g_customIcons.end())
+        LoadIconFile(CustomIconPath(custom->second),IconPixels(),*app,!IsManagedIcon(custom->second));
     if (!existing && !alreadyPlaced) {
         if (g_settings.groups && group>=0 && group<(int)state.destinations.size()) MoveAppToGroup({app,nullptr},state.destinations[group],(int)state.destinations[group]->apps.size());
         else {g_hidden.erase(key);if(PinnedOnly()){g_pins.insert(key);SavePins();}if(IndexOf(g_tiles,{app,nullptr})<0)g_tiles.push_back({app,nullptr});}
         SaveTiles();
     }
     g_labelCache.clear();Refresh();
-    if (IsWebEntry(target)&&!g_customIcons.count(key)) StartWebIconFetch(key,target);
+    if (g_customIcons.count(key)==0 && app->pixels.empty()) StartWebIconFetch(*app,true);
 }
 void DeleteManualEntry(const std::shared_ptr<App>& app) {
     if (!app || !app->manual || g_entriesReadOnly || g_dataReadOnly || g_layoutReadOnly) return;

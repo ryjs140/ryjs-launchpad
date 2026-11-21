@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import sys
 import uuid
@@ -73,7 +74,7 @@ def effective_settings(storage, host):
 
 
 def is_data_file(path):
-    return not path.name.startswith('performance') and path.suffix != '.tmp'
+    return not path.name.startswith('performance') and path.suffix not in ('.tmp', '.download')
 
 
 def read_data(storage):
@@ -105,6 +106,10 @@ def export(storage, mod, output):
         fields = line.split('\t')
         if len(fields) == 3 and fields[0] == 'icon':
             path = Path(fields[2])
+            if re.fullmatch(r'custom-icons\\\{[0-9a-f-]{36}\}\.png', fields[2], re.IGNORECASE):
+                if 'data/' + path.as_posix() not in files:
+                    raise FileNotFoundError(f'Stored custom icon missing: {path}')
+                continue
             if not path.is_file():
                 raise FileNotFoundError(f'Custom icon missing: {path}')
             data = path.read_bytes()

@@ -49,8 +49,10 @@ inline std::wstring Resolve(const std::wstring& path, PCWSTR key, const std::wst
     }
     return value;
 }
-// Used only when inheriting another mod's settings. Never invalidate or write
-// to its file, even when a host value has changed since its private override.
+// The read-only sibling of Resolve, used when a private store is examined
+// without being invalidated. The mod no longer inherits another mod's settings,
+// but dev/test_storage.cpp still checks the inheritance semantics through it,
+// so it stays part of the test interface.
 inline std::wstring ResolveReadOnly(const std::wstring& path, PCWSTR key, const std::wstring& host) {
     std::lock_guard lock(mutex);
     if (GetPrivateProfileIntW(L"meta",L"version",1,path.c_str()) != 1 || Read(path,L"present",key)!=L"1") return host;

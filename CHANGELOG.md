@@ -4,6 +4,49 @@
 
 Version 1.0.0 marks the first submission to the Windhawk mod library.
 
+### Unload lifecycle hardening (fifth push)
+
+The fourth AI review found that three resources outlive `Wh_ModUninit`; this
+push fixes them and folds in the defects found while checking the fix.
+
+- **Folders and their GPU resources.** `ReleaseLauncherResources()` releases
+  every holder of a `Folder` (group tables, gesture, transitions, edit
+  snapshot, open and closing folder) before `ResetTarget()`, and clears the
+  label caches first. A group held by a dozen globals no longer keeps the
+  `ID2D1Device` tree alive after the device is gone. `LaunchpadMenu::Reset()`
+  runs before the three DirectWrite formats are reset, so an open menu cannot
+  leak its surfaces and node layout.
+- **Settings window statics.** `g_setWin`, `g_setD2d`, `g_setDw` and
+  `g_setWic` are `[[clang::no_destroy]]` with explicit release in
+  `WM_NCDESTROY` and `SettingsThreadTeardown`. Explorer exiting with the
+  settings window open no longer destroys COM objects on the exiting thread
+  under the loader lock.
+- **Queued start-button reset.** Each unit that runs code in this image holds
+  one count: the call itself and the lambda it queues. `Wh_ModBeforeUninit`
+  closes the gate while the hooks are still installed, `Wh_ModUninit` drains
+  after they are removed, and the wait is bounded at 5 s. On timeout the image
+  is pinned with `GET_MODULE_HANDLE_EX_FLAG_PIN` and the event is logged,
+  instead of letting a queued callback run unmapped code. No fixed sleeps are
+  used to mask the race.
+- **Self-audit fixes.** `EnsureTarget()` returns failure when no D2D factory
+  exists instead of dereferencing a null `ComPtr`; `WriteIconPng()` checks the
+  buffer against `size * size`; `FreeSurface()` releases each handle
+  independently when `CreateDIBSection` fails; the `EnumWindows` and
+  `EnumDisplayMonitors` callbacks are `stdcall`, so i686 builds; dead functions
+  and locals removed. A migration directory that fails validation now starts
+  with an empty layout plus `migration-note.txt` instead of staying read-only,
+  and read-only mode explains itself once.
+- **Functional corrections.** Group titles no longer append an "unavailable"
+  count, multi-select offers delete, and the inbox (ungrouped) group can be
+  removed instead of being recreated.
+
+Verification: `dev/Test-Features.ps1` 516 checks, storage 25, start button 29,
+layout/backup 5, full backup 25 native and 12 worker, all 0 failures; official
+`pr_validation` 0 problems and the official compile job clean; the submitted
+file also compiles for i686, aarch64 and x86_64 with 0 warnings. The submitted
+single file was regenerated from these sources (17,018 lines, SHA256
+`b844b076…4fe760`).
+
 ### Rejected by the library check (fourth push)
 
 The submitted file failed the repository's "Manual review" job with

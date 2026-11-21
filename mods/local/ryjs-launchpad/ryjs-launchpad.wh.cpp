@@ -50,7 +50,8 @@ saved in the built-in window. Use either page, not both for the same setting.
 - Add entry accepts programs, shortcuts, Remote Desktop files, Store apps
   and web addresses. Edit entry saves aliases, arguments and working folders.
   Rename/Restore original name change only the Launchpad display name.
-  Website icons are fetched on explicit add/update and cached locally.
+  Website icons are fetched when missing or manually refreshed and cached locally.
+  Pictures you choose are saved inside the mod's storage.
 - Labels have no backplates or shadows. Per-label pure black/white follows
   the text-free rendered blur plus tint; DWM materials use a pre-open estimate.
   New discoveries never insert themselves into an existing arrangement.
@@ -76,7 +77,7 @@ saved in the built-in window. Use either page, not both for the same setting.
 进入“编辑分组布局”后拖动标题可自由移动分组，拖动右下角可调整尺寸；重叠时显示红色预览并拒绝提交。
 “添加入口”支持程序、快捷方式、RDP、商店应用和网址；右键“编辑入口”可改名、路径、参数和图标。
 缩小分组后在组内滚动查看应用，按住 Shift 滚动整体画布；未进入编辑模式时保留已有排列。
-删除分组会将应用移到“未分组”，不会卸载应用。字体、名称字号、图标间距及分组布局可在设置中调整。
+删除分组只会把应用移出该分组，不会卸载应用；未分组的内容不会单独显示。字体、名称字号、图标间距及分组布局可在设置中调整。
 Launchpad 自有菜单采用圆角亚克力玻璃效果，并跟随当前主题调整文字与悬停对比度；原生子菜单和键盘操作保持不变。
 设置保存在模块私有目录中；修改 Windhawk 设置页的同名选项后，以该次修改为准。
 布局自动保留上一次备份；“…”菜单提供导入及恢复。导入前会保留当前布局。
@@ -165,13 +166,17 @@ Clicking outside the icons or switching to another window closes it.
   (Launchpad style) before you enable this mod. All of them replace Start, so
   only one should run. RYJS refuses to load while another Launchpad window is
   present and never disables or unloads that mod for you.
-- On its first run, RYJS copies your order, folders, pins and icons from the
-  storage folder of Seamless Launchpad Custom, Seamless Launchpad or Fullscreen
-  Start Plus, if one of them is installed. Only those layout files are read,
-  and nothing in the old folder is modified or deleted; the old settings file
-  is copied into the new folder as `migration-original-ui-settings.ini` for
-  reference rather than applied, so no settings are inherited silently. Set
-  the appearance you want once in the settings window.
+- On its first run, RYJS copies the storage folder of Seamless Launchpad
+  Custom, Seamless Launchpad or Fullscreen Start Plus, if one of them is
+  installed, into its own. The copy is what that folder holds — the layout,
+  group, pin and icon files, and its old `ui-settings.ini` — but only the
+  layout, group, pin and icon files are used: the old settings file is kept in
+  the new folder as `migration-original-ui-settings.ini` for reference rather
+  than applied, so no settings are inherited silently. Nothing in the old
+  folder is modified or deleted. If the old folder cannot be validated, RYJS
+  starts with an empty layout instead of staying read-only, leaves that folder
+  untouched, and writes `migration-note.txt` next to the new data to say so.
+  Set the appearance you want once in the settings window.
 - The power buttons never force apps to close. If an app has unsaved work,
   Windows asks about it as usual. Hibernate shows only when hibernation is on
   in Windows.
@@ -196,8 +201,8 @@ Clicking outside the icons or switching to another window closes it.
 ## Data and network
 - No telemetry and no analytics. RYJS does not send anything anywhere except
   the requests described next.
-- The only network requests are made when you add a web entry or ask to
-  refresh its icon: the page is read to find its declared icon, with
+- Website icon requests run when the launcher finds a web entry without a
+  cached icon or you ask to refresh it. The page is read to find its declared icon, with
   `/favicon.ico` as the fallback. Declared icons can be hosted on a different
   server than the page you entered (a CDN or a third party). Requests have time
   limits and a size cap, are sent without cookies, and the result is cached in
@@ -704,6 +709,7 @@ SOFTWARE.
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <deque>
 #include <map>
 #include <memory>
 #include <set>
@@ -719,6 +725,8 @@ extern "C" IMAGE_DOS_HEADER __ImageBase;
 namespace {
 
 using launchpad_i18n::Tr;
+
+#include "launchpad_lifecycle.h"
 
 #ifdef SEAMLESS_PREVIEW
 constexpr WCHAR kWindowClass[] = L"RYJSLaunchpadPreview";
@@ -1029,7 +1037,7 @@ void RunProgram() {
 
 struct App {
     std::wstring name;
-    std::wstring originalName, stableKey, layoutTarget, arguments, workingDirectory;
+    std::wstring originalName, stableKey, layoutTarget, arguments, workingDirectory, websiteUrl;
     bool manual = false, unavailable = false;
     std::wstring target;  // shell:AppsFolder\... or a path, opened with ShellExecute.
     bool desktop = false;  // Came from the desktop.
@@ -1692,9 +1700,12 @@ DWORD WINAPI LoadAppsThread(void* param) {
 // Icons are read at the size of the monitor with the largest scaling.
 int IconPixels() {
     UINT maxDpi = 96;
+    // MONITORENUMPROC and WNDENUMPROC are __stdcall: the attribute keeps
+    // the lambdas convertible on 32-bit builds, where the default calling
+    // convention differs. It is a no-op on x64 and arm64.
     EnumDisplayMonitors(
         nullptr, nullptr,
-        [](HMONITOR monitor, HDC, LPRECT, LPARAM param) -> BOOL {
+        [](HMONITOR monitor, HDC, LPRECT, LPARAM param) __attribute__((stdcall)) -> BOOL {
             UINT dpiX = 96, dpiY = 96;
             if (SUCCEEDED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX,
                                            &dpiY))) {
@@ -1752,6 +1763,8 @@ struct Folder {
 [[clang::no_destroy]] Tiles g_tiles;
 bool g_layoutReadOnly = false;
 bool g_dataReadOnly = false;
+// Set when a predecessor's storage failed validation and RYJS started empty.
+bool g_storageMigrationSkipped = false;
 extern bool g_entriesReadOnly;
 bool SaveGroupPositions(bool finishing=false);
 void BeforeArrangeGeometry();
@@ -1769,7 +1782,9 @@ void NormalizeGroups() {
     Tiles ungrouped;
     for (const auto& tile : g_tiles) if (tile.app) ungrouped.push_back(tile);
     std::erase_if(g_tiles, [](const Tile& tile) { return tile.app != nullptr; });
-    if (!ungrouped.empty() || g_tiles.empty()) {
+    // Only when there is something to hold: an empty "Ungrouped" container is
+    // a group the user never made, and it used to come back after deletion.
+    if (!ungrouped.empty()) {
         auto group = InboxGroup();
         group->apps.insert(group->apps.end(), ungrouped.begin(), ungrouped.end());
     }
@@ -1816,6 +1831,27 @@ std::wstring ModTempPath() {
     return (std::filesystem::path(root).parent_path() / L"tmp").wstring();
 }
 
+// Explains, next to the new data, why a predecessor's folder was not used.
+// Written in both languages so the note is readable either way.
+void WriteMigrationNote(const std::wstring& target,const std::wstring& source) {
+    auto note=target+L"\\migration-note.txt";
+    std::wstring text=
+        L"RYJS Launchpad started with an empty layout.\r\n"
+        L"The previous launcher's folder could not be read, so nothing was copied from it:\r\n"+source+L"\r\n"
+        L"That folder was not modified or deleted. To get the old layout back, restore a complete backup from the settings window, or repair and move the old folder back into place.\r\n\r\n"
+        L"RYJS Launchpad 以空布局启动。上一个启动器的数据目录无法通过校验，因此没有复制任何内容：\r\n"+source+L"\r\n"
+        L"该目录未被修改或删除。如需恢复旧布局，可在设置窗口中导入完整备份，或在修复该目录后将其放回原位。\r\n";
+    int size=WideCharToMultiByte(CP_UTF8,0,text.data(),(int)text.size(),nullptr,0,nullptr,nullptr);
+    if(size<=0)return;
+    std::string bytes((size_t)size,'\0');
+    WideCharToMultiByte(CP_UTF8,0,text.data(),(int)text.size(),bytes.data(),size,nullptr,nullptr);
+    HANDLE file=CreateFileW(note.c_str(),GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
+    if(file==INVALID_HANDLE_VALUE)return;
+    DWORD written=0;
+    WriteFile(file,bytes.data(),(DWORD)bytes.size(),&written,nullptr);
+    CloseHandle(file);
+}
+
 #ifndef SEAMLESS_PREVIEW
 bool PrepareStorage() {
     auto target = DataRoot();
@@ -1850,9 +1886,24 @@ bool PrepareStorage() {
         return MoveFileW(original.c_str(),
                          (stage + L"\\migration-original-ui-settings.ini").c_str()) != FALSE;
     });
-    if (copied) { Wh_Log(L"RYJS data ready, original storage untouched: %s", source.c_str()); }
-    else { Wh_Log(L"RYJS data preparation failed; originals kept: %s", source.c_str()); }
-    return copied;
+    if (copied) { Wh_Log(L"RYJS data ready, original storage untouched: %s", source.c_str()); return true; }
+    // The predecessor's folder failed validation (an unknown groups-* file, a
+    // layout line this version does not know, an unreadable file). Never touch
+    // it: start with a fresh, empty data-v1 so the mod stays usable, and leave
+    // a note that names the folder that was skipped. Staying read-only forever
+    // until the user moves that folder away is worse than an empty first run.
+    if (source.empty()) {
+        Wh_Log(L"RYJS data preparation failed; no predecessor, nothing to fall back from");
+        return false;
+    }
+    if (!ryjs_data::Prepare(L"", target, [](const auto&) { return true; })) {
+        Wh_Log(L"RYJS data preparation failed and a fresh folder could not be created; originals kept: %s", source.c_str());
+        return false;
+    }
+    g_storageMigrationSkipped = true;
+    WriteMigrationNote(target, source);
+    Wh_Log(L"RYJS data was unreadable; started empty, originals kept: %s", source.c_str());
+    return true;
 }
 #endif
 
@@ -2077,7 +2128,7 @@ bool SaveTiles(bool explicitImport = false) {
 #include "launchpad_svg.inc"
 
 // A picture (or the icon of a file) in place of an app's icon.
-bool LoadIconFile(const std::wstring& path, int size, App& app) {
+bool LoadIconFile(const std::wstring& path, int size, App& app, bool allowShellIcon = true) {
     ComPtr<IWICImagingFactory> factory;
     ComPtr<IWICBitmapDecoder> decoder;
     ComPtr<IWICBitmapFrameDecode> frame;
@@ -2103,6 +2154,7 @@ bool LoadIconFile(const std::wstring& path, int size, App& app) {
             SUCCEEDED(converter->Initialize(scaler.Get(),GUID_WICPixelFormat32bppPBGRA,WICBitmapDitherTypeNone,nullptr,0,WICBitmapPaletteTypeCustom))) {
             std::vector<UINT32> pixels((size_t)dw*dh);
             if (SUCCEEDED(converter->CopyPixels(nullptr,dw*4,(UINT)pixels.size()*4,(BYTE*)pixels.data()))) {
+                if (!std::any_of(pixels.begin(), pixels.end(), [](UINT32 pixel) { return pixel >> 24; })) return false;
                 app.pixels.assign((size_t)side*side,0);app.iconSize=side;
                 for(UINT y=0;y<dh;y++)std::copy_n(pixels.data()+y*dw,dw,app.pixels.data()+(y+(side-dh)/2)*side+(side-dw)/2);
                 app.bitmap.Reset();app.generation=0;return true;
@@ -2110,6 +2162,7 @@ bool LoadIconFile(const std::wstring& path, int size, App& app) {
         }
     }
     if(LoadSvgIcon(path,size,app))return true;
+    if (!allowShellIcon) return false;
     ComPtr<IShellItem> item;
     if (FAILED(SHCreateItemFromParsingName(path.c_str(), nullptr,
                                            IID_PPV_ARGS(&item)))) {
@@ -2141,25 +2194,115 @@ void ReloadAppIcon(int size, App& app) {
     }
 }
 
-void SaveCustomIcons() {
+bool SaveCustomIcons() {
     std::vector<std::wstring> lines;
     for (const auto& [key, path] : g_customIcons) {
         lines.push_back(L"icon\t" + key + L"\t" + path);
     }
-    WriteLines(StoragePath(L"icons.txt"), lines);
+    return WriteLines(StoragePath(L"icons.txt"), lines);
+}
+
+bool IsManagedIcon(const std::wstring& path) {
+    static const std::wregex pattern(LR"(custom-icons\\\{[0-9a-f-]{36}\}\.png)", std::regex::icase);
+    return std::regex_match(path, pattern);
+}
+
+std::wstring CustomIconPath(const std::wstring& path) {
+    return IsManagedIcon(path) ? StoragePath(path) : path;
+}
+
+bool WriteIconPng(const std::wstring& path, const App& app) {
+    const UINT size = app.iconSize;
+    // The encoder is told size*size pixels; make sure that is what the buffer
+    // holds instead of letting WIC read past it.
+    if (!size || app.pixels.size() != (size_t)size * size) return false;
+    ComPtr<IWICImagingFactory> factory;
+    ComPtr<IWICBitmap> pixels;
+    ComPtr<IWICFormatConverter> converter;
+    ComPtr<IWICStream> stream;
+    ComPtr<IWICBitmapEncoder> encoder;
+    ComPtr<IWICBitmapFrameEncode> frame;
+    WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
+    return SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory))) &&
+           SUCCEEDED(factory->CreateBitmapFromMemory(size, size, GUID_WICPixelFormat32bppPBGRA,
+               size * 4, size * size * 4, (BYTE*)app.pixels.data(), &pixels)) &&
+           SUCCEEDED(factory->CreateFormatConverter(&converter)) &&
+           SUCCEEDED(converter->Initialize(pixels.Get(), format, WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom)) &&
+           SUCCEEDED(factory->CreateStream(&stream)) &&
+           SUCCEEDED(stream->InitializeFromFilename(path.c_str(), GENERIC_WRITE)) &&
+           SUCCEEDED(factory->CreateEncoder(GUID_ContainerFormatPng, nullptr, &encoder)) &&
+           SUCCEEDED(encoder->Initialize(stream.Get(), WICBitmapEncoderNoCache)) &&
+           SUCCEEDED(encoder->CreateNewFrame(&frame, nullptr)) &&
+           SUCCEEDED(frame->Initialize(nullptr)) &&
+           SUCCEEDED(frame->SetSize(size, size)) &&
+           SUCCEEDED(frame->SetPixelFormat(&format)) &&
+           SUCCEEDED(frame->WriteSource(converter.Get(), nullptr)) &&
+           SUCCEEDED(frame->Commit()) && SUCCEEDED(encoder->Commit());
+}
+
+bool StoreCustomIcon(const std::wstring& source, std::wstring& stored) {
+    if (IsManagedIcon(source)) {
+        stored = source;
+        App image;
+        return LoadIconFile(CustomIconPath(stored), 256, image, false);
+    }
+    if (GetFileAttributesW(source.c_str()) == INVALID_FILE_ATTRIBUTES) return false;
+    App image;
+    if (!LoadIconFile(source, 256, image)) return false;
+    GUID guid{};
+    WCHAR id[40]{};
+    if (FAILED(CoCreateGuid(&guid)) || !StringFromGUID2(guid, id, ARRAYSIZE(id))) return false;
+    stored = L"custom-icons\\" + std::wstring(id) + L".png";
+    auto destination = StoragePath(stored);
+    if (destination.empty()) return false;
+    SHCreateDirectoryExW(nullptr, std::filesystem::path(destination).parent_path().c_str(), nullptr);
+    auto temporary = destination + L".tmp";
+    if (WriteIconPng(temporary, image) &&
+        MoveFileExW(temporary.c_str(), destination.c_str(), MOVEFILE_WRITE_THROUGH)) return true;
+    DeleteFileW(temporary.c_str());
+    return false;
+}
+
+bool SetCustomIcon(const std::wstring& key, const std::wstring& source) {
+    if (g_dataReadOnly) return false;
+    std::wstring stored;
+    if (!source.empty() && !StoreCustomIcon(source, stored)) return false;
+    auto previous = g_customIcons.extract(key);
+    if (!stored.empty()) g_customIcons[key] = stored;
+    if (SaveCustomIcons()) return true;
+    g_customIcons.erase(key);
+    g_customIcons.insert(std::move(previous));
+    if (!stored.empty() && stored != source) DeleteFileW(CustomIconPath(stored).c_str());
+    return false;
 }
 
 void ApplyCustomIcons(int size) {
+    bool read = false;
+    auto path = StoragePath(L"icons.txt");
+    auto records = ReadLines(path, &read);
+    if (!read && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES) return;
     g_customIcons.clear();
-    for (const auto& f : ReadLines(StoragePath(L"icons.txt"))) {
+    for (const auto& f : records) {
         if (f.size() >= 3 && f[0] == L"icon") {
             g_customIcons[ToLower(f[1])] = f[2];
         }
     }
+    if (read && !g_dataReadOnly && !g_layoutReadOnly) {
+        auto previous = g_customIcons;
+        bool changed = false;
+        for (auto& [key, source] : g_customIcons) {
+            std::wstring stored;
+            if (!IsManagedIcon(source) && StoreCustomIcon(source, stored)) {
+                source = std::move(stored);
+                changed = true;
+            }
+        }
+        if (changed && !SaveCustomIcons()) g_customIcons = std::move(previous);
+    }
     for (const auto& app : g_apps) {
         auto it = g_customIcons.find(AppKey(*app));
         if (it != g_customIcons.end()) {
-            LoadIconFile(it->second, size, *app);
+            LoadIconFile(CustomIconPath(it->second), size, *app, !IsManagedIcon(it->second));
         }
     }
 }
@@ -2232,6 +2375,8 @@ bool g_searchActivated = false;
 // 0 = the resting pill, 1 = the open field. Eased toward SearchExpanded() a
 // frame at a time, so tapping the box grows it instead of snapping open.
 float g_searchExpand = 0;
+bool g_showingSearchResults = false;
+float g_searchGridTransition = 1.0f;
 bool SearchExpanded() { return g_searchActivated || !g_query.empty(); }
 // The search field is a small text editor: a caret and a selection anchor as
 // UTF-16 indices into g_query (the selection is the span between them), a
@@ -2336,7 +2481,7 @@ RECT AvailableArea(HMONITOR monitor) {
     } search{monitor, mi.rcMonitor, mi.rcWork};
 
     EnumWindows(
-        [](HWND hwnd, LPARAM param) -> BOOL {
+        [](HWND hwnd, LPARAM param) __attribute__((stdcall)) -> BOOL {
             auto* s = (Search*)param;
             WCHAR className[64];
             if (!GetClassNameW(hwnd, className, ARRAYSIZE(className)) ||
@@ -2388,7 +2533,7 @@ HMONITOR ChosenMonitor() {
     std::vector<Entry> monitors;
     EnumDisplayMonitors(
         nullptr, nullptr,
-        [](HMONITOR monitor, HDC, LPRECT, LPARAM param) -> BOOL {
+        [](HMONITOR monitor, HDC, LPRECT, LPARAM param) __attribute__((stdcall)) -> BOOL {
             MONITORINFO mi{sizeof(mi)};
             GetMonitorInfoW(monitor, &mi);
             ((std::vector<Entry>*)param)
@@ -2471,11 +2616,12 @@ struct Surface {
 Surface g_surface;
 
 void FreeSurface(Surface& s) {
-    if (s.dc) {
-        SelectObject(s.dc, s.old);
-        DeleteObject(s.bitmap);
-        DeleteDC(s.dc);
-    }
+    // Free each handle independently: EnsureSurface can fail between creating
+    // the DC and the DIB, and a partially built surface must not leak the half
+    // that did get created.
+    if (s.dc && s.old) SelectObject(s.dc, s.old);
+    if (s.bitmap) DeleteObject(s.bitmap);
+    if (s.dc) DeleteDC(s.dc);
     s = {};
 }
 
@@ -2511,6 +2657,13 @@ void ResetTarget();
 bool EnsureTarget() {
     if (g_target) {
         return true;
+    }
+    // No factory, so no device can be created: return the failure instead of
+    // dereferencing a null ComPtr in g_d2d.As(). StartThread checks the
+    // factories before it creates a window, but a failed D2D1CreateFactory
+    // must not turn the first render into an access violation.
+    if (!g_d2d) {
+        return false;
     }
     // A real GPU context: the grid rasterizes on the GPU and each frame is
     // copied back into the layered-window DIB. WARP is the fallback.
@@ -4052,7 +4205,6 @@ void DrawItem(State& m, Panel& panel, int index, Node& node, float top,
         Fill(pill, D2D1::ColorF(0xFFFFFF, 0.12f + 0.14f * glow), radius);
     }
     float textLeft = left + 10 * s + panel.checkWidth;
-    float textRight = right - 8 * s - panel.arrowWidth - panel.hintWidth;
     if (panel.hintWidth > 0 && node.hintLayout) {
         g_brush->SetColor(D2D1::ColorF(0xFFFFFF, node.enabled ? 0.55f : 0.30f));
         g_target->DrawTextLayout(
@@ -5276,7 +5428,10 @@ int BatchActionAt(int x,int y) {
     auto bar=BatchBar();
     if(!InRect(bar,(float)x,(float)y))return -1;
     float fraction=(x-bar.left)/(bar.right-bar.left);
-    return fraction<.29f?0:fraction>=.63f?1:-1;
+    // 0 Cancel | count | 2 Delete | 1 Open
+    if(fraction<.24f)return 0;
+    if(fraction>=.75f)return 1;
+    return fraction>=.50f?2:-1;
 }
 bool ToolBarConsumes(int x,int y) {
     return (g_batchBlend>0||!g_appSelection.empty())&&
@@ -5368,21 +5523,22 @@ void DrawBatchBar(float sceneOpacity) {
     auto bar=BatchBar();
     float s=g_layout.scale,width=bar.right-bar.left;
     float left=bar.left+5*s,right=bar.right-5*s;
-    float middle1=bar.left+width*.29f,middle2=bar.left+width*.63f;
+    float middle1=bar.left+width*.24f,middle2=bar.left+width*.50f,middle3=bar.left+width*.75f;
     D2D1_RECT_F slots[]{{left,bar.top+5*s,middle1,bar.bottom-5*s},
                         {middle1,bar.top,middle2,bar.bottom},
-                        {middle2,bar.top+5*s,right,bar.bottom-5*s}};
+                        {middle2,bar.top+5*s,middle3,bar.bottom-5*s},
+                        {middle3,bar.top+5*s,right,bar.bottom-5*s}};
     std::wstring labels[]{Tr(L"Cancel"),CountLabel(L"Selected {0}",g_batchDisplayCount),
-                          CountLabel(L"Open {0}",g_batchDisplayCount)};
-    for(int i=0;i<3;i++) {
+                          Tr(L"Delete"),CountLabel(L"Open {0}",g_batchDisplayCount)};
+    for(int i=0;i<4;i++) {
         auto color=D2D1::ColorF(0xFFFFFF,opacity);
-        int action=i==0?0:i==2?1:-1;
+        int action=i==0?0:i==3?1:i==2?2:-1;
         if(action>=0) {
             bool hover=g_batchHover==action;
             auto accent=D2D1::ColorF(0xFFFFFF);
-            accent.a=opacity*(hover?(g_batchPressed==action?.36f:.25f):i==2?.14f:0.f);
+            accent.a=opacity*(hover?(g_batchPressed==action?.36f:.25f):i==3?.14f:0.f);
             Fill(slots[i],accent,18*s);
-            if(i==2)color=D2D1::ColorF(0xFFFFFF,opacity);
+            if(i==3)color=D2D1::ColorF(0xFFFFFF,opacity);
         }
         g_brush->SetColor(color);
         g_target->DrawText(labels[i].c_str(),(UINT32)labels[i].size(),g_tipFormat.Get(),slots[i],g_brush.Get());
@@ -5937,7 +6093,7 @@ void DrawTileIcon(const Tile& tile, const D2D1_RECT_F& r, float opacity) {
         Fill(r,D2D1::ColorF(0xFFFFFF,0.7f*opacity),side*0.20f);
         auto center=D2D1::Point2F((r.left+r.right)/2,(r.top+r.bottom)/2);
         g_brush->SetColor(D2D1::ColorF(0xFFFFFF,opacity));
-        if(IsWebEntry(tile.app->target)) {
+        if(!tile.app->websiteUrl.empty()) {
             g_target->DrawEllipse(D2D1::Ellipse(center,side*0.28f,side*0.28f),g_brush.Get(),side*0.04f);
             g_target->DrawEllipse(D2D1::Ellipse(center,side*0.12f,side*0.28f),g_brush.Get(),side*0.03f);
             g_target->DrawLine({r.left+side*0.22f,center.y},{r.right-side*0.22f,center.y},g_brush.Get(),side*0.03f);
@@ -6260,7 +6416,6 @@ void DrawFolder() {
                           24 * s, 24 * s),
         g_brush.Get(), 1);
 
-    auto title = FolderTitlePill();
     DrawEditView(GetEditView(true), g_folderRenaming, 20 * s);
 
     const Tiles& apps = g_openFolder->apps;
@@ -6472,7 +6627,20 @@ void Render() {
             {20*L.scale,L.search.bottom,(float)L.width-20*L.scale,L.viewTop},g_brush.Get());
     }
     g_glassClaimed=false;
-    DrawGrid();
+    if (g_searchGridTransition < 1.0f) {
+        const float progress = launchpad_fly_in::SmoothStep(g_searchGridTransition);
+        const float offset = (g_showingSearchResults ? 12.0f : -12.0f) * L.scale * (1.0f - progress);
+        const auto transform = D2D1::Matrix3x2F::Scale(zoom, zoom, D2D1::Point2F(W / 2, H / 2));
+        g_target->SetTransform(D2D1::Matrix3x2F::Translation(0, offset) * transform);
+        g_target->PushLayer(D2D1::LayerParameters1(D2D1::RectF(0, L.viewTop, W, L.viewBottom),
+            nullptr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::IdentityMatrix(),
+            std::lerp(0.2f, 1.0f, progress)), nullptr);
+        DrawGrid();
+        g_target->PopLayer();
+        g_target->SetTransform(transform);
+    } else {
+        DrawGrid();
+    }
     DrawToolBar(false, chrome);
     // A closing folder keeps drawing until its fade ends.
     std::shared_ptr<Folder> realOpen = g_openFolder;
@@ -6717,6 +6885,10 @@ void OnFrame() {
         LayoutSearch();
         animating = true;
     }
+    if (g_searchGridTransition < 1.0f) {
+        g_searchGridTransition = AdvanceTransition(g_searchGridTransition, 1.0f, dt, 180);
+        animating = true;
+    }
     // The power dock glows fade over about 140 ms.
     for (int slot = 0; slot < (int)g_layout.powerItems.size(); slot++) {
         float& value = g_powerGlow[g_layout.powerItems[slot]];
@@ -6810,6 +6982,30 @@ void PlaceWindows() {
     }
 }
 
+// Once per process, the first time the grid is actually shown: a silent
+// read-only folder looks like a bug ("my changes don't stick"), and a silent
+// empty migration looks like data loss ("where are my apps").
+bool g_storageNoticeShown = false;
+void ShowStorageNotice() {
+    if (g_storageNoticeShown || !g_wnd) return;
+    g_storageNoticeShown = true;
+    std::wstring message;
+    if (g_storageMigrationSkipped) {
+        message = Tr(L"RYJS Launchpad could not read the previous launcher's data, so it started with an empty layout. That folder was left unchanged. Open Settings to import a complete backup or to restore the old layout.");
+    } else if (g_dataReadOnly) {
+        message = Tr(L"RYJS Launchpad opened its data read-only because it is damaged or was written by a newer version. Nothing is being overwritten. Open Settings to import a complete backup.");
+    } else {
+        return;
+    }
+    bool oldModal = g_modal;
+    g_modal = true;
+    MessageBoxW(g_wnd, message.c_str(), Tr(L"RYJS Launchpad"), MB_OK | MB_ICONINFORMATION);
+    g_modal = oldModal;
+    // The dialog took the focus away from the grid; closing it is not a click
+    // outside, so make sure the launcher stays open.
+    if (g_shown) ForceForeground(g_wnd);
+}
+
 void Open() {
     if (g_fullImportBusy) return;
     double requested = Now();
@@ -6840,6 +7036,8 @@ void Open() {
     g_query.clear();
     g_searchActivated = false;
     g_searchExpand = 0;
+    g_showingSearchResults = false;
+    g_searchGridTransition = 1.0f;
     g_caret = g_anchor = 0;
     g_hist[0] = {};  // A fresh search starts a fresh history.
     g_searchDrag = false;
@@ -6882,6 +7080,7 @@ void Open() {
         g_appsKey != AppsKey()) {
         StartLoadingApps();
     }
+    ShowStorageNotice();
 }
 
 void Close() {
@@ -7056,16 +7255,6 @@ inline D2D1_COLOR_F D2DColorRef(COLORREF c, float a = 1.0f) {
 }
 inline COLORREF RefFromRgb(UINT32 rgb) { return RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF); }
 
-COLORREF ParseColorRef(const std::wstring& text, COLORREF fallback) {
-    std::wstring hex = !text.empty() && text[0] == L'#' ? text.substr(1) : text;
-    if (hex.size() != 6 || hex.find_first_not_of(L"0123456789abcdefABCDEF") !=
-                               std::wstring::npos) {
-        return fallback;
-    }
-    UINT rgb = wcstoul(hex.c_str(), nullptr, 16);
-    return RGB(rgb >> 16, (rgb >> 8) & 0xFF, rgb & 0xFF);
-}
-
 // ---------------------------------------------------------------------------
 // 50-settings.cpp : the mod's own settings window. A sidebar of pages, grouped
 // cards, toggles, dropdowns, sliders, key boxes and colour chips, all drawn
@@ -7177,7 +7366,7 @@ static void Set_MonitorLabels(
     std::vector<Entry> monitors;
     EnumDisplayMonitors(
         nullptr, nullptr,
-        [](HMONITOR monitor, HDC, LPRECT, LPARAM param) -> BOOL {
+        [](HMONITOR monitor, HDC, LPRECT, LPARAM param) __attribute__((stdcall)) -> BOOL {
             MONITORINFOEXW mi{};
             mi.cbSize = sizeof(mi);
             if (GetMonitorInfoW(monitor, &mi)) {
@@ -7390,11 +7579,18 @@ struct SetWindow {
     COLORREF customColors[16] = {};
 };
 
-static std::shared_ptr<SetWindow> g_setWin;
+// These four outlive every path that can release them safely, so none of them
+// may be released by a static destructor. On a normal unload the settings
+// thread releases them in WM_NCDESTROY and SettingsThreadTeardown(); when
+// Explorer exits with the window open, Wh_ModUninit never runs, the thread is
+// already gone, and a destructor here would release a render target and three
+// factories on the exiting thread under the loader lock. no_destroy leaves
+// that to process teardown, which is what the grid's own objects do too.
+[[clang::no_destroy]] static std::shared_ptr<SetWindow> g_setWin;
 static UINT g_setForceDpi;  // Harness renders at a chosen scale.
-static SetCom<ID2D1Factory> g_setD2d;
-static SetCom<IDWriteFactory> g_setDw;
-static SetCom<IWICImagingFactory> g_setWic;
+[[clang::no_destroy]] static SetCom<ID2D1Factory> g_setD2d;
+[[clang::no_destroy]] static SetCom<IDWriteFactory> g_setDw;
+[[clang::no_destroy]] static SetCom<IWICImagingFactory> g_setWic;
 #ifdef SCM_HARNESS
 static std::wstring g_setFakeKeyStatus;  // Lets the test render the hotkey warning line.
 #endif
@@ -7979,8 +8175,6 @@ static void Set_HoverIds(const SetHit& h, int ids[2]) {
     if (h.kind == SetHit::Control || h.kind == SetHit::Slider || h.kind == SetHit::Clear || h.kind == SetHit::Chip)
         ids[1] = 6000 + h.a;
 }
-
-static bool Set_Valid(const SetWindow& w, int k) { return k >= 0 && k < (int)w.fields.size(); }
 
 // Value boxes: a dark fill between mantle and surface0 (crust read as black), a resting
 // overlay0 edge, and the white highlight on hover or while open.
@@ -9806,8 +10000,6 @@ void Settings_Close() {
     g_setWin.reset();
 }
 
-bool Settings_IsOpen() { return g_setWin && g_setWin->hwnd && !g_setWin->render; }
-
 
 // Runs on the settings thread, after its message loop or its early exit.
 void SettingsThreadTeardown() {
@@ -9980,6 +10172,35 @@ void DropGoneFolder() {
         g_openFolder = nullptr;
     }
     g_hover = g_selected = g_pressed = -1;
+}
+
+// The multi-select "Delete". Each selected app leaves the grid exactly like
+// the single-app "Remove from this grid", in one save and one refresh, so a
+// ten-icon cleanup does not write ten times.
+void DeleteSelectedApps() {
+    if (g_batchLaunching || g_appSelection.empty()) return;
+    // Read-only means read-only: without this the icons would vanish until the
+    // next reload while SaveTiles refused to write.
+    if (g_layoutReadOnly || g_dataReadOnly || g_entriesReadOnly) return;
+    auto selection = g_appSelection;
+    bool unpin = PinnedOnly();
+    for (const auto& app : selection) {
+        if (unpin) g_pins.erase(AppKey(*app));
+        else g_hidden.insert(AppKey(*app));
+    }
+    if (unpin) SavePins();
+    auto selected = [&](const std::shared_ptr<App>& app) {
+        return std::find(selection.begin(), selection.end(), app) != selection.end();
+    };
+    std::erase_if(g_tiles, [&](const Tile& tile) { return tile.app && selected(tile.app); });
+    for (auto& tile : g_tiles) {
+        if (tile.folder)
+            std::erase_if(tile.folder->apps, [&](const Tile& entry) { return entry.app && selected(entry.app); });
+    }
+    ClearAppSelection();
+    DropGoneFolder();
+    SaveTiles();
+    Refresh();
 }
 
 void OpenFolder(std::shared_ptr<Folder> folder) {
@@ -10527,7 +10748,8 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
         if(g_displayNames.count(key)&&!g_displayNames[key].custom.empty())AppendMenuW(menu,MF_STRING,96,Tr(L"Restore original name"));
         AppendMenuW(menu, MF_STRING, 92, Tr(L"Edit entry…"));
         if (tile.app->manual) AppendMenuW(menu, MF_STRING, 93, Tr(L"Delete manual entry"));
-        if (IsWebEntry(tile.app->target)) AppendMenuW(menu, MF_STRING, 94, Tr(L"Refresh website icon"));
+        if (!tile.app->websiteUrl.empty() && !g_customIcons.count(key))
+            AppendMenuW(menu, MF_STRING, 94, Tr(L"Refresh website icon"));
         // Anything with a launchable file can be elevated: a classic .exe,
         // any Start-menu shortcut, or a packaged app through a temporary
         // .lnk aimed at its AppsFolder target.
@@ -10585,7 +10807,7 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
     }
     if (tile.app && command==92) {EditEntry(hwnd,tile.app);return;}
     if (tile.app && command==93) {DeleteManualEntry(tile.app);return;}
-    if (tile.app && command==94) {g_customIcons.erase(AppKey(*tile.app));SaveCustomIcons();StartWebIconFetch(AppKey(*tile.app),tile.app->target);return;}
+    if (tile.app && command==94) {StartWebIconFetch(*tile.app,true,true);return;}
     if (g_settings.groups && tile.app && (command == 91 || (command >= 1000 && command < 1000 + (int)g_tiles.size()))) {
         auto destination = command == 91 ? InboxGroup() : g_tiles[command - 1000].folder;
         MoveAppToGroup(tile, destination, destination ? (int)destination->apps.size() : 0);
@@ -10629,20 +10851,22 @@ void ShowTileMenu(HWND hwnd, int index, POINT pt) {
         case kChangeIcon: {
             std::wstring picture;
             if (PickIconFile(hwnd, picture)) {
-                if (LoadIconFile(picture, size, *tile.app)) {
-                    g_customIcons[key] = picture;
-                    SaveCustomIcons();
+                if (SetCustomIcon(key, picture)) {
+                    LoadIconFile(CustomIconPath(g_customIcons.at(key)), size, *tile.app, false);
                 } else {
-                    Wh_Log(L"No picture in %s", picture.c_str());
+                    MessageBoxW(hwnd,Tr(L"Could not save the selected icon."),Tr(L"Change icon…"),MB_OK|MB_ICONWARNING);
                 }
             }
             Render();
             break;
         }
         case kRestoreIcon:
-            g_customIcons.erase(key);
-            SaveCustomIcons();
-            ReloadAppIcon(size, *tile.app);
+            if (!SetCustomIcon(key, {})) {
+                MessageBoxW(hwnd,Tr(L"Could not save the selected icon."),Tr(L"Restore original icon"),MB_OK|MB_ICONWARNING);
+                break;
+            }
+            ReloadEntryIcon(size, *tile.app);
+            if (tile.app->pixels.empty()) StartWebIconFetch(*tile.app,true);
             Render();
             break;
         case kOutOfFolder:
@@ -10789,13 +11013,27 @@ void ShowOptionsMenu(HWND hwnd, POINT pt) {
 }
 
 void QueryChanged() {
+    const bool showingResults = !g_query.empty();
+    if (g_showingSearchResults != showingResults) {
+        g_showingSearchResults = showingResults;
+        g_searchGridTransition = Animate() ? 0.0f : 1.0f;
+    }
     UpdateFilter();
     g_hover = -1;
     g_selected = g_query.empty() || g_visible.empty() ? -1 : 0;
     g_scroll = g_scrollTarget = g_groupPagePan = 0;
     ComputeLayout();
-    StartFrames();  // The glow eases in as typing starts.
+    StartFrames();
     Render();
+}
+
+void DismissSearch() {
+    if (!g_query.empty()) EditPush(0);
+    g_query.clear();
+    g_searchActivated = false;
+    g_clearHover = false;
+    SetCaret(0, false);
+    QueryChanged();
 }
 
 void PasteText() {
@@ -10969,6 +11207,16 @@ void OnKeyDown(WPARAM key) {
         Render();
         return;
     }
+    // Delete removes the selection only when no text field owns the key: with
+    // a query or an open folder, Delete keeps editing text as before.
+    if (key == VK_DELETE && !g_appSelection.empty() && !g_openFolder && g_query.empty()) {
+        DeleteSelectedApps();
+        return;
+    }
+    if (key == VK_RETURN && !g_appSelection.empty()) {
+        LaunchSelectedApps();
+        return;
+    }
     if (g_openFolder && !g_folderRenaming) {
         switch (key) {
             case VK_LEFT: MoveSelection(-1); break;
@@ -10994,17 +11242,8 @@ void OnKeyDown(WPARAM key) {
                 Render();
             } else if (g_openFolder) {
                 CloseFolder();
-            } else if (!g_query.empty()) {
-                EditPush(0);  // Ctrl+Z brings the cleared search back.
-                g_query.clear();
-                g_searchActivated = false;
-                g_caret = g_anchor = 0;
-                QueryChanged();
-            } else if (g_searchActivated) {
-                g_searchActivated = false;
-                LayoutSearch();
-                StartFrames();
-                Render();
+            } else if (SearchExpanded()) {
+                DismissSearch();
             } else {
                 Close();
             }
@@ -11297,9 +11536,15 @@ void OnAppsLoaded(AppList* list, int key) {
     g_appsKey = key;
     g_appsNormalized = g_settings.normalizeIcons;
     ApplyEntries(key & 0xFFFF);
+    for (const auto& app : g_apps) if (!g_entries.count(AppKey(*app))) {
+        app->websiteUrl=ResolveWebsiteUrl(*app);
+        if (!app->websiteUrl.empty()) LoadWebsiteIcon(key & 0xFFFF,*app);
+    }
     ApplyDisplayNames();
     LoadTiles();
     ApplyCustomIcons(key & 0xFFFF);
+    for (const auto& app : g_apps)
+        if (app->pixels.empty() && !g_customIcons.count(AppKey(*app))) StartWebIconFetch(*app);
     if (key != AppsKey()) {
         // The settings changed while this list was read: the reload then
         // found the worker busy. It has posted and is about to end.
@@ -11847,6 +12092,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 if(GetCapture()==hwnd)ReleaseCapture();
                 if(action==BatchActionAt(x,y)) {
                     if(action==0)ClearAppSelection();
+                    else if(action==2)DeleteSelectedApps();
                     else LaunchSelectedApps();
                 }
                 Render();return 0;
@@ -11886,9 +12132,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (pressed >= 0 && item == pressed) {
                 ActivateItem(item);
             } else if (pressedEmpty && item < 0 && g_appSelection.empty() && !ClickKeepsOpen(x, y)) {
-                // Clicking on empty space closes, like in Launchpad.
                 if (g_openFolder) {
                     CloseFolder();
+                } else if (SearchExpanded()) {
+                    DismissSearch();
                 } else {
                     Close();
                 }
@@ -12004,6 +12251,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
         case WM_KEYDOWN:
             if (g_imeComposing) break;
+            if (wParam == VK_RETURN && (lParam & (1L << 30))) return 0;
             OnKeyDown(wParam);
             return 0;
 
@@ -12065,6 +12313,94 @@ LRESULT CALLBACK BackdropWndProc(HWND hwnd,
 HANDLE g_thread;
 HANDLE g_readyEvent;
 HANDLE g_integrationLease;
+
+// Releases everything the launcher thread created. The order is the point:
+// hooks and windows first, then the holders that keep GPU objects alive,
+// then the device objects themselves. It is one function so the test
+// harness can run it repeatedly on a populated state, which is what a
+// disable/enable or an update does inside a live Explorer.
+void ReleaseLauncherResources() {
+    g_wnd = nullptr;
+    StopFullBackupJob();
+#ifndef SEAMLESS_PREVIEW
+    StartButtonHooksStop();
+#endif
+
+    g_workerStop = true;
+    StopWebIcons();
+    if (g_worker) {
+        WaitForSingleObject(g_worker, INFINITE);
+        CloseHandle(g_worker);
+        g_worker = nullptr;
+    }
+    // A list delivered after the window stopped handling messages.
+    MSG msg;
+    while (PeekMessageW(&msg, nullptr, WM_APP_APPS, WM_APP_APPS, PM_REMOVE)) {
+        delete (AppList*)msg.lParam;
+    }
+
+    if (g_backdrop) {
+        DestroyWindow(g_backdrop);
+        g_backdrop = nullptr;
+    }
+    AppList().swap(g_apps);  // Also frees the memory (no_destroy).
+    Tiles().swap(g_tiles);
+    Tiles().swap(g_visible);
+    CancelGroupPointer();
+    std::vector<ExpandedGroupGeometry>().swap(g_groupGeometry);
+    std::vector<Cell>().swap(g_groupCells);
+    g_groupTransitions.clear();
+    g_groupResizeHover.reset();
+    g_selectionPointer={};
+    AppSelection().swap(g_appSelection);
+    std::unordered_set<std::wstring>().swap(g_selectedAppKeys);
+    g_groupEntryOrder.clear();
+    g_openFolder = nullptr;
+    // A Folder owns its apps and an App owns its icon bitmap, which owns the
+    // D2D device: every holder has to go before ResetTarget(), or the device
+    // tree survives the teardown and leaks on each disable or update.
+    // CancelGroupPointer() above already cleared the header/drop/drag owners;
+    // these are the remaining ones.
+    g_closingFolder = nullptr;
+    ClearGroupPositions();  // Positions, rows, gesture, transitions, edit snapshot.
+    std::vector<ArrangementGeometry>().swap(g_arrangementGeometry);
+    g_drag = {};
+    g_backdropImage = {};
+    g_panelBlur = {};
+    FreeSurface(g_surface);
+    g_labelFormat.Reset();
+    g_labelCache.clear();
+    g_groupTitleRenders.clear();
+    // The menu's frame, backdrop, staging texture, surface and the layouts in
+    // its nodes go with Reset(); the three formats live as long as the module.
+    LaunchpadMenu::Reset();
+    LaunchpadMenu::g_menu.textFormat.Reset();
+    LaunchpadMenu::g_menu.boldFormat.Reset();
+    LaunchpadMenu::g_menu.hintFormat.Reset();
+    g_searchFormat.Reset();
+    g_messageFormat.Reset();
+    g_iconFormat.Reset();
+    g_tipFormat.Reset();
+    g_groupFormat.Reset();
+    // These containers are no_destroy so their destructors never run under the
+    // loader lock at exit. That also means nothing frees them unless the
+    // teardown does, so swap them out here instead of leaking them per unload.
+    std::set<std::wstring>().swap(g_hidden);
+    std::map<std::wstring, std::wstring>().swap(g_customIcons);
+    std::set<std::wstring>().swap(g_pins);
+    std::map<std::wstring, EntryRecord>().swap(g_entries);
+    std::map<std::wstring, DisplayNameRecord>().swap(g_displayNames);
+    std::wstring().swap(g_folderOriginalName);
+    ResetTarget();
+    if (g_frameWake) { CloseHandle(g_frameWake); g_frameWake = nullptr; }
+    g_dwrite.Reset();
+    g_d2d.Reset();
+    UnregisterClassW(kWindowClass, (HINSTANCE)&__ImageBase);
+    UnregisterClassW(kBackdropClass, (HINSTANCE)&__ImageBase);
+    UnregisterClassW(kGroupNameClass, (HINSTANCE)&__ImageBase);
+    UnregisterClassW(kEntryEditorClass, (HINSTANCE)&__ImageBase);
+    LaunchpadMenu::UnregisterMenuClass();
+}
 
 DWORD WINAPI StartThread(void*) {
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -12152,66 +12488,7 @@ DWORD WINAPI StartThread(void*) {
         }
     }
     g_wnd = nullptr;
-    StopFullBackupJob();
-#ifndef SEAMLESS_PREVIEW
-    StartButtonHooksStop();
-#endif
-
-    g_workerStop = true;
-    StopWebIcons();
-    if (g_worker) {
-        WaitForSingleObject(g_worker, INFINITE);
-        CloseHandle(g_worker);
-        g_worker = nullptr;
-    }
-    // A list delivered after the window stopped handling messages.
-    MSG msg;
-    while (PeekMessageW(&msg, nullptr, WM_APP_APPS, WM_APP_APPS, PM_REMOVE)) {
-        delete (AppList*)msg.lParam;
-    }
-
-    if (g_backdrop) {
-        DestroyWindow(g_backdrop);
-        g_backdrop = nullptr;
-    }
-    AppList().swap(g_apps);  // Also frees the memory (no_destroy).
-    Tiles().swap(g_tiles);
-    Tiles().swap(g_visible);
-    CancelGroupPointer();
-    std::vector<ExpandedGroupGeometry>().swap(g_groupGeometry);
-    std::vector<Cell>().swap(g_groupCells);
-    g_groupTransitions.clear();
-    g_groupResizeHover.reset();
-    g_selectionPointer={};
-    AppSelection().swap(g_appSelection);
-    std::unordered_set<std::wstring>().swap(g_selectedAppKeys);
-    g_groupEntryOrder.clear();
-    g_openFolder = nullptr;
-    g_drag = {};
-    g_backdropImage = {};
-    g_panelBlur = {};
-    FreeSurface(g_surface);
-    g_labelFormat.Reset();
-    g_labelCache.clear();
-    g_groupTitleRenders.clear();
-    // The menu keeps its own DirectWrite objects for the life of the module.
-    LaunchpadMenu::g_menu.textFormat.Reset();
-    LaunchpadMenu::g_menu.boldFormat.Reset();
-    LaunchpadMenu::g_menu.hintFormat.Reset();
-    g_searchFormat.Reset();
-    g_messageFormat.Reset();
-    g_iconFormat.Reset();
-    g_tipFormat.Reset();
-    g_groupFormat.Reset();
-    ResetTarget();
-    if (g_frameWake) { CloseHandle(g_frameWake); g_frameWake = nullptr; }
-    g_dwrite.Reset();
-    g_d2d.Reset();
-    UnregisterClassW(kWindowClass, instance);
-    UnregisterClassW(kBackdropClass, instance);
-    UnregisterClassW(kGroupNameClass, instance);
-    UnregisterClassW(kEntryEditorClass, instance);
-    LaunchpadMenu::UnregisterMenuClass();
+    ReleaseLauncherResources();
     OleUninitialize();
     return 0;
 }
@@ -12293,11 +12570,17 @@ BOOL Wh_ModInit() {
         return FALSE;
     }
     HookXamlStartVisibility();
+    // Created before the launcher thread and before Windhawk applies the XAML
+    // hooks (it does that after Wh_ModInit returns), and closed after the last
+    // queued reset is done (Wh_ModUninit).
+    g_startLatchIdle = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    if (!g_startLatchIdle) Wh_Log(L"No start-latch event; unload cannot wait for a queued reset");
     g_readyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     g_thread = CreateThread(nullptr, 0, StartThread, nullptr, 0, nullptr);
     if (!g_thread) {
         CloseHandle(g_readyEvent);
         g_readyEvent = nullptr;
+        if (g_startLatchIdle) { CloseHandle(g_startLatchIdle); g_startLatchIdle = nullptr; }
         CloseHandle(g_integrationLease); g_integrationLease = nullptr;
         return FALSE;
     }
@@ -12306,12 +12589,26 @@ BOOL Wh_ModInit() {
     return TRUE;
 }
 
+void Wh_ModBeforeUninit() {
+    Wh_Log(L">");
+
+    // Windhawk still has the mod's hooks installed here. Closing the gate now
+    // means no new XAML latch reset can be queued; the ones already queued are
+    // counted and drained in Wh_ModUninit. Hooks are removed right after this
+    // returns, so no new caller can appear once the drain starts.
+    g_startLatchStopping = true;
+}
+
 void Wh_ModUninit() {
     Wh_Log(L">");
 
+    // Defensive: normally Wh_ModBeforeUninit has already closed the gate.
+    g_startLatchStopping = true;
     if (!g_thread) {
         CloseSettingsWindow();
         if (g_integrationLease) { CloseHandle(g_integrationLease); g_integrationLease = nullptr; }
+        ForgetStartButton();
+        if (g_startLatchIdle) { CloseHandle(g_startLatchIdle); g_startLatchIdle = nullptr; }
         return;
     }
     if (g_keyThread) {
@@ -12331,6 +12628,24 @@ void Wh_ModUninit() {
     g_thread = nullptr;
     CloseHandle(g_readyEvent);
     g_readyEvent = nullptr;
+    // Invariant for the drain: the hooks are gone (Windhawk removes them after
+    // Wh_ModBeforeUninit returns) and the launcher thread is joined, so no new
+    // unit of latch work can start. Everything already counted -- a hook still
+    // inside ClearStartButtonLatch and every queued lambda -- is released by
+    // its owner, so the count can only fall.
+    // A dispatcher that never runs its callback leaves it above zero: the
+    // taskbar thread is then gone or blocked for longer than the timeout, and
+    // the image must stay mapped (see PinModuleForStartLatch).
+    bool latchDrained = WaitForStartLatchResets(5000);
+    ForgetStartButton();
+    if (g_startLatchIdle) {
+        // Only close when nothing can still signal it. In the pinned case a
+        // callback is still holding the old counter, and closing the handle
+        // under it would let a recycled handle number be signalled instead.
+        if (latchDrained) CloseHandle(g_startLatchIdle);
+        g_startLatchIdle = nullptr;
+    }
+    if (!latchDrained) PinModuleForStartLatch();
     // Sleep and hibernate return only after the PC wakes; every other action
     // returns at once, so this join cannot hang a normal unload.
     if (g_powerThread) {

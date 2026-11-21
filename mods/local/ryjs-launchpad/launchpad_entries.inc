@@ -64,6 +64,46 @@ bool IsWebEntry(const std::wstring& target) {
     auto lower=ToLower(target);
     return lower.starts_with(L"https://") || lower.starts_with(L"http://");
 }
+std::wstring WebsiteUrlFromArguments(const std::wstring& arguments) {
+    if (arguments.empty()) return {};
+    int count = 0;
+    auto command = L"browser.exe " + arguments;
+    auto argv = CommandLineToArgvW(command.c_str(), &count);
+    if (!argv) return {};
+    std::wstring url;
+    for (int i = 1; i < count; ++i) {
+        std::wstring argument = argv[i];
+        if (argument.starts_with(L"--app=")) argument.erase(0, 6);
+        else if (count != 2) continue;
+        if (IsWebEntry(argument)) {
+            url = std::move(argument);
+            break;
+        }
+    }
+    LocalFree(argv);
+    return url;
+}
+
+std::wstring ResolveWebsiteUrl(const App& app) {
+    if (IsWebEntry(app.target)) return app.target;
+    auto target = ToLower(app.target);
+    WCHAR value[32768]{};
+    if (EndsWith(target, L".url") && !PathIsRelativeW(app.target.c_str())) {
+        DWORD length = GetPrivateProfileStringW(L"InternetShortcut", L"URL", L"", value, ARRAYSIZE(value), app.target.c_str());
+        if (length < ARRAYSIZE(value) - 1 && IsWebEntry(value)) return value;
+    } else if (EndsWith(target, L".exe")) {
+        return WebsiteUrlFromArguments(app.arguments);
+    } else if (EndsWith(target, L".lnk")) {
+        ComPtr<IShellLinkW> link;
+        ComPtr<IPersistFile> persist;
+        if (SUCCEEDED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&link))) &&
+            SUCCEEDED(link.As(&persist)) && SUCCEEDED(persist->Load(app.target.c_str(), STGM_READ)) &&
+            SUCCEEDED(link->GetArguments(value, ARRAYSIZE(value)))) {
+            return WebsiteUrlFromArguments(value);
+        }
+    }
+    return {};
+}
 bool IsEntryMissing(const App& app) {
     if (IsWebEntry(app.target) || ToLower(app.target).starts_with(L"shell:")) return false;
     return GetFileAttributesW(app.target.c_str())==INVALID_FILE_ATTRIBUTES;
@@ -74,17 +114,29 @@ std::wstring WebIconPath(const std::wstring& key) {
     WCHAR name[40]{};swprintf_s(name,L"web-icons\\%016llx.ico",hash);
     return StoragePath(name);
 }
+bool LoadWebsiteIcon(int size, App& app) {
+    app.pixels.clear();
+    app.iconSize = 0;
+    app.bitmap.Reset();
+    app.generation = 0;
+    auto path = WebIconPath(AppKey(app) + L"|" + app.websiteUrl);
+    return GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES &&
+           LoadIconFile(path, size, app, false);
+}
+
+void ReloadEntryIcon(int size, App& app) {
+    if (app.websiteUrl.empty()) ReloadAppIcon(size, app);
+    else LoadWebsiteIcon(size, app);
+}
+
 void ApplyEntryRecord(App& app,const std::wstring& key,const EntryRecord& e,int size) {
     if (app.originalName.empty()) app.originalName=app.name;
     if(app.layoutTarget.empty())app.layoutTarget=app.target.empty()?key:app.target;
     app.stableKey=key; app.manual=e.manual; app.name=e.name;
     app.target=e.target; app.arguments=e.arguments; app.workingDirectory=e.directory;
     app.unavailable=IsEntryMissing(app);
-    ReloadAppIcon(size,app);
-    if (IsWebEntry(app.target)) {
-        auto icon=WebIconPath(key+L"|"+app.target);
-        LoadIconFile(icon,size,app);
-    }
+    app.websiteUrl=ResolveWebsiteUrl(app);
+    ReloadEntryIcon(size,app);
 }
 void ApplyEntries(int size) {
     if (!LoadEntries()) return;

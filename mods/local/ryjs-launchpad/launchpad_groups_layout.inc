@@ -567,8 +567,10 @@ void DrawGroupHeaders(bool activeOnly,const ExpandedGroupGeometry* resizePreview
             title.left += shift; title.right += shift;
             title.top += dy; title.bottom += dy;
         }
+        // The ungrouped container is not a group the user made: it has no
+        // header outside group editing. Editing shows it so it can be moved.
+        if(geometry.group->inbox&&!g_groupEditMode)continue;
         std::wstring name=geometry.group->name;
-        if (!geometry.group->unavailable.empty()) name+=L" · "+std::to_wstring(geometry.group->unavailable.size())+Tr(L" unavailable");
         float titleOpacity=geometry.group==g_groupDropFolder||geometry.group==g_groupHeaderDragging?1.f:.90f;
         float titleHeight=title.bottom-title.top;
         if(!g_groupFormat||titleHeight<=0||title.right<=title.left)continue;

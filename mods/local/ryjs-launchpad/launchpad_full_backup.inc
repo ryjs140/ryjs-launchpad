@@ -193,10 +193,17 @@ void OnFullBackupDone(HWND owner) {
     }
     g_modal=oldModal;if(g_shown)Render();
 }
-void ShowFullBackupDialog(HWND owner,bool importing) {
+void RunBackupArchive(HWND owner,bool importing,const std::wstring& path) {
     if(g_fullBackupJob) {
         MessageBoxW(owner,Tr(L"A backup or import is already running."),Tr(L"Backup and restore"),MB_OK|MB_ICONINFORMATION);return;
     }
+    if(!importing && !g_layoutReadOnly && !g_dataReadOnly && !SaveTiles()) {
+        MessageBoxW(owner,Tr(L"Could not save the current layout before backup."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);return;
+    }
+    if(!StartFullBackupJob(importing?L"inspect":L"export",path))
+        MessageBoxW(owner,Tr(L"Could not start the backup helper."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);
+}
+void ShowFullBackupDialog(HWND owner,bool importing) {
     WCHAR file[32768]{};
     if(!importing) {
         SYSTEMTIME now{};GetLocalTime(&now);
@@ -211,9 +218,5 @@ void ShowFullBackupDialog(HWND owner,bool importing) {
     bool oldModal=g_modal;g_modal=true;
     BOOL selected=importing?GetOpenFileNameW(&dialog):GetSaveFileNameW(&dialog);
     CoTaskMemFree(desktop);g_modal=oldModal;
-    if(!selected)return;
-    if(!importing && !g_layoutReadOnly && !g_dataReadOnly && !SaveTiles()) {
-        MessageBoxW(owner,Tr(L"Could not save the current layout before backup."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);return;
-    }
-    if(!StartFullBackupJob(importing?L"inspect":L"export",file))MessageBoxW(owner,Tr(L"Could not start the backup helper."),Tr(L"Backup and restore"),MB_OK|MB_ICONERROR);
+    if(selected)RunBackupArchive(owner,importing,file);
 }

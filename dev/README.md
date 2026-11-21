@@ -34,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File dev/Check-Library.ps1
 
 `dev/Test-FullBackup.ps1` 验证 GUI 调用链、内嵌 Windows PowerShell 5.1 导出/导入、旧 ZIP 兼容、设置及图标还原、原数据保留，以及损坏/不支持的备份被拒绝时数据不变。只写 `build/` 下的虚构数据。编辑 `dev/full_backup_worker.ps1` 后重新构建，生成器会将脚本和设置默认值一并内嵌到单文件源码。
 
-Esc/点击空白区域隐藏网格，托盘右键可重新打开；网格 `…` 菜单或托盘右键中的“退出预览”完全退出进程。布局与设置不会因重新编译删除。备份时先退出预览，再复制 `build/preview-data` 中的 `settings.ini`、`state.ini` 和所有 `.txt` 文件；恢复时退出预览再放回同一目录。不要将 `validation-state` 中的测试数据当作个人布局。
+搜索时，按 Esc 或点击空白区域先返回主网格，再操作一次才会隐藏启动器。搜索结果和主网格切换有独立过渡，遵循启动器和 Windows 的动画开关。托盘右键可重新打开；网格 `…` 菜单或托盘右键中的“退出预览”完全退出进程。布局与设置不会因重新编译删除。备份时先退出预览，再复制 `build/preview-data` 中的 `settings.ini`、`state.ini` 和所有 `.txt` 文件；恢复时退出预览再放回同一目录。不要将 `validation-state` 中的测试数据当作个人布局。
 
 本轮整改验证见 `FOUR_FIXES_REPORT.md`。专项测试覆盖四档 DPI、吸附阈值、碰撞、编辑取消、溢出访问及名称恢复。新增灰色和明暗混合背景离屏图，直接测试 GPU 读回与局部黑白文字。`dev/inspect_taskbar_symbols.cpp` 仅离线审计本机任务栏符号，不修改 Explorer。
 
