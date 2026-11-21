@@ -1,15 +1,15 @@
 # 构建记录（1.0.0）
 
-日期：2026-11-19
+日期：2026-11-21（本轮整改后重新生成）
 产物：`ryjs-launchpad.wh.cpp`（仓库根）与 `release/mods/ryjs-launchpad.wh.cpp`
 
 | 项 | 值 |
 | --- | --- |
 | 版本 | 1.0.0 |
-| 行数 | 16,282 |
-| 字节数 | 737,466 |
-| SHA256 | `4393977e37dc7ca774419777fc6125b4a4d8f8b46edec0d6787db9bec55d1935` |
-| 架构 | x86-64（官方编译脚本另测 x86 / arm64） |
+| 行数 | 17,018 |
+| 字节数 | 774,274 |
+| SHA256 | `b844b0763afcfd577be72b62eef9fb3440ae786218f5923fa1f0f3a0074fe760` |
+| 架构 | x86-64（同一源码另测 i686 / aarch64 编译，均 0 warning） |
 
 ## 输入
 
@@ -19,9 +19,9 @@
 | --- | --- |
 | `ryjs-project.json`（版本唯一来源） | `d37c74ddfd81777ef8e3a2c1a066bee7dc78c088` |
 | `dev/settings-extension.json`（设置字段来源） | `c1000bdf0d1fff8c5b805f9af9beccf9ae207da0` |
-| `dev/strings.zh-CN.json`（中文资源） | `f36c8bf31c23c22c88e2b1c614c1fe02c906ce11` |
-| `dev/full_backup_worker.ps1`（内嵌备份脚本） | `af687151c11ba046b68f647d0bd0ad6f406341da` |
-| `mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp`（开发主文件） | `050f660b052d5159f41dd42353c7192056746071` |
+| `dev/strings.zh-CN.json`（中文资源） | `0442be48867b69ba9e79b4715f953da48c3e0a60` |
+| `dev/full_backup_worker.ps1`（内嵌备份脚本） | `60b3543eeaa2842bbe472f7fc3ad1bb8f5bef7ca` |
+| `mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp`（开发主文件） | `4b1e5cd5fe83c8d006e5c4df48166962172e9de6` |
 
 开发主文件通过 `#include "..."` 引入 18 个分片（`launchpad_*.h`、`launchpad_*.inc`、`ryjs_data.h`），全部位于 `mods/local/ryjs-launchpad/`，均已纳入版本管理。唯一例外是 `preview_api.h`：它只属于 `dev/preview`，生成时会替换为一行注释，因此产物中本地 `#include` 计数为 **0**。
 
@@ -45,7 +45,7 @@ curl -sL https://raw.githubusercontent.com/ryjs140/ryjs-launchpad/main/ryjs-laun
 powershell -NoProfile -ExecutionPolicy Bypass -File dev/Build.ps1 -Verify
 ```
 
-需要 PyYAML 6.0.3（`dev/requirements.txt`）。注意：`python` 若指向未安装 PyYAML 的解释器会直接失败，本记录使用 `py -3.12`。
+需要 PyYAML 6.0.3（`dev/requirements.txt`）。注意：`python` 若指向未安装 PyYAML 的解释器会直接失败，本记录使用 `py -3.12`（用 3.11 + PyYAML 6.0.3 重跑得到同一哈希）。
 
 ## 校验方法
 
@@ -67,10 +67,10 @@ sha256sum ryjs-launchpad.wh.cpp
 
 | 检查 | 结果 |
 | --- | --- |
-| 连续两次生成（工作区） | 哈希相同 `9f238d3a…` |
-| 从 Git 索引重建（`git checkout-index` + 重新生成） | 哈希相同 `9f238d3a…` |
+| 连续两次生成（工作区） | 哈希相同 `b844b076…` |
+| 从 Git 索引重建（`70f7291` 的索引 + 重新生成） | 哈希相同 `b844b076…` |
 | 根文件与 `release/mods/` 副本 | `cmp` 无差异 |
 | 产物中本地 `#include` | 0 |
-| 产物中系统 `#include` | 72 |
+| 产物中系统 `#include` | 73 |
 
 三项检查均对最终产物执行，无遗留例外。
