@@ -126,6 +126,36 @@ class FullBackupTests(unittest.TestCase):
         self.assertFalse((destination / 'binary').exists())
         self.assertFalse((destination / 'metadata').exists())
 
+    def test_import_preserves_local_shortcut_commands_and_discloses_entry_targets(self):
+        self.exported()
+        def inject_shortcut_commands(manifest, _files):
+            manifest['effective_settings'].update({
+                'program': r'C:\Untrusted\payload.exe --imported',
+                'winKeyAction': 'program',
+                'shiftWinKeyAction': 'program',
+                'startButtonAction': 'program',
+            })
+        self.rewrite(inject_shortcut_commands)
+        checked = self.run_job('inspect')
+        self.assertEqual(checked['status'], 'ok', checked)
+        self.assertIn(r'C:\Remote\server.rdp', checked['summary'])
+        self.assertIn('https://example.org/', checked['summary'])
+        self.assertIn('program command stay', checked['summary'])
+        safe = {
+            **self.host,
+            'program': r'C:\Trusted\local.exe --mine',
+            'winKeyAction': 'grid',
+            'shiftWinKeyAction': 'start',
+            'startButtonAction': 'grid',
+        }
+        destination = self.root / 'safe-shortcut-destination'
+        restored = self.run_job('import', storage=str(destination), expected_hash=checked['hash'], host_settings=safe)
+        self.assertEqual(restored['status'], 'ok', restored)
+        settings = layout_backup.effective_settings(destination, safe)
+        for key in ('program', 'winKeyAction', 'shiftWinKeyAction', 'startButtonAction'):
+            self.assertEqual(settings[key], safe[key], key)
+        self.assertIn(r'C:\Remote\server.rdp', (destination / 'entries-v1.txt').read_text(encoding='utf-8'))
+
     def test_legacy_schema_one_is_importable(self):
         original = layout_backup.registry_settings
         layout_backup.registry_settings = lambda mod: self.host

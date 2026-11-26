@@ -1107,7 +1107,6 @@ void Preview_RunSmoke(HWND hwnd) {
             const int x = centerX;
             const int y = centerY;
             const int neighborX = (int)((second.left + second.right) / 2);
-            const int neighborY = (int)((second.top + second.bottom) / 2);
             const int outsideX = (int)(g_layout.powerBar.left - 4 * g_layout.scale);
             const int outsideY = (int)((g_layout.powerBar.top + g_layout.powerBar.bottom) / 2);
             const int farY = (int)(g_layout.powerBar.top -
@@ -1115,13 +1114,14 @@ void Preview_RunSmoke(HWND hwnd) {
             const int dockX = (int)((g_layout.powerBar.left + g_layout.powerBar.right) / 2);
             SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
             Render();
-            const auto idleCenter = GetPixel(g_surface.dc, centerX, centerY);
+            const int probeY = centerY + (int)std::lround(15 * g_layout.scale);
+            const auto idleCenter = GetPixel(g_surface.dc, centerX, probeY);
             const auto idleOutside = GetPixel(g_surface.dc, outsideX, outsideY);
             SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(x, y));
             SettlePowerGlass();
             Render();
-            const auto litCenter = GetPixel(g_surface.dc, centerX, centerY);
-            const auto neighbor = GetPixel(g_surface.dc, neighborX, neighborY);
+            const auto litCenter = GetPixel(g_surface.dc, centerX, probeY);
+            const auto neighbor = GetPixel(g_surface.dc, neighborX, probeY);
             const auto outside = GetPixel(g_surface.dc, outsideX, outsideY);
             auto redness = [](COLORREF c) {
                 return 2 * (int)GetRValue(c) - (int)GetGValue(c) - (int)GetBValue(c);
@@ -1133,6 +1133,9 @@ void Preview_RunSmoke(HWND hwnd) {
                 litCenter != idleCenter &&
                 redness(litCenter) > redness(neighbor) &&
                 outside == idleOutside;
+            Preview::Log(L"smoke: power hover local details hover=%d changed=%d red=%d/%d outside=%d",
+                         g_powerHover, litCenter != idleCenter, redness(litCenter), redness(neighbor),
+                         outside == idleOutside);
             ok = hoverIsLocal && SaveGrid(output + L"\\power-hover-zh-CN.png") && ok;
             // The warning glass is one shared layer: it moves to the next
             // button instead of two separate backgrounds.

@@ -472,5 +472,8 @@
   "Relative strength of the red along the bottom glass edge.": "玻璃底边红色相对中心浓度的强度。",
   "Label bleed (%)": "标签透染 (%)",
   "Very weak reflection on the text capsule above, relative to the warning light.": "上方文字胶囊的极弱透染，相对主光源的百分比。",
-  "The preview follows these controls; nothing is applied until Save.": "预览会随这些控件即时变化，保存前不会应用。"
+  "The preview follows these controls; nothing is applied until Save.": "预览会随这些控件即时变化，保存前不会应用。",
+  "Background website icon download": "后台下载网站图标",
+  "Fetch missing icons for websites and desktop URL shortcuts after the app list loads. Turn off to allow downloads only when you save or manually refresh an entry; cached icons still work.": "应用列表加载后，为网站及桌面 URL 快捷方式获取缺失图标。关闭后仅在保存条目或手动刷新时联网下载；已缓存图标仍可使用。",
+  "Network": "网络"
 }

@@ -3,10 +3,6 @@
 #include <cstdio>
 void Preview_RunSmoke(HWND) {}
 int failures=0, checks=0;
-DWORD WINAPI LatchTicketThread(void*) {
-    for (int i=0;i<2000;i++) { StartLatchTicket ticket; }
-    return 0;
-}
 void Check(bool value,const char* label) { ++checks; if (!value) { ++failures; printf("FAIL: %s\n",label); } }
 int wmain(int argc,wchar_t** argv) {
     setvbuf(stdout,nullptr,_IONBF,0);  // Keep the log up to a crash.
@@ -151,6 +147,13 @@ int wmain(int argc,wchar_t** argv) {
     Check(ResolveWebsiteUrl(website)==L"https://example.org/site","Internet shortcuts use the destination favicon");
     website.target=L"C:\\Browser\\chrome.exe";website.arguments=L"--profile-directory=Default --app=\"https://example.org/site\"";
     Check(ResolveWebsiteUrl(website)==L"https://example.org/site","browser app arguments use the destination favicon");
+    App uncachedWebsite;
+    uncachedWebsite.target=L"https://uncached.invalid/icon-preservation-test";
+    uncachedWebsite.websiteUrl=uncachedWebsite.target;
+    uncachedWebsite.pixels={0xff123456};uncachedWebsite.iconSize=1;uncachedWebsite.generation=7;
+    Check(!LoadWebsiteIcon(64,uncachedWebsite)&&uncachedWebsite.pixels==std::vector<UINT32>{0xff123456}&&
+          uncachedWebsite.iconSize==1&&uncachedWebsite.generation==7,
+          "a missing website cache never erases the existing shell icon");
     std::ofstream(cases/L"invalid-favicon.ico")<<"<html>Unavailable</html>";
     Check(!LoadIconFile((cases/L"invalid-favicon.ico").wstring(),64,website,false),"HTML cannot become a cached shell icon");
     std::ofstream(cases/L"icon.svg")<<"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='red'/></svg>";
@@ -877,56 +880,8 @@ int wmain(int argc,wchar_t** argv) {
         Check(std::filesystem::exists(target/L"migration-note.txt"),
               "the skipped migration is recorded beside the new data");
     }
-    // The queued start-button reset is the only callback that runs in another
-    // thread's message loop; its drain is what keeps unload from running it.
-    {
-        g_startLatchIdle=CreateEventW(nullptr,FALSE,FALSE,nullptr);
-        Check(WaitForStartLatchResets(5),"nothing queued needs no wait");
-        g_startLatchPending=1;
-        Check(!WaitForStartLatchResets(30),"a reset that never completes times out instead of hanging unload");
-        auto finish=[](void*)->DWORD{Sleep(30);FinishStartLatchReset();return 0;};
-        HANDLE worker=CreateThread(nullptr,0,finish,nullptr,0,nullptr);
-        Check(WaitForStartLatchResets(3000),"the drain returns once the queued reset finishes");
-        WaitForSingleObject(worker,INFINITE);CloseHandle(worker);
-        Check(g_startLatchPending.load()==0,"the queued-reset counter is back to zero");
-        CloseHandle(g_startLatchIdle);g_startLatchIdle=nullptr;
-    }
-    // The two interleavings the unload has to survive: the queued callback
-    // finishing before the submitter returns, and after it.
-    {
-        g_startLatchIdle=CreateEventW(nullptr,FALSE,FALSE,nullptr);
-        {
-            StartLatchTicket invocation;              // U1: the call itself
-            g_startLatchPending.fetch_add(1);         // U2: the queued lambda
-            FinishStartLatchReset();                  // lambda runs first
-            Check(g_startLatchPending.load()==1,
-                  "a callback that finishes first leaves only the invocation unit");
-        }
-        Check(g_startLatchPending.load()==0,
-              "returning releases the invocation unit exactly once");
-        {
-            StartLatchTicket invocation;              // U1
-            g_startLatchPending.fetch_add(1);         // U2
-        }
-        Check(g_startLatchPending.load()==1,"a queued unit outlives its submitter");
-        FinishStartLatchReset();
-        Check(g_startLatchPending.load()==0,"the queued unit releases exactly once");
-        CloseHandle(g_startLatchIdle);g_startLatchIdle=nullptr;
-    }
-    // Under contention every unit still releases exactly once: a negative
-    // count would make the drain unreachable, and a leaked one would pin.
-    {
-        g_startLatchIdle=CreateEventW(nullptr,FALSE,FALSE,nullptr);
-        HANDLE threads[4]{};
-        for(auto& thread:threads) thread=CreateThread(nullptr,0,LatchTicketThread,nullptr,0,nullptr);
-        Check(WaitForMultipleObjects(4,threads,TRUE,60000)==WAIT_OBJECT_0,
-              "all latch ticket threads finish");
-        for(auto& thread:threads) CloseHandle(thread);
-        Check(g_startLatchPending.load()==0,"concurrent latch units all release their count");
-        FinishStartLatchReset();
-        Check(g_startLatchPending.load()==0,"a stray release cannot make the count negative");
-        CloseHandle(g_startLatchIdle);g_startLatchIdle=nullptr;
-    }
+    // Start-button reset lifetime is enforced in the real mod by the
+    // Windhawk taskbar subclass API; no preview-only counter can model it.
     // Repeated enable/disable in one process: the teardown has to drop every
     // holder, not just the containers the grid draws from.
     {

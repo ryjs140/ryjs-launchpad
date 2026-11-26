@@ -46,10 +46,15 @@ template <typename T>
 void SetFunctionHook(T, T, T*) {}
 }
 #include "../mods/local/ryjs-launchpad/launchpad_start_button.h"
-#include "../mods/local/ryjs-launchpad/launchpad_lifecycle.h"
 std::wstring StoragePath(PCWSTR name) { return name; }
 void Wh_ApplyHookOperations() {}
+HWND g_startLatchTestTray;
+HWND TestFindWindow(PCWSTR className, PCWSTR) {
+    return className && !wcscmp(className, L"Shell_TrayWnd") ? g_startLatchTestTray : nullptr;
+}
+#define FindWindowW TestFindWindow
 #include "../mods/local/ryjs-launchpad/launchpad_start_xaml.h"
+#undef FindWindowW
 
 int failures, checks, nativeDown, nativeUp, rightClicks, toggles, runs;
 bool nativeChecked;
@@ -135,6 +140,7 @@ HWND Create(PCWSTR cls, HWND parent = nullptr) {
 int main() {
     g_wnd = Create(L"LaunchpadTestReceiver");
     HWND tray = Create(L"Shell_TrayWnd");
+    g_startLatchTestTray = tray;
     HWND button = Create(L"Start", tray);
     Click(button);
     Check(nativeChecked, "baseline reproduces native latch without router");
@@ -219,6 +225,12 @@ int main() {
           !g_startButtonEvents && g_startButtonWindows.empty(), "stop releases capture and detaches hooks");
     Click(button);
     Check(nativeDown == 2 && nativeUp == 2 && toggles == 4, "native button restored after stop");
+    Check(EnsureStartLatchSubclass() && g_startLatchWindow.load() == tray && g_startLatchMessage != 0,
+          "taskbar reset uses a registered message and the production subclass");
+    PostMessageW(tray, g_startLatchMessage, 0, 0); Pump();
+    RemoveStartLatchSubclass();
+    Check(g_startLatchStopping.load() && !g_startLatchWindow.load() && !EnsureStartLatchSubclass(),
+          "subclass removal closes the reset gate without a queue, timeout or module pin");
     DestroyWindow(secondary); DestroyWindow(button); DestroyWindow(tray);
     DestroyWindow(unrelated); DestroyWindow(g_wnd);
     printf("%s: %d checks, %d failures\n", failures ? "FAIL" : "PASS", checks, failures);

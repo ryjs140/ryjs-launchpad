@@ -31,6 +31,18 @@ function Decode-Entry([string]$value) {
     if ($value -cmatch '%(?!(25|09|0A|0D))') { throw 'Invalid entry encoding.' }
     return $value.Replace('%09',"`t").Replace('%0A',"`n").Replace('%0D',"`r").Replace('%25','%')
 }
+function Read-EntryRecords([byte[]]$bytes) {
+    $records=@()
+    if ($null -eq $bytes) { return $records }
+    $text=$utf8.GetString($bytes).TrimStart([char]0xFEFF)
+    foreach ($line in ($text -split '\r?\n')) {
+        $f=$line.Split("`t")
+        if ($f.Count -eq 7 -and $f[0] -eq 'entry') {
+            $records+=@{name=(Decode-Entry $f[4]);target=(Decode-Entry $f[3]);arguments=(Decode-Entry $f[5])}
+        }
+    }
+    return $records
+}
 function Read-Ini([byte[]]$bytes) {
     $text = if ($bytes.Length -ge 2 -and $bytes[0] -eq 255 -and $bytes[1] -eq 254) {
         [Text.Encoding]::Unicode.GetString($bytes,2,$bytes.Length-2)
@@ -375,6 +387,9 @@ function Import-Complete($checked) {
         [IO.File]::WriteAllText($iconFile,($lines -join "`r`n")+"`r`n",$utf8)
     }
     $effective=Object-Map $checked.manifest.effective_settings
+    # These settings turn a key/button into command execution. An imported
+    # archive must not silently arm them; retain this PC's current host values.
+    foreach ($key in @('program','winKeyAction','shiftWinKeyAction','startButtonAction')) { $effective.Remove($key) }
     $ui=Join-Path $stage 'ui-settings.ini'
     if (Test-Path -LiteralPath $ui) { [IO.File]::Copy($ui,(Join-Path $stage 'import-original-ui-settings.ini'),$true) }
     $text="[meta]`r`nversion=1`r`n"
@@ -406,7 +421,18 @@ try {
         else {
             $source=[string]$checked.manifest.source_mod
             $version=[string]$checked.manifest.version
-            $result=@{summary=($source+' '+$version+"`r`n"+$checked.files.Count+' files');hash=$checked.hash;previous=''}
+            $summary=$source+' '+$version+"`r`n"+$checked.files.Count+' files'
+            $summary+="`r`nStart-button / Win-key actions and the program command stay as configured on this PC."
+            $entryLines=@()
+            foreach ($entry in @(Read-EntryRecords $checked.files['data/entries-v1.txt'])) {
+                $command=[string]$entry.target
+                if ($entry.arguments) { $command+=' '+[string]$entry.arguments }
+                $entryLines+=([string]$entry.name+' -> '+$command)
+            }
+            if ($entryLines.Count) {
+                $summary+="`r`nImported entry launch targets (nothing is executed during import):`r`n"+($entryLines -join "`r`n")
+            }
+            $result=@{summary=$summary;hash=$checked.hash;previous=''}
         }
     } else { throw 'Unknown backup operation.' }
     $resultText="[result]`r`nstatus=ok`r`nsummary="+(Encode-Value $result.summary)+"`r`nhash="+$result.hash+"`r`nprevious="+(Encode-Value $result.previous)+"`r`n"

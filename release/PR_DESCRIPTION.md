@@ -16,7 +16,7 @@ the mod readme, the repository `README.md`, `LICENSE` and
 - Mod id: `ryjs-launchpad` (unchanged)
 - Author / maintainer: Fangyu Guo (ryjs), https://github.com/ryjs140
 - Source: https://github.com/ryjs140/ryjs-launchpad
-- Version: 1.5.8
+- Version: 1.5.9
 - License: MIT, with the upstream notices retained
 - Inject into: `explorer.exe` only
 
@@ -56,37 +56,46 @@ a separate mod.
 
 ## Review fixes carried into this revision
 
-The previous AI reviews raised the power-thread lifetime, settings-thread
-lifetime, context-menu window-class unregistration, monitor-combo dangling
-pointer, group-layout resource ownership, static teardown and Start-latch
-lifetime issues. Those fixes are present in this revision. The 1.5.8 release
-audit additionally fixed:
+The latest AI review raised five follow-up issues. Version 1.5.9 addresses
+them directly:
 
-- Settings-window GDI/DIB release on `WM_NCDESTROY`, failed-creation cleanup
-  and an unbounded join for the settings frame thread; a failed `PostMessage`
-  no longer leaves the frame tick pending.
-- Direct2D device-loss teardown now releases the material, panel-blur and
-  group-title bitmaps with the old render target; material capture failures
-  back off instead of retrying every frame.
-- Bounds checks for the material blur setting, JSON nesting depth limits and an
-  8 MiB cap for imported material files.
-- The generated single-file submission now stays within the official
-  4096-character line limit, and the four `Wh_Mod*` callbacks are outside the
-  anonymous namespace in the official scope checker.
+- Start-button reset no longer queues a mod lambda through the XAML dispatcher.
+  A registered message is handled by a `Shell_TrayWnd` subclass installed with
+  `SetWindowSubclassFromAnyThread`; unload synchronously removes it and joins
+  active work. The timeout, counters and permanent module pin are gone.
+- Website icon networking has an explicit background-download switch (default
+  on). The readme now documents first-load and Desktop/Public Desktop shortcut
+  requests, declared third-party/intranet icon hosts, and manual-refresh
+  behavior. Cached icons still work with background downloading disabled.
+- Backup import preserves the local Start-button/Win-key actions and program
+  command. Confirmation lists every imported entry target and arguments;
+  archive code and binaries are never installed or executed.
+- The settings title-mark D2D bitmap is owned by `SetWindow` and released with
+  its render target, removing the function-static COM object and stale resource
+  domain risk.
+- The material import/export filter is built with explicit embedded NULs, so
+  both `.ryjsm` and `.json` filters reach the dialog with correct termination.
+
+Device-loss teardown now also releases every app bitmap; web-icon completion no
+longer waits on a worker found by reusable thread ID; group grid coordinates
+are capped; and legacy tint migration no longer performs per-frame settings
+reads or writes in read-only mode. The earlier GDI/DIB, settings-thread,
+material, parser and official line-length/callback-scope fixes remain in this
+revision.
 
 ## Testing
 
 Passed locally on the current source and the generated single-file submission:
 
-- Official validator from the current upstream `main` (`7628a65`): 0 problems.
+- Official validator: 0 problems.
 - Official compile script: 0 problems.
 - Local x64 module and preview compilation with the Windhawk compiler: PASS,
   0 warnings.
-- Feature checks: 612 checks, 0 failures; keyboard batch launch and website
+- Feature checks: 602 checks, 0 failures; keyboard batch launch and website
   icon cache checks passed.
-- Storage/phase-one checks: 25 and 35 checks, 0 failures; 5 Python backup tests
+- Storage/phase-one checks: 25 and 37 checks, 0 failures; 5 Python backup tests
   OK.
-- Full-backup checks: 28 checks, 0 failures; 12 Python full-backup tests OK.
+- Full-backup checks: 28 checks, 0 failures; 13 Python full-backup tests OK.
 - Offscreen smoke test: PASS (real app enumeration and bilingual rendering);
   three repeated `--smoke` runs exited 0.
 
@@ -116,6 +125,11 @@ Not verified on real hardware, and stated as such in the readme:
 ## Changelog
 
 <!-- changelog:start -->
+
+- Address the latest review with synchronous taskbar-subclass Start reset,
+  optional background website downloads, safer backup-import disclosure and
+  local shortcut-setting preservation, per-window D2D ownership, and correct
+  material file-filter termination.
 
 - Rename the display name to Lumiflow (English) / 流光启动台 (Chinese); keep
   the `ryjs-launchpad` mod id and all storage paths unchanged.

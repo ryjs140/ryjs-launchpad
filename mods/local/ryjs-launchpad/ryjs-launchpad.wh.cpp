@@ -4,7 +4,7 @@
 // @name:zh-CN      流光启动台
 // @description     A fullscreen Start replacement with expanded groups, free group layout, manual and web entries, themes, bilingual UI and instant search
 // @description:zh-CN 全屏应用启动器：展开分组、自由分组布局、手动与网址入口、主题、中英双语与即时搜索
-// @version         1.5.8
+// @version         1.5.9
 // @author          Fangyu Guo (ryjs)
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
@@ -224,20 +224,30 @@ Clicking outside the icons or switching to another window closes it.
 ## Data and network
 - No telemetry and no analytics. Lumiflow does not send anything anywhere except
   the requests described next.
-- Website icon requests run when the launcher finds a web entry without a
-  cached icon or you ask to refresh it. The page is read to find its declared icon, with
-  `/favicon.ico` as the fallback. Declared icons can be hosted on a different
-  server than the page you entered (a CDN or a third party). Requests have time
-  limits and a size cap, are sent without cookies, and the result is cached in
-  the mod's storage. Nothing is uploaded. Set a custom icon for the entry and
-  no request is made for it.
+- Website icon requests run after an app-list load whenever the launcher finds a
+  web entry without a cached icon, including the first automatic load after
+  Explorer starts and even if you never open the launcher. This includes direct
+  web entries and eligible `.url` / browser-shortcut entries discovered on the
+  Desktop and Public Desktop. Saving or manually refreshing an entry also
+  requests its icon. **Background website icon download** in Settings > Help
+  turns the automatic app-list requests off; saving and manual refresh still
+  download, and cached icons still work. The default is on.
+  The page is read to find its declared icon, with `/favicon.ico` as the
+  fallback. Declared icons can be hosted on a different server than the page
+  you entered (a CDN, a third party, or a private/intranet host). Requests have
+  time limits and a size cap, are sent without cookies or automatic credentials,
+  and the result is cached in the mod's storage. Nothing is uploaded. Set a
+  custom icon for the entry and no request is made for it.
 - Layouts, groups, entries, icons and settings stay in Windhawk's per-mod
   storage folder on this PC. Scratch files (the exported Start layout and the
   backup worker) live in a `tmp` folder next to it and are removed when the
   work is done. The optional full backup writes a `.ryjs.zip`
-  file only where you choose, and import restores data, never code. Running a
-  Store app as administrator uses a temporary shortcut in that same `tmp`
-  folder; it is deleted after the launch.
+  file only where you choose. Import never executes archive code or binaries;
+  it does restore app entries with their targets and arguments, and the
+  confirmation lists every imported launch target. The Start-button and Win-key
+  actions and the configured program command remain as they are on this PC.
+  Running a Store app as administrator uses a temporary shortcut in that same
+  `tmp` folder; it is deleted after the launch.
 
 ## Credits
 - [Fullscreen Start (Launchpad style)](https://windhawk.net/mods/fullscreen-start)
@@ -871,6 +881,12 @@ SOFTWARE.
     pointer moves away from the icon centre. At 80, a small movement lights the facing edge.
   $name:zh-CN: 光效触发距离
   $description:zh-CN: 设置指针在应用图标外多远仍可触发光效，以及离开图标中心时边缘的响应速度。调到 80 后，稍微移动指针即可点亮对应方向的边缘。
+- webIconBackgroundFetch: true
+  $name: Background website icon download
+  $description: Fetch missing icons for websites and desktop URL shortcuts after the app list loads. Turn off to
+    allow downloads only when you save or manually refresh an entry; cached icons still work.
+  $name:zh-CN: 后台下载网站图标
+  $description:zh-CN: 应用列表加载后，为网站及桌面 URL 快捷方式获取缺失图标。关闭后仅在保存条目或手动刷新时联网下载；已缓存图标仍可使用。
 */
 // ==/WindhawkModSettings==
 
@@ -1046,7 +1062,8 @@ namespace {
 
 using launchpad_i18n::Tr;
 
-#include "launchpad_lifecycle.h"
+// Start-button reset messages are handled synchronously by a taskbar-window
+// subclass. No module lambda is queued on another thread's dispatcher.
 
 #ifdef SEAMLESS_PREVIEW
 constexpr WCHAR kWindowClass[] = L"RYJSLaunchpadPreview";
@@ -1228,6 +1245,7 @@ struct Settings {
     AppSource source = AppSource::AllApps;
     std::wstring monitor = L"mouse";
     std::wstring program;
+    bool webIconBackgroundFetch = true;
     bool powerBar = true;
     bool powerShown[std::size(kPower)] = {true, true, true, true, true, true};  // By action ID.
     PowerOrder powerOrder = DefaultPowerOrder();
@@ -1389,6 +1407,7 @@ void LoadSettings() {
                                      : AppSource::AllApps;
     s.monitor = GetStringSetting(L"monitor");
     s.program = GetStringSetting(L"program");
+    s.webIconBackgroundFetch = IntSetting(L"webIconBackgroundFetch", 1) != 0;
     s.powerBar = IntSetting(L"powerBar", 1) != 0;
     s.powerOrder = ParsePowerOrder(GetStringSetting(L"powerOrder"));
     for (int i : DefaultPowerOrder()) {
@@ -3191,6 +3210,9 @@ void ResetTarget() {
     // These cache device-dependent bitmaps. They must go before the device is
     // dropped, or a lost device stays alive through the cache and the next
     // generation can sample a texture that belongs to the old one.
+    for (const auto& app : g_apps) {
+        if (app) app->bitmap.Reset();
+    }
     ReleaseMaterial();
     ReleasePanelBlur();
     ClearGroupTitleRenders();
@@ -3698,25 +3720,30 @@ static UINT32 LegacyPresetTint(const std::wstring& id) {
 }
 
 static void MigrateLegacyPresetTint() {
+    static bool attempted = false;
+    if (attempted || Wh_GetIntValue(L"legacyPresetTintMigrated", 0)) return;
+    attempted = true;
+    if (g_dataReadOnly) return; // Never turn migration into a read-only write.
     const UINT32 legacy = LegacyPresetTint(GetStringSetting(L"materialPreset"));
-    if (!legacy) return;
-    const UINT32 stored = launchpad_material::RgbFromColor(
-        ParseColor(GetStringSetting(L"tintColor"), launchpad_material::ColorFromRgb(0)));
-    if (stored != legacy) return;
+    const UINT32 stored = legacy ? launchpad_material::RgbFromColor(
+        ParseColor(GetStringSetting(L"tintColor"), launchpad_material::ColorFromRgb(0))) : 0;
+    if (legacy && stored == legacy) {
 #ifndef SEAMLESS_PREVIEW
-    std::wstring host = WindhawkUtils::StringSetting::make(L"tintColor").get();
-    launchpad_settings_store::Save(StoragePath(L"ui-settings.ini"),
-                                   {{L"tintColor", L"#000000", host}});
+        std::wstring host = WindhawkUtils::StringSetting::make(L"tintColor").get();
+        launchpad_settings_store::Save(StoragePath(L"ui-settings.ini"),
+                                       {{L"tintColor", L"#000000", host}});
 #endif
-    // Light/dark/system themes paint their own base tint after the fields load;
-    // only a custom theme follows this value at runtime.
-    if (g_settings.theme != L"light" && g_settings.theme != L"dark" &&
-        g_settings.theme != L"system")
-        g_settings.tint = launchpad_material::ColorFromRgb(0);
+        // Light/dark/system themes paint their own base tint after fields load.
+        if (g_settings.theme != L"light" && g_settings.theme != L"dark" &&
+            g_settings.theme != L"system")
+            g_settings.tint = launchpad_material::ColorFromRgb(0);
+    }
+    // One process- and installation-wide attempt only. A later user choice that
+    // happens to equal a legacy preset colour is a real choice, not residue.
+    Wh_SetIntValue(L"legacyPresetTintMigrated", 1);
 }
 
 void SyncMaterialFromSettings() {
-    MigrateLegacyPresetTint();
     g_material.backend = g_settings.backend;
     g_material.params = g_settings.material;
     g_material.params.tint = g_settings.tint;
@@ -9208,6 +9235,7 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Number, L"powerShadowOpacity", L"Power icon shadow opacity", L"Shadow strength behind the power dock glyphs. It is separate from the text shadow.", L"72", {}, 0, 100, 3, L"Power icon shadow"},
 {K::Number, L"powerShadowBlur", L"Power icon shadow blur", L"Blur radius for the power dock glyphs, at 100% display scaling.", L"2", {}, 0, 6, 3, L"Power icon shadow"},
 {K::Number, L"glowDistance", L"Glow trigger distance", L"Sets how far the nearest app icon reacts outside its bounds and how quickly its rim lights as the pointer moves away from the icon centre. At 80, a small movement lights the facing edge.", L"24", {}, 0, 80, 2, L"Appearance"},
+{K::Check, L"webIconBackgroundFetch", L"Background website icon download", L"Fetch missing icons for websites and desktop URL shortcuts after the app list loads. Turn off to allow downloads only when you save or manually refresh an entry; cached icons still work.", L"1", {}, 0, 100, 3, L"Network"},
 // Custom settings end
 {K::Choice, L"interfaceLanguage", L"Interface language", L"Follow Windows display language. Save to apply; app names stay unchanged.", L"auto", {{L"auto", L"Automatic (Windows)"}, {L"zh-CN", L"Simplified Chinese"}, {L"en", L"English"}}, 0, 100, 2, L"Language"},
 {K::Choice, L"uiFont", L"Interface font", L"Choose a locally installed font. Applies to text only; symbol icons use their own font.", L"auto", {{L"auto", L"Automatic (language default)"}}, 0, 100, 2, L"Typography"},
@@ -9379,6 +9407,7 @@ struct SetWindow {
     int deskW = 0, deskH = 0;
     RECT deskVirtual{};
     SetCom<ID2D1Bitmap> deskBitmap;
+    SetCom<ID2D1Bitmap> mark;
     SetCom<ID2D1RoundedRectangleGeometry> roundGeo;
     SetCom<ID2D1Layer> roundLayer;
     ID2D1RenderTarget* roundTarget = nullptr;
@@ -10584,13 +10613,12 @@ static void Set_DrawMark(SetPaint& p, IDWriteTextFormat* glyph, const D2D1_RECT_
     (void)glyph;
     if (alpha <= 0.001f || s <= 0) return;
     if (!appIcon) {
-        static ID2D1RenderTarget* cachedTarget = nullptr;
-        static ComPtr<ID2D1Bitmap> cachedBitmap;
-        if (cachedTarget != p.rt) {
-            cachedTarget = p.rt;
-            cachedBitmap = CreateAppIconBitmap(p.rt);
+        // Per-window ownership, released together with that render target.
+        if (!p.w.mark) {
+            auto icon = CreateAppIconBitmap(p.rt);
+            if (icon) *p.w.mark.put() = icon.Detach();
         }
-        appIcon = cachedBitmap.Get();
+        appIcon = p.w.mark.get();
     }
     if (appIcon) {
         p.rt->DrawBitmap(appIcon, r, alpha, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
@@ -11580,8 +11608,16 @@ static bool Set_PickMaterialFile(SetWindow& w, bool save, std::wstring& path) {
         std::wstring suggest = w.userPresets.front().name + L".ryjsm";
         wcscpy_s(file, suggest.c_str());
     }
-    std::wstring filter = std::wstring(Tr(L"Lumiflow material (*.ryjsm)")) + L'\0' +
-                          L"*.ryjsm\0JSON (*.json)\0*.json\0";
+    // Each embedded NUL is appended explicitly: std::wstring(c_str()) would
+    // stop at the first one. c_str() supplies the final extra NUL.
+    std::wstring filter = Tr(L"Lumiflow material (*.ryjsm)");
+    auto filterPart = [&filter](const wchar_t* text) {
+        filter.append(text);
+        filter.push_back(L'\0');
+    };
+    filterPart(L"*.ryjsm");
+    filterPart(L"JSON (*.json)");
+    filterPart(L"*.json");
     OPENFILENAMEW ofn{};
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = w.owner ? w.owner : w.hwnd;
@@ -11961,6 +11997,7 @@ static void Set_ReleaseRt(SetWindow& w) {
     w.rt.reset();
     w.dcRt.reset();
     w.deskBitmap.reset();
+    w.mark.reset();
     w.roundLayer.reset();
     w.roundGeo.reset();
     w.roundTarget = nullptr;
@@ -14445,7 +14482,8 @@ void OnAppsLoaded(AppList* list, int key) {
     LoadTiles();
     ApplyCustomIcons(key & 0xFFFF);
     for (const auto& app : g_apps)
-        if (app->pixels.empty() && !g_customIcons.count(AppKey(*app))) StartWebIconFetch(*app);
+        if (g_settings.webIconBackgroundFetch && !g_webStop && app->pixels.empty() &&
+            !g_customIcons.count(AppKey(*app))) StartWebIconFetch(*app);
     if (key != AppsKey()) {
         // The settings changed while this list was read: the reload then
         // found the worker busy. It has posted and is about to end.
@@ -15551,7 +15589,8 @@ BOOL Wh_ModInit() {
     // A differently named DLL must not stack a second Start interceptor on a
     // known running predecessor. Never disable or unload that mod for the user.
     if (FindWindowW(L"WindhawkSeamlessLaunchpad", nullptr) ||
-        FindWindowW(L"WindhawkFullscreenStartPlus", nullptr)) {
+        FindWindowW(L"WindhawkFullscreenStartPlus", nullptr) ||
+        FindWindowW(L"WindhawkFullscreenStart", nullptr)) {
         Wh_Log(L"Another launcher is running. Disable it before enabling Lumiflow; original data was not changed.");
         return FALSE;
     }
@@ -15577,22 +15616,23 @@ BOOL Wh_ModInit() {
         Wh_Log(L"Lumiflow storage is damaged or unsupported; opening read-only.");
     }
     LoadSettings();
+    if (!EnsureStartLatchSubclass()) {
+        Wh_Log(L"The taskbar reset subclass is required; Start was not replaced");
+        CloseHandle(g_integrationLease); g_integrationLease = nullptr;
+        return FALSE;
+    }
     if (!HookShowStartView()) {
+        RemoveStartLatchSubclass();
         CloseHandle(g_integrationLease); g_integrationLease = nullptr;
         return FALSE;
     }
     HookXamlStartVisibility();
-    // Created before the launcher thread and before Windhawk applies the XAML
-    // hooks (it does that after Wh_ModInit returns), and closed after the last
-    // queued reset is done (Wh_ModUninit).
-    g_startLatchIdle = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    if (!g_startLatchIdle) Wh_Log(L"No start-latch event; unload cannot wait for a queued reset");
     g_readyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     g_thread = CreateThread(nullptr, 0, StartThread, nullptr, 0, nullptr);
     if (!g_thread) {
         CloseHandle(g_readyEvent);
         g_readyEvent = nullptr;
-        if (g_startLatchIdle) { CloseHandle(g_startLatchIdle); g_startLatchIdle = nullptr; }
+        RemoveStartLatchSubclass();
         CloseHandle(g_integrationLease); g_integrationLease = nullptr;
         return FALSE;
     }
@@ -15604,23 +15644,21 @@ BOOL Wh_ModInit() {
 void Wh_ModBeforeUninit() {
     Wh_Log(L">");
 
-    // Windhawk still has the mod's hooks installed here. Closing the gate now
-    // means no new XAML latch reset can be queued; the ones already queued are
-    // counted and drained in Wh_ModUninit. Hooks are removed right after this
-    // returns, so no new caller can appear once the drain starts.
-    g_startLatchStopping = true;
+    // Hooks still exist here. Closing the gate and synchronously removing the
+    // subclass prevents any new reset from entering module code. Removal joins
+    // any reset that is already executing on the taskbar thread.
+    RemoveStartLatchSubclass();
 }
 
 void Wh_ModUninit() {
     Wh_Log(L">");
 
-    // Defensive: normally Wh_ModBeforeUninit has already closed the gate.
-    g_startLatchStopping = true;
+    // Defensive: Wh_ModBeforeUninit normally removed this already. This call is
+    // synchronous and leaves neither a queued module callback nor a module pin.
+    RemoveStartLatchSubclass();
     if (!g_thread) {
         CloseSettingsWindow();
         if (g_integrationLease) { CloseHandle(g_integrationLease); g_integrationLease = nullptr; }
-        ForgetStartButton();
-        if (g_startLatchIdle) { CloseHandle(g_startLatchIdle); g_startLatchIdle = nullptr; }
         return;
     }
     if (g_keyThread) {
@@ -15640,24 +15678,8 @@ void Wh_ModUninit() {
     g_thread = nullptr;
     CloseHandle(g_readyEvent);
     g_readyEvent = nullptr;
-    // Invariant for the drain: the hooks are gone (Windhawk removes them after
-    // Wh_ModBeforeUninit returns) and the launcher thread is joined, so no new
-    // unit of latch work can start. Everything already counted -- a hook still
-    // inside ClearStartButtonLatch and every queued lambda -- is released by
-    // its owner, so the count can only fall.
-    // A dispatcher that never runs its callback leaves it above zero: the
-    // taskbar thread is then gone or blocked for longer than the timeout, and
-    // the image must stay mapped (see PinModuleForStartLatch).
-    bool latchDrained = WaitForStartLatchResets(5000);
-    ForgetStartButton();
-    if (g_startLatchIdle) {
-        // Only close when nothing can still signal it. In the pinned case a
-        // callback is still holding the old counter, and closing the handle
-        // under it would let a recycled handle number be signalled instead.
-        if (latchDrained) CloseHandle(g_startLatchIdle);
-        g_startLatchIdle = nullptr;
-    }
-    if (!latchDrained) PinModuleForStartLatch();
+    // All module callbacks are joined: hooks were removed by Windhawk, the
+    // taskbar subclass was synchronously removed, and the launcher is joined.
     // Sleep and hibernate return only after the PC wakes; every other action
     // returns at once, so this join cannot hang a normal unload.
     if (g_powerThread) {

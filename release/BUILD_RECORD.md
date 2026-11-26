@@ -1,4 +1,4 @@
-# Build record (1.5.8)
+# Build record (1.5.9)
 
 Date: 2026-11-26
 
@@ -7,10 +7,10 @@ Artifact: `ryjs-launchpad.wh.cpp` (repository root) and
 
 | Item | Value |
 | --- | --- |
-| Version | 1.5.8 |
-| Lines | 21,392 |
-| Bytes | 1,119,813 |
-| SHA256 | `6915160ece5672b1f6723b49010dfc914036652efde3bfeb7f5258b2642ae2a3` |
+| Version | 1.5.9 |
+| Lines | 21,400 |
+| Bytes | 1,121,277 |
+| SHA256 | `d2769a1ef10620d7428766289b31c88048f3a6035bfc51b921831f12d6099768` |
 | Declared architecture | x86-64 |
 | Official validator | 0 problems |
 | Official compile | 0 problems |
@@ -60,17 +60,17 @@ Requires PyYAML 6.0.3. This record used `py -3.12`.
 
 | Check | Result |
 | --- | --- |
-| Official metadata validator, current upstream `main` (`7628a65`) | `ok: true`, 0 problems |
-| Official compile script, current upstream `main` | `ok: true`, 0 problems |
+| Official metadata validator | `ok: true`, 0 problems |
+| Official compile script | `ok: true`, 0 problems |
 | Local x64 module compile | PASS |
 | Local preview compile | PASS |
-| Longest physical line | 2,282 characters (limit 4,096) |
+| Longest physical line | 2,313 characters (limit 4,096) |
 | `Wh_ModInit`, `Wh_ModBeforeUninit`, `Wh_ModUninit`, `Wh_ModSettingsChanged` scope | global namespace, 0 validator errors |
-| Root file and `release/mods/` copy | SHA256 identical |
+| Root file, `build/` output and `release/mods/` copy | SHA256 identical |
 | Local `#include` directives in the artifact | 0 |
-| Feature checks | 612 checks, 0 failures |
-| Phase-one checks | 25 + 35 checks, 0 failures; 5 Python backup tests OK |
-| Full-backup checks | 28 checks, 0 failures; 12 Python full-backup tests OK |
+| Feature checks | 602 checks, 0 failures |
+| Phase-one checks | 25 + 37 checks, 0 failures; 5 Python backup tests OK |
+| Full-backup checks | 28 checks, 0 failures; 13 Python full-backup tests OK |
 | Offscreen smoke test | PASS; three repeated `--smoke` runs exited 0 |
 
 ## Notes

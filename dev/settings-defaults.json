@@ -83,5 +83,6 @@
   "materialNoiseScale": "100",
   "powerShadowOpacity": "72",
   "powerShadowBlur": "2",
-  "glowDistance": "24"
+  "glowDistance": "24",
+  "webIconBackgroundFetch": "1"
 }

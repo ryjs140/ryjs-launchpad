@@ -231,11 +231,8 @@ void StartWebIconFetch(const App& app,bool refresh=false,bool reportFailure=fals
 }
 void OnWebIconReady(WebIconResult* payload) {
     std::unique_ptr<WebIconResult> result(payload);
-    // The worker can post before its handle becomes signaled.
-    for(auto worker:g_webWorkers)if(GetThreadId(worker)==result->threadId) {
-        WaitForSingleObject(worker,INFINITE);
-        break;
-    }
+    // Result ownership transferred with the message; never resolve a worker by
+    // a reusable thread ID or block the UI waiting for a thread to exit.
     PumpWebIcons();
     if(g_customIcons.count(result->key))return;
     for(const auto& app:g_apps)if(AppKey(*app)==result->key&&app->websiteUrl==result->url) {

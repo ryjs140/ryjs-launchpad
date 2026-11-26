@@ -1,5 +1,14 @@
 # Changes
 
+## 1.5.9
+
+- Replace the queued XAML Start-button reset with a registered message handled by `WindhawkUtils::SetWindowSubclassFromAnyThread` on `Shell_TrayWnd`. Unload synchronously removes the subclass and joins any active reset; there is no queued module lambda, five-second timeout or permanent module pin.
+- Add **Background website icon download** (on by default) to stop automatic app-list icon requests while retaining cached icons and explicit save/manual refresh downloads. Document first-load and Desktop/Public Desktop shortcut requests, third-party/intranet icon hosts, and the absence of cookies or automatic credentials. A missing/corrupt cache no longer erases an already loaded shell icon.
+- Full-backup import now preserves this PC's Start-button and Win-key actions and program command. Its confirmation lists every imported entry target and arguments; archive code and binaries are still never installed or executed.
+- Move the settings title-mark bitmap into `SetWindow` and release it with the window render target, removing function-static COM destruction and stale D2D resource-domain reuse.
+- Build the material import/export file filter with explicit embedded NULs so both `.ryjsm` and `.json` filters reach the Windows dialog safely.
+- Release every app D2D bitmap on device loss; stop resolving completed web-icon workers by reusable thread IDs; cap persisted group grid geometry; run legacy tint migration once, without per-frame settings reads or read-only writes.
+
 ## 1.5.8
 
 - Release audit fixes. The settings window now releases its memory DC and DIB on `WM_NCDESTROY`, so repeated open/close cycles no longer accumulate GDI objects; a failed creation also cleans the brush and owned window.

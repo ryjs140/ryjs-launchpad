@@ -127,7 +127,7 @@ bool LoadGroupPositions(const std::wstring& backup={}) {
             int* fields[]{&p.gridX,&p.gridY,&p.gridW,&p.gridH};
             for(int j=0;j<4&&valid;j++) {
                 float value=0;
-                valid=PositionNumber(r[10+j],value)&&value==std::floor(value);
+                valid=PositionNumber(r[10+j],value)&&value==std::floor(value)&&value<=4096;
                 if(valid)*fields[j]=(int)value;
             }
             if(v4&&valid) {

@@ -54,10 +54,12 @@ void ForgetStartButton() {
     StartButtonLock lock;
     std::swap(previous, g_startButtonReference);
 }
-// A queued reset is a lambda in this image, so it may not outlive the module.
-// The counter, the gate and the drain live in launchpad_lifecycle.h; the gate
-// is closed in Wh_ModBeforeUninit and Wh_ModUninit waits for the count.
-// The body runs on the thread that owns the element.
+// Reset work is posted as a plain registered message to Shell_TrayWnd, whose
+// thread owns the XAML taskbar. A Windhawk subclass runs that message
+// synchronously; removing it during unload is a synchronous join point.
+std::atomic<HWND> g_startLatchWindow{nullptr};
+std::atomic<bool> g_startLatchStopping{false};
+UINT g_startLatchMessage = 0;
 static void ClearStartButtonLatchNow(const winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton& element,const wchar_t* why) {
     try {
         auto checked=element.IsChecked();
@@ -85,34 +87,65 @@ static void ClearStartButtonLatchNow(const winrt::Windows::UI::Xaml::Controls::P
         StartStateTrace(why,latch?0:-1,element.IsPressed(),element.IsPointerOver(),focus);
     } catch(...) {}
 }
+LRESULT CALLBACK StartLatchSubclassProc(HWND hwnd, UINT message, WPARAM wParam,
+                                        LPARAM lParam, DWORD_PTR) {
+    if (message == WM_NCDESTROY && g_startLatchWindow.load() == hwnd)
+        g_startLatchWindow = nullptr;
+    if (message == g_startLatchMessage && g_startLatchMessage != 0 && !g_startLatchStopping.load()) {
+        auto reference = StartButtonReferenceForReset();
+        try {
+            // Defend against a taskbar implementation whose XAML thread is
+            // not Shell_TrayWnd's thread: never touch XAML from the wrong one.
+            if (reference.dispatcher && reference.dispatcher.HasThreadAccess()) {
+                if (auto element = reference.element.get())
+                    ClearStartButtonLatchNow(element, L"latch-taskbar-message");
+            } else {
+                Wh_Log(L"Start-latch reset skipped: the XAML dispatcher is on another thread");
+            }
+        } catch (...) {}
+        return 0;
+    }
+    return DefSubclassProc(hwnd, message, wParam, lParam);
+}
+bool EnsureStartLatchSubclass() {
+    if (g_startLatchStopping.load()) return false;
+    if (HWND current = g_startLatchWindow.load(); current && IsWindow(current)) return true;
+    HWND taskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
+    if (!taskbar) return false;
+    if (!g_startLatchMessage)
+        g_startLatchMessage = RegisterWindowMessageW(L"Lumiflow.ClearStartButtonLatch.ryjs-launchpad");
+    if (!g_startLatchMessage) return false;
+    if (WindhawkUtils::SetWindowSubclassFromAnyThread(taskbar, StartLatchSubclassProc, 0)) {
+        g_startLatchWindow = taskbar;
+        return true;
+    }
+    Wh_Log(L"Could not subclass Shell_TrayWnd for Start-latch reset: %u", GetLastError());
+    return false;
+}
+void RemoveStartLatchSubclass() {
+    g_startLatchStopping = true;
+    HWND taskbar = g_startLatchWindow.exchange(nullptr);
+    if (taskbar && IsWindow(taskbar))
+        WindhawkUtils::RemoveWindowSubclassFromAnyThread(taskbar, StartLatchSubclassProc);
+    ForgetStartButton();
+}
 void ClearStartButtonLatch(const wchar_t* why) {
-    // The call itself is one unit of work: it runs module code right now, on a
-    // hook thread that can still be inside this function when the unload
-    // starts. Counting it is what stops the drain from seeing zero while this
-    // thread has not even reached the queue yet.
-    StartLatchTicket invocation;
     if (g_startLatchStopping.load() || g_nativeStartPassthrough.load()) return;
-    auto reference = StartButtonReferenceForReset();
-    if (!reference.dispatcher) return;
-    g_startLatchPending.fetch_add(1);
-    if (g_startLatchStopping.load()) {
-        FinishStartLatchReset();
+    if (!EnsureStartLatchSubclass()) {
+        // If the caller already owns the XAML object, a synchronous reset is
+        // safe and preserves the existing Start-button behavior. Never queue
+        // module code as a fallback when the subclass cannot be installed.
+        auto reference = StartButtonReferenceForReset();
+        try {
+            if (reference.dispatcher && reference.dispatcher.HasThreadAccess()) {
+                if (auto element = reference.element.get()) ClearStartButtonLatchNow(element, why);
+            }
+        } catch (...) {}
         return;
     }
-    try {
-        reference.dispatcher.RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,
-            [weak = std::move(reference.element), why]() {
-                struct Release { ~Release() { FinishStartLatchReset(); } } release;
-                // A reset queued before Ctrl+Esc may run after native Start
-                // takes ownership. Leave its checked and focus states alone.
-                if (g_nativeStartPassthrough.load()) return;
-                try {
-                    if (auto element = weak.get()) ClearStartButtonLatchNow(element, why);
-                } catch (...) {}
-            });
-    } catch (...) {
-        FinishStartLatchReset();
-    }
+    HWND taskbar = g_startLatchWindow.load();
+    if (taskbar && !PostMessageW(taskbar, g_startLatchMessage, 0, 0))
+        Wh_Log(L"Could not post Start-latch reset: %u", GetLastError());
 }
 winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton StartToggleElement(void* object) {
     try {

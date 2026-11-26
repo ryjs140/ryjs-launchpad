@@ -32,6 +32,18 @@ function Decode-Entry([string]$value) {
     if ($value -cmatch '%(?!(25|09|0A|0D))') { throw 'Invalid entry encoding.' }
     return $value.Replace('%09',"`t").Replace('%0A',"`n").Replace('%0D',"`r").Replace('%25','%')
 }
+function Read-EntryRecords([byte[]]$bytes) {
+    $records=@()
+    if ($null -eq $bytes) { return $records }
+    $text=$utf8.GetString($bytes).TrimStart([char]0xFEFF)
+    foreach ($line in ($text -split '\r?\n')) {
+        $f=$line.Split("`t")
+        if ($f.Count -eq 7 -and $f[0] -eq 'entry') {
+            $records+=@{name=(Decode-Entry $f[4]);target=(Decode-Entry $f[3]);arguments=(Decode-Entry $f[5])}
+        }
+    }
+    return $records
+}
 function Read-Ini([byte[]]$bytes) {
     $text = if ($bytes.Length -ge 2 -and $bytes[0] -eq 255 -and $bytes[1] -eq 254) {
         [Text.Encoding]::Unicode.GetString($bytes,2,$bytes.Length-2)
@@ -376,6 +388,9 @@ function Import-Complete($checked) {
         [IO.File]::WriteAllText($iconFile,($lines -join "`r`n")+"`r`n",$utf8)
     }
     $effective=Object-Map $checked.manifest.effective_settings
+    # These settings turn a key/button into command execution. An imported
+    # archive must not silently arm them; retain this PC's current host values.
+    foreach ($key in @('program','winKeyAction','shiftWinKeyAction','startButtonAction')) { $effective.Remove($key) }
     $ui=Join-Path $stage 'ui-settings.ini'
     if (Test-Path -LiteralPath $ui) { [IO.File]::Copy($ui,(Join-Path $stage 'import-original-ui-settings.ini'),$true) }
     $text="[meta]`r`nversion=1`r`n"
@@ -407,7 +422,18 @@ try {
         else {
             $source=[string]$checked.manifest.source_mod
             $version=[string]$checked.manifest.version
-            $result=@{summary=($source+' '+$version+"`r`n"+$checked.files.Count+' files');hash=$checked.hash;previous=''}
+            $summary=$source+' '+$version+"`r`n"+$checked.files.Count+' files'
+            $summary+="`r`nStart-button / Win-key actions and the program command stay as configured on this PC."
+            $entryLines=@()
+            foreach ($entry in @(Read-EntryRecords $checked.files['data/entries-v1.txt'])) {
+                $command=[string]$entry.target
+                if ($entry.arguments) { $command+=' '+[string]$entry.arguments }
+                $entryLines+=([string]$entry.name+' -> '+$command)
+            }
+            if ($entryLines.Count) {
+                $summary+="`r`nImported entry launch targets (nothing is executed during import):`r`n"+($entryLines -join "`r`n")
+            }
+            $result=@{summary=$summary;hash=$checked.hash;previous=''}
         }
     } else { throw 'Unknown backup operation.' }
     $resultText="[result]`r`nstatus=ok`r`nsummary="+(Encode-Value $result.summary)+"`r`nhash="+$result.hash+"`r`nprevious="+(Encode-Value $result.previous)+"`r`n"
@@ -416,7 +442,7 @@ try {
 }
 [IO.File]::WriteAllText((Join-Path $work 'result.ini'),$resultText,[Text.Encoding]::Unicode)
 )RYJS_BACKUP";
-constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "globalColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "glowStrength": "60", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "powerWarning": "1", "powerWarningActions.lock": "0", "powerWarningActions.signOut": "1", "powerWarningActions.sleep": "0", "powerWarningActions.hibernate": "0", "powerWarningActions.restart": "1", "powerWarningActions.shutDown": "1", "powerWarningFollow": "mouse", "powerWarningColor": "#A91223", "powerWarningStrength": "78", "powerWarningSpread": "100", "powerWarningEdge": "65", "powerWarningBleed": "15", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "0", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "backgroundDim": "0", "launchpadAnimation": "iconFlyIn", "powerOrder": "lock,signOut,sleep,hibernate,restart,shutDown", "textShadowOpacity": "72", "textShadowBlur": "2", "textOutlineOpacity": "75", "textOutlineWidth": "1", "materialPreset": "Default", "materialPresetName": "", "materialUserPresets": "", "materialBlur": "36", "materialSaturation": "100", "materialBrightness": "100", "materialContrast": "100", "materialLuminosity": "0", "materialNoise": "0", "materialNoiseScale": "100", "powerShadowOpacity": "72", "powerShadowBlur": "2", "glowDistance": "24"})RYJS_DEFAULTS";
+constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "globalColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "glowStrength": "60", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "powerWarning": "1", "powerWarningActions.lock": "0", "powerWarningActions.signOut": "1", "powerWarningActions.sleep": "0", "powerWarningActions.hibernate": "0", "powerWarningActions.restart": "1", "powerWarningActions.shutDown": "1", "powerWarningFollow": "mouse", "powerWarningColor": "#A91223", "powerWarningStrength": "78", "powerWarningSpread": "100", "powerWarningEdge": "65", "powerWarningBleed": "15", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "0", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "backgroundDim": "0", "launchpadAnimation": "iconFlyIn", "powerOrder": "lock,signOut,sleep,hibernate,restart,shutDown", "textShadowOpacity": "72", "textShadowBlur": "2", "textOutlineOpacity": "75", "textOutlineWidth": "1", "materialPreset": "Default", "materialPresetName": "", "materialUserPresets": "", "materialBlur": "36", "materialSaturation": "100", "materialBrightness": "100", "materialContrast": "100", "materialLuminosity": "0", "materialNoise": "0", "materialNoiseScale": "100", "powerShadowOpacity": "72", "powerShadowBlur": "2", "glowDistance": "24", "webIconBackgroundFetch": "1"})RYJS_DEFAULTS";
 std::wstring_view DeclaredSettingDefault(std::wstring_view key) {
     static constexpr std::pair<std::wstring_view, std::wstring_view> defaults[] = {
         {L"animationEasing", L"settle"},
@@ -502,6 +528,7 @@ std::wstring_view DeclaredSettingDefault(std::wstring_view key) {
         {L"tintColor", L"#000000"},
         {L"uiFont", L"auto"},
         {L"verticalSpacing", L"16"},
+        {L"webIconBackgroundFetch", L"1"},
         {L"wiggle", L"1"},
         {L"winKeyAction", L"grid"},
     };

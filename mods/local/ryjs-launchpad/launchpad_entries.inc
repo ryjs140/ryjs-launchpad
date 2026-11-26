@@ -115,13 +115,16 @@ std::wstring WebIconPath(const std::wstring& key) {
     return StoragePath(name);
 }
 bool LoadWebsiteIcon(int size, App& app) {
-    app.pixels.clear();
-    app.iconSize = 0;
+    auto path = WebIconPath(AppKey(app) + L"|" + app.websiteUrl);
+    if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) return false;
+    // A missing/corrupt cache must not erase the shell icon already loaded.
+    App decoded;
+    if (!LoadIconFile(path, size, decoded, false)) return false;
+    app.pixels = std::move(decoded.pixels);
+    app.iconSize = decoded.iconSize;
     app.bitmap.Reset();
     app.generation = 0;
-    auto path = WebIconPath(AppKey(app) + L"|" + app.websiteUrl);
-    return GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES &&
-           LoadIconFile(path, size, app, false);
+    return true;
 }
 
 void ReloadEntryIcon(int size, App& app) {
