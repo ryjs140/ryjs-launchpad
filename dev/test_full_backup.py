@@ -156,6 +156,57 @@ class FullBackupTests(unittest.TestCase):
             self.assertEqual(settings[key], safe[key], key)
         self.assertIn(r'C:\Remote\server.rdp', (destination / 'entries-v1.txt').read_text(encoding='utf-8'))
 
+    def test_import_keeps_this_pc_private_shortcut_overrides(self):
+        self.exported()
+        def inject_shortcut_commands(manifest, _files):
+            manifest['effective_settings'].update({
+                'program': r'C:\Untrusted\payload.exe --imported',
+                'winKeyAction': 'program',
+                'shiftWinKeyAction': 'program',
+                'startButtonAction': 'program',
+            })
+        self.rewrite(inject_shortcut_commands)
+        checked = self.run_job('inspect')
+        self.assertEqual(checked['status'], 'ok', checked)
+        host = {
+            **self.host,
+            'program': '',
+            'winKeyAction': 'grid',
+            'shiftWinKeyAction': 'start',
+            'startButtonAction': 'grid',
+        }
+        local = {
+            'program': r'C:\Mine\local.exe --mine',
+            'winKeyAction': 'program',
+            'shiftWinKeyAction': 'grid',
+            'startButtonAction': 'program',
+        }
+        # startButtonAction's private value was saved against "start", but its
+        # Windhawk value is now "grid": that edit already wins, so the stale
+        # override must not come back with the import.
+        baselines = {**{key: host[key] for key in local}, 'startButtonAction': 'start'}
+        destination = self.root / 'private-shortcut-destination'
+        destination.mkdir()
+        text = '[meta]\nversion=1\n'
+        for section in ('host', 'values', 'present'):
+            text += f'[{section}]\n'
+            for key, value in local.items():
+                if section == 'host':
+                    written = baselines[key]
+                elif section == 'values':
+                    written = value
+                else:
+                    written = '1'
+                text += key + '=' + (layout_backup.encode(written) if section != 'present' else written) + '\n'
+        (destination / 'ui-settings.ini').write_text(text, encoding='utf-16')
+        restored = self.run_job('import', storage=str(destination), expected_hash=checked['hash'], host_settings=host)
+        self.assertEqual(restored['status'], 'ok', restored)
+        settings = layout_backup.effective_settings(destination, host)
+        self.assertEqual(settings['program'], local['program'])
+        self.assertEqual(settings['winKeyAction'], 'program')
+        self.assertEqual(settings['shiftWinKeyAction'], 'grid')
+        self.assertEqual(settings['startButtonAction'], 'grid')
+
     def test_legacy_schema_one_is_importable(self):
         original = layout_backup.registry_settings
         layout_backup.registry_settings = lambda mod: self.host

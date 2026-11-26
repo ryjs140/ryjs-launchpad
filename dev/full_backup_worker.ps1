@@ -389,7 +389,30 @@ function Import-Complete($checked) {
     $effective=Object-Map $checked.manifest.effective_settings
     # These settings turn a key/button into command execution. An imported
     # archive must not silently arm them; retain this PC's current host values.
+    # The private store may hold this PC's own overrides for them, which must
+    # survive the import exactly as if the archive had never touched them.
+    $localOverrides=@{}
+    $localSettingsPath=Join-Path $job.storage 'ui-settings.ini'
+    if (Test-Path -LiteralPath $localSettingsPath) {
+        $localIni=Read-Ini ([IO.File]::ReadAllBytes($localSettingsPath))
+        if ($localIni.ContainsKey('meta') -and $localIni['meta']['version'] -eq '1' -and
+            $localIni.ContainsKey('present') -and $localIni.ContainsKey('host') -and
+            $localIni.ContainsKey('values')) {
+            foreach ($key in @('program','winKeyAction','shiftWinKeyAction','startButtonAction')) {
+                if ($localIni['present'][$key] -ne '1') { continue }
+                if (!$localIni['host'].ContainsKey($key) -or !$localIni['values'].ContainsKey($key)) { continue }
+                $baseline=if ($hostSettings.ContainsKey($key)) { [string]$hostSettings[$key] } else { '' }
+                # A private value applies only while the Windhawk value it was
+                # saved against is still current. Otherwise the host value
+                # already wins, and importing a stale override would resurrect it.
+                if ((Decode-Value $localIni['host'][$key]) -ceq $baseline) {
+                    $localOverrides[$key]=Decode-Value $localIni['values'][$key]
+                }
+            }
+        }
+    }
     foreach ($key in @('program','winKeyAction','shiftWinKeyAction','startButtonAction')) { $effective.Remove($key) }
+    foreach ($key in $localOverrides.Keys) { $effective[$key]=$localOverrides[$key] }
     $ui=Join-Path $stage 'ui-settings.ini'
     if (Test-Path -LiteralPath $ui) { [IO.File]::Copy($ui,(Join-Path $stage 'import-original-ui-settings.ini'),$true) }
     $text="[meta]`r`nversion=1`r`n"

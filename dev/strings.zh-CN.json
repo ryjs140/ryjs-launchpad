@@ -475,5 +475,6 @@
   "The preview follows these controls; nothing is applied until Save.": "预览会随这些控件即时变化，保存前不会应用。",
   "Background website icon download": "后台下载网站图标",
   "Fetch missing icons for websites and desktop URL shortcuts after the app list loads. Turn off to allow downloads only when you save or manually refresh an entry; cached icons still work.": "应用列表加载后，为网站及桌面 URL 快捷方式获取缺失图标。关闭后仅在保存条目或手动刷新时联网下载；已缓存图标仍可使用。",
-  "Network": "网络"
+  "Network": "网络",
+  "Website icons": "网站图标"
 }

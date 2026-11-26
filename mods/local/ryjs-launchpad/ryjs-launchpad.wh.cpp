@@ -4,7 +4,7 @@
 // @name:zh-CN      流光启动台
 // @description     A fullscreen Start replacement with expanded groups, free group layout, manual and web entries, themes, bilingual UI and instant search
 // @description:zh-CN 全屏应用启动器：展开分组、自由分组布局、手动与网址入口、主题、中英双语与即时搜索
-// @version         1.5.9
+// @version         1.5.10
 // @author          Fangyu Guo (ryjs)
 // @github          https://github.com/ryjs140
 // @homepage        https://github.com/ryjs140/ryjs-launchpad
@@ -229,9 +229,10 @@ Clicking outside the icons or switching to another window closes it.
   Explorer starts and even if you never open the launcher. This includes direct
   web entries and eligible `.url` / browser-shortcut entries discovered on the
   Desktop and Public Desktop. Saving or manually refreshing an entry also
-  requests its icon. **Background website icon download** in Settings > Help
-  turns the automatic app-list requests off; saving and manual refresh still
-  download, and cached icons still work. The default is on.
+  requests its icon. **Background website icon download**, on the Grid page of
+  the built-in settings window (Website icons group) and on Windhawk's settings
+  page, turns the automatic app-list requests off; saving and manual refresh
+  still download, and cached icons still work. The default is on.
   The page is read to find its declared icon, with `/favicon.ico` as the
   fallback. Declared icons can be hosted on a different server than the page
   you entered (a CDN, a third party, or a private/intranet host). Requests have
@@ -9235,7 +9236,7 @@ static std::vector<SetField> Set_MakeFields() {
 {K::Number, L"powerShadowOpacity", L"Power icon shadow opacity", L"Shadow strength behind the power dock glyphs. It is separate from the text shadow.", L"72", {}, 0, 100, 3, L"Power icon shadow"},
 {K::Number, L"powerShadowBlur", L"Power icon shadow blur", L"Blur radius for the power dock glyphs, at 100% display scaling.", L"2", {}, 0, 6, 3, L"Power icon shadow"},
 {K::Number, L"glowDistance", L"Glow trigger distance", L"Sets how far the nearest app icon reacts outside its bounds and how quickly its rim lights as the pointer moves away from the icon centre. At 80, a small movement lights the facing edge.", L"24", {}, 0, 80, 2, L"Appearance"},
-{K::Check, L"webIconBackgroundFetch", L"Background website icon download", L"Fetch missing icons for websites and desktop URL shortcuts after the app list loads. Turn off to allow downloads only when you save or manually refresh an entry; cached icons still work.", L"1", {}, 0, 100, 3, L"Network"},
+{K::Check, L"webIconBackgroundFetch", L"Background website icon download", L"Fetch missing icons for websites and desktop URL shortcuts after the app list loads. Turn off to allow downloads only when you save or manually refresh an entry; cached icons still work.", L"1", {}, 0, 100, 1, L"Website icons"},
 // Custom settings end
 {K::Choice, L"interfaceLanguage", L"Interface language", L"Follow Windows display language. Save to apply; app names stay unchanged.", L"auto", {{L"auto", L"Automatic (Windows)"}, {L"zh-CN", L"Simplified Chinese"}, {L"en", L"English"}}, 0, 100, 2, L"Language"},
 {K::Choice, L"uiFont", L"Interface font", L"Choose a locally installed font. Applies to text only; symbol icons use their own font.", L"auto", {{L"auto", L"Automatic (language default)"}}, 0, 100, 2, L"Typography"},
@@ -15616,11 +15617,10 @@ BOOL Wh_ModInit() {
         Wh_Log(L"Lumiflow storage is damaged or unsupported; opening read-only.");
     }
     LoadSettings();
-    if (!EnsureStartLatchSubclass()) {
-        Wh_Log(L"The taskbar reset subclass is required; Start was not replaced");
-        CloseHandle(g_integrationLease); g_integrationLease = nullptr;
-        return FALSE;
-    }
+    // The Start-latch subclass is installed on demand, by ClearStartButtonLatch,
+    // when the first reset is requested. Wh_ModInit runs before Explorer creates
+    // Shell_TrayWnd, so requiring the window here would refuse to load on every
+    // sign-in and Explorer restart, not only in a race.
     if (!HookShowStartView()) {
         RemoveStartLatchSubclass();
         CloseHandle(g_integrationLease); g_integrationLease = nullptr;
@@ -15676,6 +15676,15 @@ void Wh_ModUninit() {
     WaitForSingleObject(g_thread, INFINITE);
     CloseHandle(g_thread);
     g_thread = nullptr;
+    // A HideNow that passed the stopping gate just before it closed could still
+    // have reinstalled the subclass after RemoveStartLatchSubclass, leaving
+    // Explorer to call into this image once it is unloaded. The launcher thread
+    // is joined now, so nothing can request a reset any more: look the taskbar
+    // up again and remove the subclass a last time. Removing one that is not
+    // installed does nothing.
+    if (HWND taskbar = FindWindowW(L"Shell_TrayWnd", nullptr))
+        WindhawkUtils::RemoveWindowSubclassFromAnyThread(taskbar, StartLatchSubclassProc);
+    g_startLatchWindow = nullptr;
     CloseHandle(g_readyEvent);
     g_readyEvent = nullptr;
     // All module callbacks are joined: hooks were removed by Windhawk, the

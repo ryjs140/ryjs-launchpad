@@ -1,5 +1,12 @@
 # Changes
 
+## 1.5.10
+
+- The Start-latch reset no longer makes `Wh_ModInit` fail when `Shell_TrayWnd` does not exist yet. Windhawk calls `Wh_ModInit` before Explorer creates its windows on sign-in and on every Explorer restart, so the mod refused to load in the normal startup path; the subclass is now installed only when `ClearStartButtonLatch` first needs it, with its existing synchronous fallback when it cannot be installed.
+- `Wh_ModUninit` removes the taskbar subclass a second time, after the launcher thread is joined and with a fresh `Shell_TrayWnd` lookup. This closes the window where a `HideNow` that passed the stopping gate just before it closed could reinstall the subclass and leave Explorer calling into an unloaded image.
+- Full-backup import keeps this PC's private `ui-settings.ini` overrides of `program`, `winKeyAction`, `shiftWinKeyAction` and `startButtonAction` when the Windhawk value they were saved against is still current. Values saved in the built-in settings window therefore remain in force after an import, as the readme already stated.
+- **Background website icon download** moved from the Power page to the Grid page's Website icons group in the built-in settings window; the readme now points at that location and at Windhawk's settings page.
+
 ## 1.5.9
 
 - Replace the queued XAML Start-button reset with a registered message handled by `WindhawkUtils::SetWindowSubclassFromAnyThread` on `Shell_TrayWnd`. Unload synchronously removes the subclass and joins any active reset; there is no queued module lambda, five-second timeout or permanent module pin.

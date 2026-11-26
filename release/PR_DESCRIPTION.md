@@ -16,7 +16,7 @@ the mod readme, the repository `README.md`, `LICENSE` and
 - Mod id: `ryjs-launchpad` (unchanged)
 - Author / maintainer: Fangyu Guo (ryjs), https://github.com/ryjs140
 - Source: https://github.com/ryjs140/ryjs-launchpad
-- Version: 1.5.9
+- Version: 1.5.10
 - License: MIT, with the upstream notices retained
 - Inject into: `explorer.exe` only
 
@@ -56,32 +56,35 @@ a separate mod.
 
 ## Review fixes carried into this revision
 
-The latest AI review raised five follow-up issues. Version 1.5.9 addresses
-them directly:
+Version 1.5.10 addresses the blocking lifecycle issue and the import note from
+the latest review:
 
-- Start-button reset no longer queues a mod lambda through the XAML dispatcher.
-  A registered message is handled by a `Shell_TrayWnd` subclass installed with
-  `SetWindowSubclassFromAnyThread`; unload synchronously removes it and joins
-  active work. The timeout, counters and permanent module pin are gone.
-- Website icon networking has an explicit background-download switch (default
-  on). The readme now documents first-load and Desktop/Public Desktop shortcut
-  requests, declared third-party/intranet icon hosts, and manual-refresh
-  behavior. Cached icons still work with background downloading disabled.
-- Backup import preserves the local Start-button/Win-key actions and program
-  command. Confirmation lists every imported entry target and arguments;
-  archive code and binaries are never installed or executed.
-- The settings title-mark D2D bitmap is owned by `SetWindow` and released with
-  its render target, removing the function-static COM object and stale resource
-  domain risk.
-- The material import/export filter is built with explicit embedded NULs, so
-  both `.ryjsm` and `.json` filters reach the dialog with correct termination.
+- `Wh_ModInit` no longer requires `Shell_TrayWnd` to exist. Windhawk calls it
+  before Explorer creates the taskbar on sign-in and on every Explorer restart,
+  so the previous check refused to load in the normal startup path. The
+  Start-latch subclass is installed on demand by `ClearStartButtonLatch`, with
+  its existing synchronous fallback when it cannot be installed.
+- `Wh_ModUninit` removes the taskbar subclass a second time, after the launcher
+  thread is joined and with a fresh `Shell_TrayWnd` lookup. A `HideNow` that
+  passed the stopping gate just before it closed can no longer reinstall the
+  subclass and leave Explorer calling into an unloaded image.
+- Import keeps this PC's private `ui-settings.ini` overrides of `program`,
+  `winKeyAction`, `shiftWinKeyAction` and `startButtonAction` when the Windhawk
+  value they were saved against is still current, so the readme's promise holds
+  for values saved in the built-in settings window too.
+- **Background website icon download** moved from the Power page to the Grid
+  page's Website icons group; the readme now names that location and Windhawk's
+  settings page.
 
-Device-loss teardown now also releases every app bitmap; web-icon completion no
-longer waits on a worker found by reusable thread ID; group grid coordinates
-are capped; and legacy tint migration no longer performs per-frame settings
-reads or writes in read-only mode. The earlier GDI/DIB, settings-thread,
-material, parser and official line-length/callback-scope fixes remain in this
-revision.
+Version 1.5.9 fixed the previous round: synchronous taskbar-subclass Start
+reset, optional background website downloads, backup-import disclosure, local
+shortcut preservation, per-window D2D ownership, and material file-filter
+termination. Device-loss teardown now also releases every app bitmap; web-icon
+completion no longer waits on a worker found by reusable thread ID; group grid
+coordinates are capped; and legacy tint migration no longer performs per-frame
+settings reads or writes in read-only mode. The earlier GDI/DIB,
+settings-thread, material, parser and official line-length/callback-scope fixes
+remain in this revision.
 
 ## Testing
 
@@ -95,9 +98,8 @@ Passed locally on the current source and the generated single-file submission:
   icon cache checks passed.
 - Storage/phase-one checks: 25 and 37 checks, 0 failures; 5 Python backup tests
   OK.
-- Full-backup checks: 28 checks, 0 failures; 13 Python full-backup tests OK.
-- Offscreen smoke test: PASS (real app enumeration and bilingual rendering);
-  three repeated `--smoke` runs exited 0.
+- Full-backup checks: 28 checks, 0 failures; 14 Python full-backup tests OK.
+- Offscreen smoke test: PASS (real app enumeration and bilingual rendering).
 
 Not verified on real hardware, and stated as such in the readme:
 
@@ -126,10 +128,15 @@ Not verified on real hardware, and stated as such in the readme:
 
 <!-- changelog:start -->
 
-- Address the latest review with synchronous taskbar-subclass Start reset,
-  optional background website downloads, safer backup-import disclosure and
-  local shortcut-setting preservation, per-window D2D ownership, and correct
-  material file-filter termination.
+- Address the latest review by letting `Wh_ModInit` load before the taskbar
+  exists, removing the taskbar subclass once more after the launcher thread is
+  joined, keeping local private shortcut overrides across an import, and
+  relocating the background website icon switch to the Grid page.
+
+- Add synchronous taskbar-subclass Start reset, optional background website
+  downloads, safer backup-import disclosure and local shortcut-setting
+  preservation, per-window D2D ownership, and correct material file-filter
+  termination.
 
 - Rename the display name to Lumiflow (English) / 流光启动台 (Chinese); keep
   the `ryjs-launchpad` mod id and all storage paths unchanged.

@@ -456,6 +456,7 @@
     {L"Warning colour", L"警示颜色"},
     {L"Warning light", L"警示光效"},
     {L"Warning strength (%)", L"警示强度 (%)"},
+    {L"Website icons", L"网站图标"},
     {L"What \"Run the program below\" starts. A command line such as \"C:\\Program Files\\App\\app.exe\" --flag, or a shortcut, file, folder or web address", L"选择“运行下方程序”时执行的命令。可填写带参数的程序路径、快捷方式、文件、文件夹或网址。"},
     {L"Where the grid opens. Monitors 2 to 4 are the other monitors, counted left to right. If the picked monitor is not connected, it opens where the mouse is.", L"选择启动器显示的位置。显示器 2 至 4 按从左到右排列；所选显示器未连接时，使用鼠标所在的显示器。"},
     {L"Where the grid opens. The list shows the monitors connected right now, main first, then the others left to right. If the picked monitor is not connected, it opens where the mouse is.", L"选择启动器显示的位置。列表实时显示当前连接的显示器：主显示器在前，其余按从左到右排列；所选显示器未连接时，使用鼠标所在的显示器。"},

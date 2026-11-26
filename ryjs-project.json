@@ -6,7 +6,7 @@
   "author": "Fangyu Guo (ryjs)",
   "maintainer": "Fangyu Guo (ryjs)",
   "repository": "https://github.com/ryjs140/ryjs-launchpad",
-  "version": "1.5.9",
+  "version": "1.5.10",
   "phase": 5,
   "deliverySource": "ryjs-launchpad.wh.cpp",
   "developmentSource": "mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp",

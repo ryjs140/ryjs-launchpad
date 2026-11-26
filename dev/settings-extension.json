@@ -443,7 +443,7 @@
     "default": true,
     "label": "Background website icon download",
     "description": "Fetch missing icons for websites and desktop URL shortcuts after the app list loads. Turn off to allow downloads only when you save or manually refresh an entry; cached icons still work.",
-    "page": 3,
-    "group": "Network"
+    "page": 1,
+    "group": "Website icons"
   }
 ]

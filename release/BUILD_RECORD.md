@@ -1,4 +1,4 @@
-# Build record (1.5.9)
+# Build record (1.5.10)
 
 Date: 2026-11-26
 
@@ -7,10 +7,10 @@ Artifact: `ryjs-launchpad.wh.cpp` (repository root) and
 
 | Item | Value |
 | --- | --- |
-| Version | 1.5.9 |
-| Lines | 21,400 |
-| Bytes | 1,121,277 |
-| SHA256 | `d2769a1ef10620d7428766289b31c88048f3a6035bfc51b921831f12d6099768` |
+| Version | 1.5.10 |
+| Lines | 21,433 |
+| Bytes | 1,123,617 |
+| SHA256 | `7454fe3c0a934c0f237a3b5f253f9a1057e9473f68e1b6412ccc5f0e7255fd86` |
 | Declared architecture | x86-64 |
 | Official validator | 0 problems |
 | Official compile | 0 problems |
@@ -70,8 +70,8 @@ Requires PyYAML 6.0.3. This record used `py -3.12`.
 | Local `#include` directives in the artifact | 0 |
 | Feature checks | 602 checks, 0 failures |
 | Phase-one checks | 25 + 37 checks, 0 failures; 5 Python backup tests OK |
-| Full-backup checks | 28 checks, 0 failures; 13 Python full-backup tests OK |
-| Offscreen smoke test | PASS; three repeated `--smoke` runs exited 0 |
+| Full-backup checks | 28 checks, 0 failures; 14 Python full-backup tests OK |
+| Offscreen smoke test | PASS (real app enumeration and bilingual rendering) |
 
 ## Notes
 

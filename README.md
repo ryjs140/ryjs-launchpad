@@ -2,7 +2,7 @@
 
 > 项目英文标识：Lumiflow（用于英文界面、GitHub 仓库与程序文件）
 
-由 **Fangyu Guo (ryjs)** 维护的 Windows 11 / Windhawk 全屏应用启动器。当前版本 **1.5.9**。
+由 **Fangyu Guo (ryjs)** 维护的 Windows 11 / Windhawk 全屏应用启动器。当前版本 **1.5.10**。
 
 这是一个**衍生作品**，不是从零重写：直接基础是 [DavidHiFi 的 Seamless Launchpad](https://github.com/DavidHiFi/davids-windhawk-mods/tree/main/mods/local/seamless-launchpad)，其更早来源为 [Rafael Mendes 的 Fullscreen Start (Launchpad style)](https://windhawk.net/mods/fullscreen-start)。三方均为 MIT 许可，原始版权与后续修改的版权分别保留，详见 [LICENSE](LICENSE) 与 [release/SOURCE_PROVENANCE.md](release/SOURCE_PROVENANCE.md)。
 
@@ -51,7 +51,7 @@ Windhawk 中新建模组，使用根目录的 `ryjs-launchpad.wh.cpp` 编译。�
 - 右键应用→“重命名”：仅修改启动台显示名称，Enter 确认、Esc 取消；“恢复原始名称”撤销名称覆盖。所有支持的应用类型均可使用，搜索同时匹配原名和自定义名。鼠标停留可查看完整名称。
 - 右键应用→“编辑入口”：修改名称、路径或图标。重新扫描保留修改；原名称仍可搜索。路径失效时入口保留并显示标记，可以再次编辑修复。手动入口可单独删除，不删除目标文件。
 - 网页入口异步读取目标站点声明的图标，并尝试 `/favicon.ico`，支持 ICO、PNG 和 Windows Direct2D 支持的 SVG。图标下载后保存在 `data-v1/web-icons`。获取失败时显示地球占位图，可右键刷新或手动换图。
-- **联网边界**：默认在每次应用列表加载后为缺少缓存的网站入口后台获取图标，包括 Explorer 启动后的首次加载，不需要先打开启动台；范围也包括桌面和 Public Desktop 上符合条件的 `.url` 及浏览器 URL 快捷方式。保存入口和手动刷新也会下载。设置→「帮助」页的「后台下载网站图标」可关闭应用列表加载后的自动请求，缓存仍可使用，保存/手动刷新仍可下载。请求会访问用户 URL、站点声明的图标地址（可能位于 CDN、第三方或内网主机）及 `/favicon.ico`，有超时和大小限制，不带 Cookie 或自动凭据，不上传数据；自定义图标不会触发该入口的网站请求。
+- **联网边界**：默认在每次应用列表加载后为缺少缓存的网站入口后台获取图标，包括 Explorer 启动后的首次加载，不需要先打开启动台；范围也包括桌面和 Public Desktop 上符合条件的 `.url` 及浏览器 URL 快捷方式。保存入口和手动刷新也会下载。内置设置窗口「应用布局」页「网站图标」分组中的「后台下载网站图标」（Windhawk 设置页也有同名选项）可关闭应用列表加载后的自动请求，缓存仍可使用，保存/手动刷新仍可下载。请求会访问用户 URL、站点声明的图标地址（可能位于 CDN、第三方或内网主机）及 `/favicon.ico`，有超时和大小限制，不带 Cookie 或自动凭据，不上传数据；自定义图标不会触发该入口的网站请求。
 - 手选图标以 PNG 保存在 `data-v1/custom-icons`。旧图标的原文件仍可读取时会自动迁移，迁移完成后可以删除原文件。
 - “导出当前布局文件”默认提供“布局、图标和设置 (ZIP)”，包含所有来源的布局、自定义入口、已缓存的网页图标和手选图标。可从“导入布局文件”或“导入完整备份”恢复 ZIP。需要单独导出当前来源的排列时，可选 TXT。
 - 多选应用后按 Enter 可打开所有选中项，也可点击多选工具栏上的打开按钮。
