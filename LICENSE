@@ -4,7 +4,7 @@ Copyright (c) 2026 DavidHiFi
 Copyright (c) Rafael Mendes
 Copyright (c) 2026 Fangyu Guo (ryjs)
 
-This file covers RYJS Launchpad, a derivative work of:
+This file covers Lumiflow, formerly RYJS Launchpad, a derivative work of:
 
   Fullscreen Start (Launchpad style) by Rafael Mendes
   https://windhawk.net/mods/fullscreen-start
@@ -12,7 +12,7 @@ This file covers RYJS Launchpad, a derivative work of:
   Seamless Launchpad by DavidHiFi
   https://github.com/DavidHiFi/davids-windhawk-mods/tree/main/mods/local/seamless-launchpad
 
-  RYJS Launchpad changes by Fangyu Guo (ryjs)
+  Lumiflow changes by Fangyu Guo (ryjs)
   https://github.com/ryjs140/ryjs-launchpad
 
 Note on the notices above: DavidHiFi's year comes from the LICENSE file of the

@@ -1,5 +1,96 @@
 # Changes
 
+## 1.5.8
+
+- Release audit fixes. The settings window now releases its memory DC and DIB on `WM_NCDESTROY`, so repeated open/close cycles no longer accumulate GDI objects; a failed creation also cleans the brush and owned window.
+- The settings animation thread is joined without a timeout before the module can unload. A failed `PostMessage` no longer leaves the animation tick permanently pending.
+- A lost or recreated Direct2D device now drops the material, panel-blur and group-title bitmaps together with the render target, so none of them keeps the old device alive or gets sampled by the new one.
+- A material capture that fails (screen copy, upload or blur allocation) is not retried on every frame; the next time the launcher opens tries again. The blur radius read from settings is clamped to the documented 0–120 DIP range.
+- Material preset JSON parsing has a nesting limit, and importing a material file refuses files above 8 MiB instead of reading them into one string.
+- Corrected the settings-window glass description (custom rounded glass over a blurred desktop snapshot, not Windows acrylic), updated the material/feature sections of the readme, and removed unused helper functions and constants.
+- Kept the generated single-file submission within the official 4096-character line limit by emitting the embedded app icon as adjacent string literals, and moved the test-only mouse-tracking branch out of a preprocessor `#if`/`#else` pair so the official scope checker sees the four `Wh_Mod*` callbacks in the global namespace.
+
+## 1.5.7
+
+- Build app-label shadows when drawing the grid, after the graphics device is ready. Temporary shadow failures retry in the same open session, including with animations disabled.
+
+## 1.5.6
+
+- Follow the pointer through the gap between warned power buttons. The connection stretches and reverses with the pointer while the circular lobes stay centred in Follow button mode.
+
+## 1.5.5
+
+- Give app tiles a wider, inward-fading edge glow beneath the glass bevel. The highlight stays local to the edge facing the pointer.
+
+## 1.5.4
+
+- The power warning transfers between two anchored lobes through a thin, closing connection. Crossing the empty gap holds the outgoing lobe on its button.
+- Preserve private setting overrides when Windhawk first writes the declared defaults. Strip header-only pragmas from the standalone module.
+
+## 1.5.3
+
+- Remove duplicate Windhawk power warning declarations and keep the six action switches nested under their settings group. Stored setting names and defaults stay compatible.
+
+## 1.5.2
+
+- The app icon glow distance also controls how quickly the square rim catches the light. At 80, moving slightly away from the icon centre lights the facing edge, even while the pointer is still over the icon.
+
+## 1.5.1
+
+- The power warning stretches and coalesces when moving between buttons, and redirects smoothly when the pointer reverses. Each label reflects the warning light directly above its own icon.
+
+## 1.5.0
+
+- The product is now 流光启动台 in Chinese and Lumiflow in English. The Windhawk metadata, settings title, About page, tray tooltip/menu, message boxes, backup file names and file-dialog filters follow the current interface language; neither language mixes the two names.
+- The internal Windhawk id remains `ryjs-launchpad`, and the storage path, `ryjs-storage.ini`, `.ryjs.zip` backups, `.ryjsm` material files, integration mutex and window class names are unchanged. Existing layouts, groups, icons, pinned entries and settings therefore load without migration.
+- The development preview executable is built as `Lumiflow.exe`; the product itself remains a Windhawk module and has no standalone installer.
+- The settings window has its own palette now, and it is no longer permanently dark. `Theme mode` decides it: `Light` and `Dark` force it, `System` follows the Windows app theme, and `Custom` (the default) follows the Windows app theme too. The launcher's own tint is untouched — this only affects the settings window's page, rail, cards, text, controls, title bar and the sample wallpaper behind the material preview. The dark palette is unchanged.
+- The icon glow distance is now measured from the icon's own rectangle instead of the whole grid cell. Cells tile the grid, so the old cell-based reach never had any distance left to spend and the setting did nothing once the pointer was inside the grid. The nearest icon within the distance lights, and the hover no longer has to hold the pointer for the glow to appear, so a pointer in empty space still lights the closest icon: at 0 only the icon under the pointer reacts, at 80 the nearest icon lights from up to 80 DIP away.
+- Power dock glyphs are reduced from 22 to 20 DIP while keeping the bold stroke. The warning is one continuous #A91223 environment light inside the dock's existing glass capsule, never a separate button background. Its X follows the pointer across the capsule in the default mode (Y stays the hovered button's click-rectangle centre), with 35 ms exponential position smoothing and 120 ms fade-in / 180 ms fade-out. The radial lobe is a 23×23 DIP circle at 78% centre concentration, with the fixed 0 / 35% = 88% / 65% = 48% / 100% = 0 ramp; pressing compresses it to 0.95 without brightening it. The 65% bottom-edge response reuses the same field and is multiplied by 0.45 so it cannot pull the perceived centre down. The label pill above receives a 10–20% position-dependent reflection on its lower edge without changing the text colour. No extra outline, relief, inner shadow or specular layer is added. `Follow button` remains available and uses the same smoothing.
+- The Power page has a `Warning light` section: enable/disable, per-action toggles for all six power actions, follow mode, colour, strength, spread, edge tint and label bleed. It uses the existing switches, sliders, colour picker and save/cancel/suggested paths; missing fields in old `ui-settings.ini` files fall back to the defaults, and the sample capsule in the page previews unsaved changes immediately.
+- The settings window now uses a 20 DIP custom outer corner instead of DWM's 8 DIP preset. The custom title bar disables acrylic, blur-behind and frame extension, renders into a 32bpp premultiplied DIB through `DWMWA_REDIRECTIONBITMAP_ALPHA` (Windows 11 26100+), and masks the whole surface with a D2D rounded-layer geometry; the transparent corners expose the real desktop. The glass background is one blurred virtual-desktop snapshot taken while the window is hidden and cropped as the window moves, not a per-frame desktop capture. The full-window client area plus manual `WM_NCHITTEST` resize edges also remove the old left/right black bars. Native title bar mode and older Windows keep an opaque DWM-rounded fallback rather than showing black wedges.
+- Upstream credit for Fullscreen Start and Seamless Launchpad is kept; the generic “Launchpad” wording that described this product has been removed from current UI text.
+- The settings sidebar keeps its two long page titles as captions — 启动方式 and 应用布局 in Chinese, `Keys` and `Grid` in English — but the rows themselves now read 启动 and 布局 (`Startup` and `Grid layout` in English), so they fit the 36 px row instead of crowding it.
+- The settings sidebar no longer repeats the product mark and name at its top. The title bar already carries both, so the rail now holds only the panel toggle above the page rows; the collapsed icon rail is unchanged.
+
+## 1.4.1
+
+- Material presets describe texture only (blur, transparency, grain, dim). Applying one leaves the tint colour untouched, and built-in presets no longer carry a hue; `Stained Glass` became `Vivid Glass`. The settings preview uses a neutral grey scene, so any colour on it comes from the user's own tint.
+- Text shadow and power-dock icon shadow are separate settings (`textShadow*` / `powerShadow*`); changing label typography no longer changes the power glyphs.
+- Group headers and menu labels now use the typography page's shadow and outline values; they no longer fall back to a built-in 1 px outline when the user has turned outlines off.
+- Power-dock glyphs are larger (22 DIP instead of 16), and hovering a power button replaces the white glass with a restrained crimson glow. Sign out, restart and shut down get the full warning strength; lock, sleep and hibernate use a softer tint.
+- The settings window draws its labels once per frame instead of replaying each text layout for a fake shadow; its animation tick now uses a 120 Hz high-resolution waitable timer, and wheel scrolling settles in a few frames instead of the previous 52 ms tail.
+- The supplied 3×3 ice-glass sheet is now the application mark itself: its PNG is embedded in the module and decoded for the title-bar mark, the settings window HICONs and the tray icon, rather than replaced with a redrawn single tile or glyph.
+- The pointer-following glass glow has an adjustable trigger distance (`glowDistance`, default 24 DIP) for grid icons and power buttons; a shadow bitmap that fails to render is retried on the next frames instead of staying missing.
+- Prevent concurrent Start button symbol lookups for the same taskbar module, and apply a deferred hook when only one of the optional symbols resolves.
+- Log elapsed time for loading `twinui.pcshell.dll` and resolving the Start hooks when debug logging is enabled.
+
+## 1.4.0
+
+- Overflowing groups show a compact page indicator. One standard wheel detent moves one group page, and the normal wheel action outside a group flips the full grid in page mode.
+- Chinese IME input opens the search field as soon as composition starts. The launcher renders the composition inline and reports the caret position for the input method's own candidate window.
+
+## 1.3.1
+
+- Native Start keeps control of the taskbar button throughout dismissal, including when a click outside closes the menu. Removed the private XAML checked-state callback and the diagnostic pointer hooks.
+
+## 1.3.0
+
+- Shift + Windows hands off to the original Start menu without clearing the native button state from the launcher thread.
+- The power dock refreshes its pending-update indicator while open and checks Windows Update Orchestrator and servicing signals alongside the Windows Update Agent.
+- Typography settings independently adjust text shadow opacity and blur, and outline opacity and width. Defaults use a stronger dark shadow and a thin outline.
+
+## 1.2.0
+
+- Power buttons now use the same pointer-driven glass highlight as app icons, shaped to the circular buttons. The icons use a larger, bolder symbol font with the existing soft shadow.
+- The Power settings page can reorder buttons using the row arrows or Ctrl+Up/Down. The saved left-to-right order retains disabled and unavailable actions so they return to their chosen positions.
+
+## 1.1.0
+
+- Layout editing actions now use the group-title type and shadow, the context-menu tint, and distinct hover and press states.
+- Power dock lighting tracks only the hovered button. Glyphs have a subtle shadow, and a separate inner ring marks an action waiting for confirmation.
+- Settings now use glass cards, page icons, and the same pointer-driven highlights as the launcher. Save is visually distinct from the secondary actions.
+
 ## 1.0.0 — first public release
 
 Version 1.0.0 marks the first submission to the Windhawk mod library.

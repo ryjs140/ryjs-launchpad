@@ -17,10 +17,19 @@ bool g_freeGroupLayout=false,g_groupEditMode=false,g_groupPositionsReadOnly=fals
 [[clang::no_destroy]] std::map<std::shared_ptr<Folder>,GroupPosition> g_groupEditSnapshot;
 [[clang::no_destroy]] std::map<std::shared_ptr<Folder>,int> g_groupEditRows;
 bool g_groupEditWasFree=false,g_groupEditDirty=false;
+using GroupSelection = std::set<std::shared_ptr<Folder>>;
+[[clang::no_destroy]] GroupSelection g_groupSelection;
+struct GroupMarquee {
+    GroupSelection before;
+    POINT start{}, end{};
+    bool pending = false, moved = false;
+};
+[[clang::no_destroy]] GroupMarquee g_groupMarquee;
 struct GroupEditNode {
     std::shared_ptr<Folder> group;
     GroupPosition position;
     bool fixed=false; // An untouched automatic group split across pages.
+    int start = 0;
 };
 struct GroupVisualTransition {
     GroupPosition from,to;
@@ -32,6 +41,7 @@ struct GroupGeometryGesture {
     std::shared_ptr<Folder> group;
     GroupPosition original,draft,continuous;
     std::vector<GroupEditNode> baseline,solution;
+    GroupSelection companions;
     D2D1_POINT_2F grab{},handle{};
     bool solved=false;
     POINT start{},at{};
@@ -41,6 +51,9 @@ struct GroupGeometryGesture {
     bool resize=false,valid=false,moved=false;
 };
 [[clang::no_destroy]] GroupGeometryGesture g_groupGesture;
+bool GroupMovesWithGesture(const GroupGeometryGesture& gesture, const std::shared_ptr<Folder>& group) {
+    return group == gesture.group || gesture.companions.contains(group);
+}
 [[clang::no_destroy]] std::shared_ptr<Folder> g_groupResizeHover;
 float g_groupResizeGlow=0;
 
@@ -75,6 +88,7 @@ void ClearGroupPositions() {
     g_groupPositions.clear();
     g_groupRows.clear();
     g_groupGesture={};g_groupTransitions.clear();g_groupResizeHover.reset();g_groupResizeGlow=0;
+    g_groupSelection.clear();g_groupMarquee={};
     g_freeGroupLayout=false;g_wholeCellLayout=false;g_squareGridColumns=0;
     g_groupEditMode=false;
     g_groupEditSnapshot.clear();g_groupEditRows.clear();g_groupEditDirty=false;

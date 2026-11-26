@@ -1,9 +1,11 @@
-# RYJS Launchpad — development source
+# Lumiflow — development source
 
-This directory holds the split development source of RYJS Launchpad. The file
+This directory holds the split development source of Lumiflow. The file
 that goes into Windhawk is the generated single file in the repository root,
 [`ryjs-launchpad.wh.cpp`](../../../ryjs-launchpad.wh.cpp); it already contains
-every fragment below and needs no adjacent headers.
+every fragment below and needs no adjacent headers. The filename and the
+Windhawk mod ID `ryjs-launchpad` are retained for build and storage compatibility;
+the displayed product name is Lumiflow in English and 流光启动台 in Chinese.
 
 ```
 ryjs-launchpad.wh.cpp        main source; includes the fragments
@@ -29,13 +31,13 @@ script are in [`reference/upstream/`](../../../reference/upstream).
 
 ## Provenance
 
-RYJS Launchpad is a derivative work, not an independent rewrite:
+Lumiflow is a derivative work, not an independent rewrite:
 
 - [Rafael Mendes](https://github.com/RafaelMendes1407) — Fullscreen Start
   (Launchpad style), MIT. The launcher, its rendering and the Start hook.
 - [DavidHiFi](https://github.com/DavidHiFi) — Seamless Launchpad, MIT. The
   direct base: grid, search, folders, power dock, settings.
-- Fangyu Guo (ryjs) — RYJS Launchpad, MIT. The changes described in
+- Fangyu Guo (ryjs) — Lumiflow, MIT. The changes described in
   `release/CHANGELOG.md`.
 
 Measured on code lines, about half of the current file is still verbatim

@@ -1,10 +1,12 @@
 {
   "id": "ryjs-launchpad",
-  "name": "RYJS Launchpad",
+  "name": "Lumiflow",
+  "nameZhCN": "流光启动台",
+  "githubProjectName": "Lumiflow",
   "author": "Fangyu Guo (ryjs)",
   "maintainer": "Fangyu Guo (ryjs)",
   "repository": "https://github.com/ryjs140/ryjs-launchpad",
-  "version": "1.0.0",
+  "version": "1.5.8",
   "phase": 5,
   "deliverySource": "ryjs-launchpad.wh.cpp",
   "developmentSource": "mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp",
@@ -18,7 +20,7 @@
   "credits": [
     "Rafael Mendes / Fullscreen Start (Launchpad style), MIT",
     "DavidHiFi / Seamless Launchpad, MIT",
-    "Fangyu Guo (ryjs) / RYJS Launchpad changes, MIT"
+    "Fangyu Guo (ryjs) / Lumiflow changes, MIT"
   ],
   "derivative": true,
   "license": "MIT",

@@ -1,4 +1,4 @@
-name: Library check
+name: Lumiflow library check
 
 # Runs every mod in mods/local through the same validator and compile test the
 # official Windhawk mod library uses, so a mod is known to be ready before it is

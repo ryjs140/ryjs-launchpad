@@ -32,8 +32,8 @@
     "key": "launchpadAnimation",
     "type": "Choice",
     "default": "iconFlyIn",
-    "label": "Launchpad animation style",
-    "description": "Choose how the launchpad opens and closes.",
+    "label": "Startup animation style",
+    "description": "Choose how the launcher opens and closes.",
     "options": {
       "iconFlyIn": "iOS icon fly-in",
       "classic": "Classic zoom and fade"
@@ -105,6 +105,50 @@
     "description": "Text size in DIP. Display scaling is applied automatically.",
     "min": 9,
     "max": 32,
+    "page": 1,
+    "group": "Typography"
+  },
+  {
+    "key": "textShadowOpacity",
+    "type": "Number",
+    "default": 72,
+    "label": "Text shadow opacity",
+    "description": "0 turns off the shadow. 100 makes it fully opaque.",
+    "min": 0,
+    "max": 100,
+    "page": 1,
+    "group": "Typography"
+  },
+  {
+    "key": "textShadowBlur",
+    "type": "Number",
+    "default": 2,
+    "label": "Text shadow blur",
+    "description": "Blur radius at 100% display scaling. 0 gives the shadow a hard edge.",
+    "min": 0,
+    "max": 6,
+    "page": 1,
+    "group": "Typography"
+  },
+  {
+    "key": "textOutlineOpacity",
+    "type": "Number",
+    "default": 75,
+    "label": "Text outline opacity",
+    "description": "0 turns off the outline. 100 makes it fully opaque.",
+    "min": 0,
+    "max": 100,
+    "page": 1,
+    "group": "Typography"
+  },
+  {
+    "key": "textOutlineWidth",
+    "type": "Number",
+    "default": 1,
+    "label": "Text outline width",
+    "description": "Outline width at 100% display scaling. 0 turns off the outline.",
+    "min": 0,
+    "max": 3,
     "page": 1,
     "group": "Typography"
   },
@@ -194,14 +238,203 @@
     "group": "Theme"
   },
   {
+    "type": "Text",
+    "key": "powerOrder",
+    "label": "Power button order",
+    "description": "Comma-separated action keys in left-to-right order: lock, signOut, sleep, hibernate, restart, shutDown.",
+    "default": "lock,signOut,sleep,hibernate,restart,shutDown",
+    "page": -1,
+    "group": "Power buttons"
+  },
+  {
+    "key": "blurMode",
+    "type": "Choice",
+    "default": "custom",
+    "label": "Background material",
+    "description": "How the backdrop is drawn. The adjustable material is the one the controls below shape; the Windows materials are drawn by DWM and ignore blur, grade and grain.",
+    "options": {
+      "custom": "Adjustable material",
+      "acrylicSystem": "Windows 11 system acrylic",
+      "mica": "Windows 11 Mica",
+      "micaAlt": "Windows 11 Mica Alt",
+      "acrylic": "Windows acrylic (accent)",
+      "blur": "Windows blur (accent)",
+      "transparent": "Transparent",
+      "solid": "Solid colour"
+    },
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialPreset",
+    "type": "Choice",
+    "default": "Default",
+    "label": "Material preset",
+    "description": "Changes blur, transparency and texture only; your tint colour stays as it is. Custom keeps the controls as they are.",
+    "options": {
+      "Default": "Default",
+      "Clear Glass": "Clear Glass",
+      "Light Glass": "Light Glass",
+      "Soft Frost": "Soft Frost",
+      "Light Acrylic": "Light Acrylic",
+      "Dark Acrylic": "Dark Acrylic",
+      "macOS Style": "macOS Style",
+      "Heavy Frost": "Heavy Frost",
+      "Vivid Glass": "Vivid Glass",
+      "Minimal Grey": "Minimal Grey",
+      "custom": "Custom"
+    },
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialPresetName",
+    "type": "Text",
+    "default": "",
+    "label": "Preset name",
+    "description": "Name the Save preset button uses. Leave empty for a numbered name.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialBlur",
+    "type": "Number",
+    "default": 36,
+    "min": 0,
+    "max": 120,
+    "label": "Blur radius (DIP)",
+    "description": "Gaussian radius of the backdrop, 0 to 120 DIP. 0 keeps the screen sharp.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialSaturation",
+    "type": "Number",
+    "default": 100,
+    "min": 0,
+    "max": 200,
+    "label": "Saturation (%)",
+    "description": "0 is grey, 100 keeps the backdrop's colour, 200 doubles it.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialBrightness",
+    "type": "Number",
+    "default": 100,
+    "min": 40,
+    "max": 160,
+    "label": "Brightness (%)",
+    "description": "40 to 160. 100 keeps the backdrop as captured.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialContrast",
+    "type": "Number",
+    "default": 100,
+    "min": 50,
+    "max": 150,
+    "label": "Contrast (%)",
+    "description": "50 to 150, pivoting on mid grey. 100 keeps the backdrop as captured.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "backgroundOpacity",
+    "type": "Number",
+    "default": 30,
+    "min": 0,
+    "max": 100,
+    "label": "Tint opacity (%)",
+    "description": "0 shows only the material, 100 covers it with the tint colour.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "tintColor",
+    "type": "Color",
+    "default": "#000000",
+    "label": "Tint colour",
+    "description": "Hexadecimal, like #1E1E2E. Mixed over the material at the tint opacity.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialLuminosity",
+    "type": "Number",
+    "default": 0,
+    "min": 0,
+    "max": 100,
+    "label": "Adaptive haze (%)",
+    "description": "Adds a light haze over a dark backdrop and a dark one over a bright backdrop, like acrylic's luminosity layer.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialNoise",
+    "type": "Number",
+    "default": 0,
+    "min": 0,
+    "max": 15,
+    "label": "Grain (%)",
+    "description": "0 to 15. Adds fine noise so large flat areas do not band.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "materialNoiseScale",
+    "type": "Number",
+    "default": 100,
+    "min": 50,
+    "max": 200,
+    "label": "Grain size (%)",
+    "description": "50 to 200. Larger grain is coarser.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
     "key": "backgroundDim",
     "type": "Number",
     "default": 0,
-    "label": "Background dimming",
-    "description": "Additional darkening of the blurred background, 0–80 percent.",
+    "min": 0,
+    "max": 80,
+    "label": "Dim (%)",
+    "description": "0 to 80. Darkens the finished material for readability.",
+    "page": 2,
+    "group": "Material"
+  },
+  {
+    "key": "powerShadowOpacity",
+    "type": "Number",
+    "default": 72,
+    "label": "Power icon shadow opacity",
+    "description": "Shadow strength behind the power dock glyphs. It is separate from the text shadow.",
+    "min": 0,
+    "max": 100,
+    "page": 3,
+    "group": "Power icon shadow"
+  },
+  {
+    "key": "powerShadowBlur",
+    "type": "Number",
+    "default": 2,
+    "label": "Power icon shadow blur",
+    "description": "Blur radius for the power dock glyphs, at 100% display scaling.",
+    "min": 0,
+    "max": 6,
+    "page": 3,
+    "group": "Power icon shadow"
+  },
+  {
+    "key": "glowDistance",
+    "type": "Number",
+    "default": 24,
+    "label": "Glow trigger distance",
+    "description": "Sets how far the nearest app icon reacts outside its bounds and how quickly its rim lights as the pointer moves away from the icon centre. At 80, a small movement lights the facing edge.",
     "min": 0,
     "max": 80,
     "page": 2,
-    "group": "Readability"
+    "group": "Appearance"
   }
 ]

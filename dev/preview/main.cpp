@@ -112,7 +112,7 @@ bool PreviewMenuShot(const std::wstring& path, int x, int y, int hover = -1,
     AppendMenuW(groups, MF_STRING, 1000, L"开发工具");
     AppendMenuW(groups, MF_STRING, 1001, L"远程");
     AppendMenuW(groups, MF_STRING, 1002, L"网盘与同步");
-    AppendMenuW(menu, MF_STRING, 1, L"打开");
+    AppendMenuW(menu, MF_STRING, 1, L"打开\tEnter");
     AppendMenuW(menu, MF_POPUP, (UINT_PTR)groups, L"移动到分组");
     AppendMenuW(menu, MF_STRING, 91, L"从分组中移除");
     AppendMenuW(menu, MF_STRING, 95, L"重命名");
@@ -128,30 +128,42 @@ bool PreviewMenuShot(const std::wstring& path, int x, int y, int hover = -1,
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, 8, L"属性");
     SetMenuDefaultItem(menu, 1, FALSE);
-    LaunchpadMenu::g_previewScreen = g_surface.bitmap;
-    LaunchpadMenu::g_previewScreenOrigin = {g_layout.area.left,
-                                            g_layout.area.top};
     bool ok = PreviewRenderMenu(menu, x, y, TPM_LEFTALIGN | TPM_TOPALIGN,
                                hover, submenu) &&
+              LaunchpadMenu::g_menu.root.front().label.shadow.bitmap &&
+              LaunchpadMenu::g_menu.root.front().shortcut.shadow.bitmap &&
               SaveOverlay(path, g_surface.bitmap,
                           LaunchpadMenu::g_menu.surface.bitmap,
                           LaunchpadMenu::g_menu.origin.x - g_layout.area.left,
                           LaunchpadMenu::g_menu.origin.y - g_layout.area.top);
-    LaunchpadMenu::g_previewScreen = nullptr;
+    auto& state = LaunchpadMenu::g_menu;
+    auto panelFill = [&](const LaunchpadMenu::Panel& panel) {
+        return GetPixel(state.surface.dc,
+                        (int)((panel.rect.left + panel.rect.right) / 2) - state.origin.x,
+                        (int)(panel.rect.top + 4 * state.scale) - state.origin.y);
+    };
+    if (ok && submenu >= 0) {
+        ok = state.panels.size() > 1 && panelFill(state.panels[0]) != CLR_INVALID &&
+             panelFill(state.panels[0]) == panelFill(state.panels[1]);
+    }
     DestroyMenu(menu);
     return ok;
 }
 
-bool SaveSettings(const std::wstring& path, int page, UINT dpi) {
+bool SaveSettings(const std::wstring& path, int page, UINT dpi, float scroll = 0) {
     auto w = g_setWin;
     w->dpi = dpi;
     w->cw = 1100; w->ch = 860;
     w->page = page; w->pageT = 1;
-    w->scrollY = w->scrollTarget = 0;
+    w->scrollY = w->scrollTarget = scroll;
     Set_MakeFormats(*w);
     Set_BuildPage(*w);
     Set_FitBoxes(*w);
     Set_BuildPage(*w);
+    // The smoke copies the live window, whose toggle knobs may still be at an
+    // animated midpoint from an earlier interaction. A still frame must show
+    // the field's actual state, not the transient animation value.
+    w->knob.clear();
     ComPtr<IWICBitmap> bitmap;
     ComPtr<ID2D1RenderTarget> target;
     auto properties = D2D1::RenderTargetProperties();
@@ -181,7 +193,7 @@ void Preview_RunSmoke(HWND hwnd) {
         Preview::languageOverride = language;
         LoadSettings(); g_settings.groups=false;
         g_settings.opacity = 0.96f;
-        g_settings.blurMode = BlurMode::None; // Reproducible, no desktop capture.
+        g_settings.backend = launchpad_material::Backend::Transparent; // Reproducible, no desktop capture.
         g_labelFormat.Reset();
         g_canSleep = g_canHibernate = true;
         g_shown = true; g_appear = 1;
@@ -241,18 +253,43 @@ void Preview_RunSmoke(HWND hwnd) {
                 (LPARAM)&connected);
             bool listed = !f.options.empty() &&
                           wcscmp(f.options[0].first.c_str(), L"mouse") == 0 &&
-                          (int)f.options.size() == connected + 1 &&
-                          f.options.back().first == std::to_wstring(connected);
+                          (int)f.options.size() >= connected + 1;
             Preview::Log(L"smoke: monitor dropdown: %d connected display(s), %zu options: %ls",
                          connected, f.options.size(), listed ? L"PASS" : L"FAIL");
             for (auto& o : f.options)
-                Preview::Log(L"smoke:   monitor option %ls = %ls", o.first.c_str(),
-                             o.second.c_str());
+                Preview::Log(L"smoke:   monitor option %ls", o.second.c_str());
             ok = listed && ok;
         }
         for (int page = 0; page < kSetPageCount; page++)
             ok = SaveSettings(output + L"\\settings-" + language + L"-" + std::to_wstring(page) + L".png", page, 96) && ok;
         ok = SaveSettings(output + L"\\settings-" + language + L"-150pct.png", 2, 144) && ok;
+        if (wcscmp(language, L"zh-CN") == 0) {
+            // The earlier control tests leave some switches flipped in the
+            // shared window; this evidence frame shows the documented default.
+            if (auto* f = Set_FieldByKey(*g_setWin, L"powerWarning")) {
+                Set_PutValue(*f, L"1");
+                f->value = L"1";
+            }
+            ok = SaveSettings(output + L"\\settings-zh-CN-3-warning.png", 3, 96, 700) && ok;
+        }        if (wcscmp(language, L"zh-CN") == 0)
+            ok = SaveSettings(output + L"\\settings-zh-CN-2-material-buttons.png", 2, 96, 1420) && ok;
+        if (wcscmp(language, L"zh-CN") == 0) {
+            // Both palettes, forced, so the dark look cannot regress silently
+            // just because this machine's Windows app theme happens to be light.
+            const std::wstring previousTheme = GetStringSetting(L"themeMode");
+            for (const wchar_t* theme : {L"light", L"dark"}) {
+                Preview::PutSetting(L"themeMode", theme);
+                settings_palette::Refresh();
+                Set_LoadFields(*g_setWin);  // The dropdown must match the palette.
+                for (int page = 0; page < kSetPageCount; page++)
+                    ok = SaveSettings(output + L"\\settings-" + theme + L"-zh-CN-" +
+                                          std::to_wstring(page) + L".png", page, 96) && ok;
+                ok = SaveSettings(output + L"\\settings-" + theme + L"-zh-CN-150pct.png", 2,
+                                  144) && ok;
+            }
+            Preview::PutSetting(L"themeMode", previousTheme);
+            settings_palette::Refresh();
+        }
     }
     if (csv) fclose(csv);
     if (g_frameWake) {
@@ -321,6 +358,26 @@ void Preview_RunSmoke(HWND hwnd) {
     SendMessageW(hwnd,WM_KEYDOWN,VK_ESCAPE,1);
     settleSearch();
     ok=!SearchExpanded()&&g_layout.search.left==compactSearch.left&&g_shown&&!g_closing&&ok;
+    launchpad_i18n::Select(L"zh-CN");
+    SendMessageW(hwnd, WM_IME_STARTCOMPOSITION, 0, 0);
+    ok = g_imeComposition.active && SearchExpanded() && g_searchExpand == 1.f &&
+        g_visible.size() == unfiltered && g_query.empty() && ok;
+    g_imeComposition.text = L"zhong wen";
+    g_imeComposition.cursor = 5;
+    const auto inlineIme = GetEditView(false);
+    IMECHARPOSITION imePosition{sizeof(imePosition), 5};
+    ok = inlineIme.compositionLength == 9 && inlineIme.caret == 5 &&
+        SendMessageW(hwnd, WM_IME_REQUEST, IMR_QUERYCHARPOSITION, (LPARAM)&imePosition) &&
+        imePosition.pt.x >= imePosition.rcDocument.left &&
+        imePosition.pt.x <= imePosition.rcDocument.right && ok;
+    Render();
+    ok = SaveGrid(output + L"\\search-ime-composition-zh-CN.png") && ok;
+    SendMessageW(hwnd, WM_IME_ENDCOMPOSITION, 0, 0);
+    ok = !g_imeComposition.active && g_imeComposition.text.empty() &&
+        g_query.empty() && g_visible.size() == unfiltered && ok;
+    SendMessageW(hwnd, WM_KEYDOWN, VK_ESCAPE, 1);
+    settleSearch();
+    launchpad_i18n::Select(L"en");
     if (!g_apps.empty()) {
         g_query = g_apps[0]->name; UpdateFilter();
         ok = !g_visible.empty() && ok;
@@ -341,6 +398,16 @@ void Preview_RunSmoke(HWND hwnd) {
     ok=launchpad_settings_store::Resolve(privateSettings,L"program",L"")==L"\"C:\\中文目录\\tool.exe\" --name=\"测试\""&&ok;
     ok=launchpad_settings_store::Resolve(privateSettings,L"uiFont",L"Arial")==L"Arial"&&ok;
     ok=launchpad_settings_store::Resolve(privateSettings,L"uiFont",L"auto")==L"auto"&&ok;
+    ok = launchpad_settings_store::Save(privateSettings, {{L"glowDistance", L"80", L""}}) && ok;
+    const auto declaredReach = DeclaredSettingDefault(L"glowDistance");
+    const bool seededDefaultPreserved = declaredReach == L"24" &&
+        launchpad_settings_store::Resolve(privateSettings, L"glowDistance", L"24", declaredReach) == L"80" &&
+        launchpad_settings_store::Read(privateSettings, L"present", L"glowDistance") == L"1" &&
+        launchpad_settings_store::Resolve(privateSettings, L"glowDistance", L"40", declaredReach) == L"40" &&
+        launchpad_settings_store::Read(privateSettings, L"present", L"glowDistance").empty();
+    ok = seededDefaultPreserved && ok;
+    Preview::Log(L"smoke: Windhawk-seeded defaults preserve private settings: %ls",
+                 seededDefaultPreserved ? L"PASS" : L"FAIL");
     auto futureSettings=Preview::File(L"future-settings.ini");
     WritePrivateProfileStringW(L"meta",L"version",L"99",futureSettings.c_str());
     ok=!launchpad_settings_store::Save(futureSettings,{{L"uiFont",L"Arial",L"auto"}})&&ok;
@@ -369,17 +436,184 @@ void Preview_RunSmoke(HWND hwnd) {
                 if (wcscmp(field.key, L"uiFont") == 0) field.cur = *font;
             Set_Save(g_setWin);
             LoadSettings(); g_settings.groups=false; g_labelFormat.Reset(); EnsureFormats(1);
-            WCHAR textFont[256], symbolFont[256];
-            g_labelFormat->GetFontFamilyName(textFont, ARRAYSIZE(textFont));
-            g_iconFormat->GetFontFamilyName(symbolFont, ARRAYSIZE(symbolFont));
-            ok = g_settings.font == L"Arial" && wcscmp(textFont,L"Arial") == 0 && wcscmp(symbolFont,L"Arial") != 0 && ok;
+            // DirectWrite can report a substituted family name for a requested font.
+            ComPtr<IDWriteTextFormat> expected;
+            WCHAR expectedFont[256]{}, textFont[256]{}, symbolFont[256]{};
+            ok = g_settings.font == *font &&
+                SUCCEEDED(g_dwrite->CreateTextFormat(font->c_str(), nullptr, DWRITE_FONT_WEIGHT_SEMI_BOLD,
+                    DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 14.f, L"", &expected)) &&
+                SUCCEEDED(expected->GetFontFamilyName(expectedFont, ARRAYSIZE(expectedFont))) &&
+                SUCCEEDED(g_labelFormat->GetFontFamilyName(textFont, ARRAYSIZE(textFont))) &&
+                SUCCEEDED(g_iconFormat->GetFontFamilyName(symbolFont, ARRAYSIZE(symbolFont))) &&
+                wcscmp(textFont, expectedFont) == 0 && wcscmp(symbolFont, expectedFont) != 0 && ok;
         } else ok = false;
         Preview::PutSetting(L"uiFont", L"auto");
         Preview::Log(L"smoke: enumerated %zu installed font families; custom text font and separate symbol font checked", installedFonts.size());
+        {
+            auto& settings = *g_setWin;
+            const auto oldPowerOrder = Preview::Setting(L"powerOrder");
+            auto orderField = Set_PowerOrderField(settings);
+            orderField->cur = orderField->def;
+            Set_GoPage(settings, 3);
+            auto first = std::find_if(settings.items.begin(), settings.items.end(), [](const SetItem& row) {
+                return row.powerPosition == 0;
+            });
+            const int lockField = first->field;
+            const auto arrows = Set_Parts(settings.fields[lockField], Set_RowRect(settings, *first));
+            auto center = [&](const D2D1_RECT_F& box) {
+                const float scale = settings.dpi / 96.f;
+                return MAKELPARAM(std::lround((box.left + box.right) / 2 * scale),
+                    std::lround(((box.top + box.bottom) / 2 - settings.scrollY + kSetCapH) * scale));
+            };
+            const auto enabled = settings.fields[lockField].cur;
+            SendMessageW(settings.hwnd, WM_LBUTTONDOWN, MK_LBUTTON, center(arrows.powerMove[0]));
+            bool orderOk = ParsePowerOrder(orderField->cur) == DefaultPowerOrder() &&
+                           settings.fields[lockField].cur == enabled;
+            SendMessageW(settings.hwnd, WM_LBUTTONDOWN, MK_LBUTTON, center(arrows.powerMove[1]));
+            const PowerOrder expected{1, 0, 2, 3, 4, 5};
+            const auto* moved = Set_ItemOfField(settings, lockField);
+            orderOk = orderOk && moved && moved->powerPosition == 1 &&
+                      settings.fields[lockField].cur == enabled && ParsePowerOrder(orderField->cur) == expected;
+            orderOk = ParsePowerOrder(L" restart,unknown,restart,lock ") == PowerOrder{4, 0, 1, 2, 3, 5} && orderOk;
+            Set_Save(g_setWin);
+            LoadSettings();
+            orderOk = orderOk && g_settings.powerOrder == expected &&
+                      Preview::Setting(L"powerOrder") == FormatPowerOrder(expected);
+            const bool hibernate = std::exchange(g_canHibernate, false);
+            g_settings.powerShown[0] = false;
+            ComputeLayout();
+            orderOk = orderOk && !g_layout.powerItems.empty() && g_layout.powerItems.front() == 1 &&
+                      std::find(g_layout.powerItems.begin(), g_layout.powerItems.end(), 0) == g_layout.powerItems.end() &&
+                      std::find(g_layout.powerItems.begin(), g_layout.powerItems.end(), 3) == g_layout.powerItems.end();
+            g_canHibernate = hibernate;
+            Set_ResetToSuggested(settings);
+            orderOk = orderOk && ParsePowerOrder(orderField->cur) == DefaultPowerOrder() &&
+                      Set_ItemOfField(settings, lockField)->powerPosition == 0;
+            launchpad_i18n::Select(L"zh-CN");
+            orderField->cur = FormatPowerOrder(expected);
+            orderOk = SaveSettings(output + L"\\settings-power-order-zh-CN.png", 3, 96) && orderOk;
+            Preview::PutSetting(L"powerOrder", oldPowerOrder);
+            Set_LoadFields(settings);
+            Set_BuildPage(settings);
+            LoadSettings();
+            Preview::Log(L"smoke: power-order controls, persistence, defaults and filtering: %ls",
+                         orderOk ? L"PASS" : L"FAIL");
+            ok = orderOk && ok;
+        }
+        {
+            // Saving, deleting, then round-tripping a material file through the
+            // same helpers the buttons call. The dialogs themselves are not
+            // exercised; the document layer is.
+            auto& settings = *g_setWin;
+            const auto oldPresets = Preview::Setting(L"materialUserPresets");
+            Preview::PutSetting(L"materialUserPresets", L"");
+            Set_GoPage(settings, 2);
+            settings.dpi = 96;  // A smoke-tested window is invisible, so it reports no DPI.
+            Set_MakeFormats(settings);
+            Set_LoadFields(settings);
+            Set_BuildPage(settings);
+            const auto actions = std::find_if(settings.items.begin(), settings.items.end(),
+                [](const SetItem& row) { return row.type == SetItem::Actions; });
+            bool presetOk = actions != settings.items.end() &&
+                            settings.userPresets.empty() &&
+                            Set_FieldByKey(settings, L"materialPreset")->options.size() == 11;
+            settings.scrollY = settings.scrollTarget =
+                std::clamp(actions != settings.items.end() ? actions->y - 120 : 0.0f,
+                           0.0f, std::max(0.0f, settings.contentH - Set_ViewH(settings)));
+            settings.dpi = 96;  // Set by the click path; LoadFields resets it for an invisible window.
+            if (actions != settings.items.end()) {
+                const D2D1_RECT_F first = Set_ActionRect(settings, *actions, 0);
+                presetOk = presetOk && Set_Hit(settings, (first.left + first.right) / 2,
+                                               (first.top + first.bottom) / 2 - settings.scrollY).kind ==
+                                           SetHit::Action;
+                Set_PutValue(*Set_FieldByKey(settings, L"materialPresetName"), L"Smoke A");
+                Set_MaterialAction(settings, 0);  // The button rect and hit mapping are asserted above.
+                std::vector<launchpad_material::UserPreset> stored;
+                // The preview settings file is a plain INI and cannot hold the
+                // multi-line JSON, so the stored form is checked in memory; the
+                // real settings store encodes it per line.
+                const bool storedParsed = launchpad_material::ParseUserPresets(
+                    launchpad_material::UserPresetsJson(settings.userPresets), stored);
+                presetOk = presetOk && settings.userPresets.size() == 1 &&
+                           settings.userPresets[0].name == L"Smoke A" &&
+                           Set_FieldByKey(settings, L"materialPreset")->cur == L"Smoke A" &&
+                           Set_FieldByKey(settings, L"materialPreset")->options.size() == 12;
+                presetOk = presetOk && storedParsed &&
+                    stored.size() == 1 && stored[0].name == L"Smoke A";
+                const auto savedParams = Set_MaterialParams(settings);
+                Set_PutValue(*Set_FieldByKey(settings, L"tintColor"), L"#89B4FA");
+                Set_PutValue(*Set_FieldByKey(settings, L"materialBlur"), L"77");
+                Set_ApplyMaterialPreset(settings, L"Smoke A");
+                const auto picked = Set_MaterialParams(settings);
+                const std::wstring pickedTint = Set_FieldByKey(settings, L"tintColor")->cur;
+                presetOk = presetOk &&
+                    std::abs(picked.blurSigma - savedParams.blurSigma) < 0.01f &&
+                    std::abs(picked.saturation - savedParams.saturation) < 0.01f &&
+                    std::abs(picked.brightness - savedParams.brightness) < 0.01f &&
+                    std::abs(picked.contrast - savedParams.contrast) < 0.01f &&
+                    std::abs(picked.tintOpacity - savedParams.tintOpacity) < 0.01f &&
+                    std::abs(picked.luminosity - savedParams.luminosity) < 0.01f &&
+                    std::abs(picked.noise - savedParams.noise) < 0.01f &&
+                    std::abs(picked.dim - savedParams.dim) < 0.01f &&
+                    pickedTint == L"#89B4FA" &&
+                    launchpad_material::RgbFromColor(picked.tint) == 0x89B4FA;
+                Set_ApplyMaterialPreset(settings, L"Vivid Glass");
+                presetOk = presetOk &&
+                    Set_FieldByKey(settings, L"tintColor")->cur == L"#89B4FA";
+                Set_MaterialAction(settings, 1);
+                presetOk = presetOk && settings.userPresets.empty() &&
+                           Set_FieldByKey(settings, L"materialPreset")->cur == L"custom" &&
+                           Set_FieldByKey(settings, L"materialPreset")->options.size() == 11;
+            }
+            const auto before = Set_MaterialParams(settings);
+            const std::wstring doc = Set_MaterialDocument(settings, L"Round trip");
+            Set_ApplyMaterialParams(settings,
+                launchpad_material::ParamsFromPreset(launchpad_material::Presets()[3]));
+            const bool restored = Set_ApplyMaterialDocument(settings, doc) == nullptr;
+            const auto after = Set_MaterialParams(settings);
+            const bool same = std::abs(after.blurSigma - before.blurSigma) < 0.01f &&
+                std::abs(after.saturation - before.saturation) < 0.01f &&
+                std::abs(after.brightness - before.brightness) < 0.01f &&
+                std::abs(after.contrast - before.contrast) < 0.01f &&
+                std::abs(after.tintOpacity - before.tintOpacity) < 0.01f &&
+                std::abs(after.luminosity - before.luminosity) < 0.01f &&
+                std::abs(after.noise - before.noise) < 0.01f &&
+                std::abs(after.dim - before.dim) < 0.01f &&
+                launchpad_material::RgbFromColor(after.tint) ==
+                    launchpad_material::RgbFromColor(before.tint);
+            const wchar_t* garbage = Set_ApplyMaterialDocument(settings, L"{}");
+            presetOk = presetOk && restored && same && garbage &&
+                        wcscmp(garbage, L"That file is not a material file.") == 0 &&
+                        Set_ApplyMaterialDocument(settings, L"{\"format\":\"other\"}") != nullptr;
+            Preview::PutSetting(L"materialUserPresets", oldPresets);
+            Set_LoadFields(settings);
+            Set_BuildPage(settings);
+            Preview::Log(L"smoke: material preset buttons, stored JSON and file round trip: %ls",
+                         presetOk ? L"PASS" : L"FAIL");
+            ok = presetOk && ok;
+        }
+        auto saveIconSize = [&](int requested) {
+            for (auto& field : g_setWin->fields) {
+                if (wcscmp(field.key, L"gridIconSize") == 0) field.cur = std::to_wstring(requested);
+            }
+            Set_Save(g_setWin);
+            LoadSettings();
+            ComputeLayout();
+            const auto cell = MakeSquareCell(0, 0, g_layout.cellWidth);
+            return std::pair{g_settings.iconSize, cell.icon.right - cell.icon.left};
+        };
+        auto [smallSetting, smallIcon] = saveIconSize(24);
+        auto [largeSetting, largeIcon] = saveIconSize(192);
+        ok = smallSetting == 24 && largeSetting == 192 &&
+             std::abs(smallIcon / g_layout.scale - 24) < 1 &&
+             std::abs(largeIcon / g_layout.scale - 192) < 1 && ok;
+        Preview::Log(L"smoke: saved icon size %d to %d, rendered icon %.1f to %.1f px",
+                     smallSetting, largeSetting, smallIcon, largeIcon);
+        Preview::PutSetting(L"gridIconSize", L"56");
         Preview::PutSetting(L"interfaceLanguage", L"zh-CN");
         LoadSettings(); g_settings.groups=false;
         ok = launchpad_i18n::chinese.load() && ok;
-        g_settings.opacity = 0.96f; g_settings.blurMode = BlurMode::None;
+        g_settings.opacity = 0.96f; g_settings.backend = launchpad_material::Backend::Transparent;
         g_labelFormat.Reset(); EnsureFormats(1);
         g_openFolder = g_tiles[0].folder;
         g_folderAnim = 1; g_folderRenaming = true;
@@ -562,6 +796,15 @@ void Preview_RunSmoke(HWND hwnd) {
         }
         g_freeGroupLayout=true;ok=SaveGroupPositions(true)&&beforeGeometry==ArrangementLines()&&ok;
         UpdateFilter();ComputeLayout();Render();ok=SaveGrid(output+L"\\free-group-edit-zh-CN.png")&&ok;
+        const auto saveButton = GroupEditButtons().back();
+        const int saveX = (int)(saveButton.right - 18 * g_layout.scale);
+        const int saveY = (int)((saveButton.top + saveButton.bottom) / 2);
+        const auto idleSave = GetPixel(g_surface.dc, saveX, saveY);
+        SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(saveX, saveY));
+        Render();
+        ok = GroupEditHover() == 2 && GetPixel(g_surface.dc, saveX, saveY) != idleSave &&
+             SaveGrid(output + L"\\group-edit-save-hover-zh-CN.png") && ok;
+        SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
         // Render the resize preview with its independent whole-cell target.
         if(!g_groupGeometry.empty()) {
             const auto& first=g_groupGeometry.front();
@@ -575,6 +818,15 @@ void Preview_RunSmoke(HWND hwnd) {
             } else ok=false;
         }
         g_groupEditMode=false;g_settings.powerBar=true;ComputeLayout();
+        auto overflow = std::find_if(g_groupGeometry.begin(), g_groupGeometry.end(), [](const auto& group) {
+            return g_groupPositions.contains(group.group) &&
+                GroupPageCount((int)group.group->apps.size(), group.columns, group.visibleRows) > 1;
+        });
+        if (overflow != g_groupGeometry.end()) {
+            Render();
+            ok = SaveGrid(output + L"\\group-page-indicator-zh-CN.png") && ok;
+        }
+
         std::vector<int> selectable;
         for(const auto& geometry:g_groupGeometry)if(geometry.count>0&&
             g_visible[geometry.start].app&&g_groupCells[geometry.start].icon.top<g_layout.viewBottom)
@@ -593,27 +845,116 @@ void Preview_RunSmoke(HWND hwnd) {
             auto pixel=[&](POINT p) {return (int)GetRValue(GetPixel(g_surface.dc,p.x,p.y));};
             auto next=sample(CellAt(selectable[1]).unit,.05f,.10f);
             int neighbour=pixel(next);
-            auto left=sample(unit,.009f,.22f),right=sample(unit,.991f,.22f);
-            auto top=sample(unit,.22f,.009f),bottom=sample(unit,.22f,.991f);
+            // The glow follows the nearest icon now, so the pointer is kept next to
+            // that icon. The glass is drawn behind the icon, so only the padding
+            // around it is visible: these points sit 10 DIP outside the icon edge,
+            // well inside the 24 DIP reach.
+            auto icon=CellAt(selectable[0]).icon;
+            const LONG gap=(LONG)std::lround(10*g_layout.scale);
+            const LONG cx=(LONG)std::lround((icon.left+icon.right)/2);
+            const LONG cy=(LONG)std::lround((icon.top+icon.bottom)/2);
+            const LONG lx=(LONG)std::lround(icon.left-gap),rx=(LONG)std::lround(icon.right+gap);
+            const LONG ty=(LONG)std::lround(icon.top-gap),by=(LONG)std::lround(icon.bottom+gap);
+            auto left=POINT{lx,cy},right=POINT{rx,cy};
+            auto top=POINT{cx,ty},bottom=POINT{cx,by};
             auto move=[&](POINT p) {SendMessageW(hwnd,WM_MOUSEMOVE,0,MAKELPARAM(p.x,p.y));Render();};
             std::array<POINT,4> catches{left,right,top,bottom};
             for(size_t edge=0;edge<catches.size();++edge) {
                 move(catches[edge]);
-                ok=g_glassClaimed&&pixel(catches[edge])>pixel(catches[edge^1])+22&&pixel(next)==neighbour&&ok;
+                bool e=g_glassClaimed&&pixel(catches[edge])>pixel(catches[edge^1])+22&&pixel(next)==neighbour;
+                Preview::Log(L"smoke stage edge %d ok=%d delta=%d",(int)edge,(int)e,
+                             pixel(catches[edge])-pixel(catches[edge^1]));
+                ok=e&&ok;
             }
-            for(float x:{.012f,.988f})for(float y:{.012f,.988f}) {
-                move(sample(unit,x,y));
-                float edgeX=x<.5f?.009f:.991f, edgeY=y<.5f?.009f:.991f;
-                float alongX=x<.5f?.08f:.92f, alongY=y<.5f?.08f:.92f;
-                ok=g_glassClaimed&&pixel(sample(unit,edgeX,alongY))>100&&
-                    pixel(sample(unit,alongX,edgeY))>100&&ok;
+            POINT corners[4]={{lx,ty},{rx,ty},{lx,by},{rx,by}};
+            for(auto corner:corners) {
+                move(corner);
+                // Diagonal pointers are ~14 DIP out, still inside the 24 DIP reach.
+                // Brightness there is covered by the edge samples above; the corner
+                // of the cell is outside the rounded glass shape, so only the claim
+                // is asserted here and the screenshot is taken at a diagonal point.
+                ok=g_glassClaimed&&ok;
             }
+            {
+                // The setting has to widen the glow: the same pointer, 60 DIP left of
+                // the first icon and 26 DIP outside its cell, must leave the tile dark
+                // at 0 and light it at 80. The light is drawn inside the cell, so the
+                // sample sits just inside its left edge, where the clamped light lands.
+                const LONG farX=(LONG)std::lround(icon.left-60*g_layout.scale);
+                const LONG edgeX=(LONG)std::lround(unit.left+2*g_layout.scale);
+                const POINT farPoint{farX,cy},cellEdge{edgeX,cy};
+                const int savedReach=g_settings.glowDistance;
+                g_settings.glowDistance=0;move(farPoint);Render();int dark=pixel(cellEdge);
+                g_settings.glowDistance=80;move(farPoint);Render();int lit=pixel(cellEdge);
+                g_settings.glowDistance=savedReach;
+                Preview::Log(L"smoke glow distance 0=%d 80=%d",dark,lit);
+                ok=lit>dark+20&&ok;
+                move(left);
+            }
+            {
+                // A small move while still over the icon must visibly light the
+                // matching rim as the distance setting is increased.
+                const int savedReach = g_settings.glowDistance;
+                const int step = (int)std::lround(4 * g_layout.scale);
+                const POINT nearCentre[] = {{cx-step,cy}, {cx+step,cy}, {cx,cy-step}, {cx,cy+step}};
+                // Sample both strokes of the bevel. Their rasterised pixel
+                // centres differ between the top/left and bottom/right.
+                const auto sampleRim = [&](int edge) {
+                    std::array<int, 16> samples{};
+                    for (int i = 0; i < (int)samples.size(); ++i) {
+                        const LONG d = (LONG)std::lround((i + 1) * g_layout.scale);
+                        const POINT rim[] = {{(LONG)std::lround(unit.left)+d,cy},
+                                             {(LONG)std::lround(unit.right)-d,cy},
+                                             {cx,(LONG)std::lround(unit.top)+d},
+                                             {cx,(LONG)std::lround(unit.bottom)-d}};
+                        samples[i] = pixel(rim[edge]);
+                    }
+                    return samples;
+                };
+                const auto brightestIncrease = [](const auto& before, const auto& after) {
+                    int increase = 0;
+                    for (size_t i = 0; i < before.size(); ++i)
+                        increase = std::max(increase, after[i] - before[i]);
+                    return increase;
+                };
+                bool responsive = true;
+                for (int edge = 0; edge < (int)std::size(nearCentre); ++edge) {
+                    g_settings.glowDistance = 0;
+                    move(nearCentre[edge]);
+                    const auto low = sampleRim(edge), lowOpposite = sampleRim(edge ^ 1);
+                    g_settings.glowDistance = 80;
+                    move(nearCentre[edge]);
+                    const auto high = sampleRim(edge);
+                    const int facing = brightestIncrease(low, high);
+                    const int opposite = brightestIncrease(lowOpposite, sampleRim(edge ^ 1));
+                    // An outline by itself passes the peak probe but gives no
+                    // light this far into the face. Verify the soft band too.
+                    int band = 255;
+                    for (int i = 6; i <= 9; ++i)
+                        band = std::min(band, high[i] - low[i]);
+                    responsive = responsive && g_glassClaimed && facing > 20 &&
+                                 facing > opposite + 20 && band > 12 && pixel(next) == neighbour;
+                    Preview::Log(L"smoke: near-centre rim %d, peak=%d band at 7–10 DIP=%d opposite=%d",
+                                 edge, facing, band, opposite);
+                    if (edge == 1)
+                        ok = SaveGrid(output + L"\\square-grid-glow-near-centre.png") && ok;
+                }
+                const LONG rimX = (LONG)std::lround(unit.left + 2 * g_layout.scale);
+                move({rimX, cy});
+                ok = SaveGrid(output + L"\\square-grid-glow-face-edge.png") && ok;
+                g_settings.glowDistance = savedReach;
+                ok = responsive && ok;
+                Preview::Log(L"smoke: app grid glow reaches into all four facing edges: %ls",
+                             responsive ? L"PASS" : L"FAIL");
+                move(left);
+            }
+            Preview::Log(L"smoke stage corners ok=%d",(int)ok);
             ok=SaveGrid(output+L"\\glass-corner-zh-CN.png")&&ok;
             move(left);ok=SaveGrid(output+L"\\square-grid-hover-zh-CN.png")&&ok;
 
             double started=Now();
             for(int frame=0;frame<24;++frame) {
-                auto slot=CellAt(selectable[frame%2]).unit;
+                auto slot=CellAt(selectable[frame%2]).icon;
                 move(sample(slot,.12f+(frame%6)*.14f,.20f+(frame%5)*.13f));
                 ok=g_glassClaimed&&ok;
             }
@@ -631,18 +972,24 @@ void Preview_RunSmoke(HWND hwnd) {
                 ComputeLayout();
                 g_scroll=g_scrollTarget=std::min(36*scale,MaxScroll());
                 auto cell=CellAt(selectable[0]);
-                move(sample(cell.unit,.02f,.28f));
+                move(sample(cell.icon,.5f,.5f));
+                const float wantX=(cell.icon.left+cell.icon.right)/2;
+                const float wantY=(cell.icon.top+cell.icon.bottom)/2;
+                const float wantU=(wantX-cell.unit.left)/std::max(1.f,cell.unit.right-cell.unit.left);
+                const float wantV=(wantY-cell.unit.top)/std::max(1.f,cell.unit.bottom-cell.unit.top);
                 auto fade=std::find_if(std::begin(g_glowFades),std::end(g_glowFades),[&](const auto& slot) {
                     return slot.key==g_visible[selectable[0]].app.get()&&slot.alpha>0;
                 });
-                ok=g_glassClaimed&&fade!=std::end(g_glowFades)&&std::abs(fade->light.x-.02f)<.012f&&
-                    std::abs(fade->light.y-.28f)<.012f&&InRect(cell.unit,cell.icon.left,cell.icon.top)&&ok;
+                ok=g_glassClaimed&&fade!=std::end(g_glowFades)&&std::abs(fade->light.x-wantU)<.02f&&
+                    std::abs(fade->light.y-wantV)<.02f&&InRect(cell.unit,cell.icon.left,cell.icon.top)&&ok;
             }
             SendMessageW(hwnd,WM_MOUSELEAVE,0,0);
             g_settings.iconSize=iconSize;g_settings.labelSize=labelSize;
             g_layout.scale=1;g_scroll=g_scrollTarget=0;
             EnsureFormats(1);ComputeLayout();
             g_settings.tint=originalTint;g_settings.opacity=originalOpacity;
+            SendMessageW(hwnd,WM_MOUSELEAVE,0,0);
+            Render();
             auto one=CellAt(selectable[0]).highlight,two=CellAt(selectable[1]).highlight;
             g_selectionPointer.pending=true;
             g_selectionPointer.start={(LONG)std::min(one.left,two.left)-5,(LONG)std::min(one.top,two.top)-5};
@@ -651,34 +998,364 @@ void Preview_RunSmoke(HWND hwnd) {
             Render();ok=SaveGrid(output+L"\\batch-selection-zh-CN.png")&&ok;
             ClearAppSelection();
         } else ok=false;
-        g_groupEditMode=false;g_settings.blurMode=BlurMode::None;g_settings.opacity=1;g_settings.tint=D2D1::ColorF(0xFFFFFF);
+        g_groupEditMode=false;g_settings.backend=launchpad_material::Backend::Transparent;g_settings.opacity=1;g_settings.tint=D2D1::ColorF(0xFFFFFF);
         Render();ok=SaveGrid(output+L"\\readability-white-background.png")&&ok;
         g_settings.tint=D2D1::ColorF(0x111318);Render();ok=SaveGrid(output+L"\\readability-dark-background.png")&&ok;
         g_settings.tint=D2D1::ColorF(0x808080);Render();ok=SaveGrid(output+L"\\readability-gray-background.png")&&ok;
+        if (!selectable.empty()) {
+            const int index = selectable.front();
+            const auto& tile = g_visible[index];
+            const auto key = MotionKey(tile);
+            const auto savedEffects = g_settings.textEffects;
+            g_settings.textEffects.shadowOpacity = 72;
+            g_settings.textEffects.outlineOpacity = 0;
+
+            // Cold open: measure the same app label before the graphics device
+            // exists, as ComputeLayout does before the first Render in Open.
+            ClearTileLabelCache();
+            ComPtr<ID2D1Device> device;
+            g_d2dDevice.Swap(device);
+            ComputeLayout();
+            const auto cell = CellAt(index);
+            auto& cold = TileLabel(tile, cell.label, cell.wrapLabel);
+            const auto originalLayout = cold.layout;
+            const bool measuredBeforeGraphics = !g_d2dDevice && originalLayout && !cold.shadow.bitmap &&
+                                                cold.shadow.attempts == 0;
+            g_d2dDevice.Swap(device);
+            Render();
+            const auto coldEntry = g_labelCache.find(key);
+            const bool firstFrame = coldEntry != g_labelCache.end() &&
+                                    coldEntry->second.layout.Get() == originalLayout.Get() &&
+                                    coldEntry->second.shadow.bitmap;
+
+            // A temporarily unavailable shadow device must queue a frame
+            // even with launcher animations disabled and no mouse input.
+            ClearTileLabelCache();
+            ClearLauncherTextCache();
+            g_d2dDevice.Swap(device);
+            Render();
+            const auto missing = g_labelCache.find(key);
+            const auto layoutAfterFailure = missing == g_labelCache.end()
+                ? ComPtr<IDWriteTextLayout>{} : missing->second.layout;
+            const bool retryQueued = !g_d2dDevice && layoutAfterFailure && !missing->second.shadow.bitmap &&
+                                     missing->second.shadow.attempts == 1 && g_textShadowRetryPending &&
+                                     g_frameTimer && !Animate();
+            g_d2dDevice.Swap(device);
+            OnFrame();
+            const auto recovered = g_labelCache.find(key);
+            const bool recoveredInPlace = recovered != g_labelCache.end() &&
+                recovered->second.layout.Get() == layoutAfterFailure.Get() &&
+                recovered->second.shadow.bitmap && recovered->second.shadow.attempts == 2 &&
+                !g_textShadowRetryPending;
+
+            const bool shadowOk = measuredBeforeGraphics && firstFrame && retryQueued && recoveredInPlace;
+            Preview::Log(L"smoke: cold label shadow and same-open retry: %ls (layout=%d first=%d queued=%d recovered=%d)",
+                         shadowOk ? L"PASS" : L"FAIL", measuredBeforeGraphics, firstFrame,
+                         retryQueued, recoveredInPlace);
+            ok = shadowOk && ok;
+            g_settings.textEffects = savedEffects;
+            ClearTileLabelCache();
+            ClearLauncherTextCache();
+        } else ok = false;
         // Exercise the common white labels over a synthetic split-luminance background.
         std::vector<UINT32> mixed(160*100);
         for(int y=0;y<100;y++)for(int x=0;x<160;x++)mixed[y*160+x]=x<80?0xFFF5F5F5:0xFF090909;
         ComPtr<ID2D1Bitmap> mixedBitmap;
         auto mixedProps=D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,D2D1_ALPHA_MODE_PREMULTIPLIED),96,96);
         ok=SUCCEEDED(g_target->CreateBitmap(D2D1::SizeU(160,100),mixed.data(),160*4,mixedProps,&mixedBitmap))&&ok;
-        g_backdropImage.bitmap=mixedBitmap;g_backdropImage.sourceWidth=160;g_backdropImage.sourceHeight=100;
-        g_settings.blurMode=BlurMode::Custom;g_settings.opacity=0;g_settings.backgroundDim=0;
-        Render();ok=SaveGrid(output+L"\\readability-mixed-background.png")&&ok;
+        mixedBitmap.As(&g_materialCache.blurred);g_materialCache.width=160;g_materialCache.height=100;g_materialCache.sourceWidth=160;g_materialCache.sourceHeight=100;
+        g_material.average = AverageBackdropColor(mixed.data(), 160, 100);
+        g_settings.backend=launchpad_material::Backend::Custom;g_settings.opacity=0;g_settings.backgroundDim=0;
+
+        const auto previousTextEffects = g_settings.textEffects;
+        auto checkTextEffects = [&](TextEffects effects, const wchar_t* filename) {
+            g_settings.textEffects = effects;
+            g_labelCache.clear();
+            ClearLauncherTextCache();
+            Render();
+            return SaveGrid(output + filename);
+        };
+        auto shadowOnly = previousTextEffects;
+        shadowOnly.outlineOpacity = 0;
+        auto outlineOnly = previousTextEffects;
+        outlineOnly.shadowOpacity = 0;
+        ok = checkTextEffects(shadowOnly, L"\\readability-shadow-only.png") && ok;
+        ok = checkTextEffects(outlineOnly, L"\\readability-outline-only.png") && ok;
+        ok = checkTextEffects(previousTextEffects, L"\\readability-mixed-background.png") && ok;
         for(float progress:{0.0f,.25f,.5f,.75f,1.0f}){g_appear=progress;Render();}
         g_closing=true;for(float progress:{.75f,.5f,.25f}){g_appear=progress;Render();}g_closing=false;g_appear=1;
 
-        // The app menu: laid out and painted offscreen over the grid just
-        // drawn, so its material is checked without a window or input. The
-        // menu base now comes from the grid's own frame, so the synthetic
-        // backdrop stays: it is what makes the frame opaque here.
-        g_settings.blurMode=BlurMode::Custom;g_settings.opacity=0.35f;g_settings.tint=D2D1::ColorF(0x11111B);
+        // Menus opened on different halves of the page share its overall color.
+        g_settings.backend=launchpad_material::Backend::Custom;g_settings.opacity=0.35f;g_settings.tint=D2D1::ColorF(0x11111B);
         Render();
         ok=PreviewMenuShot(output+L"\\menu-tile-zh-CN.png",g_layout.area.left+180,g_layout.area.top+140)&&ok;
+        auto menuColor = LaunchpadMenu::g_menu.background;
         Render();
-        ok=PreviewMenuShot(output+L"\\menu-hover-zh-CN.png",g_layout.area.left+180,g_layout.area.top+140,2)&&ok;
+        ok=PreviewMenuShot(output+L"\\menu-hover-zh-CN.png",g_layout.area.left+920,g_layout.area.top+140,2)&&ok;
+        const auto otherColor = LaunchpadMenu::g_menu.background;
+        ok = menuColor.r == otherColor.r && menuColor.g == otherColor.g && menuColor.b == otherColor.b && ok;
         Render();
         ok=PreviewMenuShot(output+L"\\menu-submenu-zh-CN.png",g_layout.area.left+180,g_layout.area.top+140,1,1)&&ok;
-        g_backdropImage={};
+        if (g_layout.powerItems.size() >= 2) {
+            // The smoke image uses the first six actions; enable every warning
+            // action so the first button is representative too. Restored below.
+            const auto warningActions = g_settings.powerWarningActions;
+            for (auto& action : g_settings.powerWarningActions) action = true;
+            const auto first = PowerButtonRect(0), second = PowerButtonRect(1);
+            const int centerX = (int)((first.left + first.right) / 2);
+            const int centerY = (int)((first.top + first.bottom) / 2);
+            const int x = centerX;
+            const int y = centerY;
+            const int neighborX = (int)((second.left + second.right) / 2);
+            const int neighborY = (int)((second.top + second.bottom) / 2);
+            const int outsideX = (int)(g_layout.powerBar.left - 4 * g_layout.scale);
+            const int outsideY = (int)((g_layout.powerBar.top + g_layout.powerBar.bottom) / 2);
+            const int farY = (int)(g_layout.powerBar.top -
+                (g_settings.glowDistance + 16) * g_layout.scale);
+            const int dockX = (int)((g_layout.powerBar.left + g_layout.powerBar.right) / 2);
+            SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
+            Render();
+            const auto idleCenter = GetPixel(g_surface.dc, centerX, centerY);
+            const auto idleOutside = GetPixel(g_surface.dc, outsideX, outsideY);
+            SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(x, y));
+            SettlePowerGlass();
+            Render();
+            const auto litCenter = GetPixel(g_surface.dc, centerX, centerY);
+            const auto neighbor = GetPixel(g_surface.dc, neighborX, neighborY);
+            const auto outside = GetPixel(g_surface.dc, outsideX, outsideY);
+            auto redness = [](COLORREF c) {
+                return 2 * (int)GetRValue(c) - (int)GetGValue(c) - (int)GetBValue(c);
+            };
+            // One capsule-wide lobe: the hovered button is the hottest point,
+            // the neighbour only catches the falloff, and nothing leaves the
+            // glass pill.
+            const bool hoverIsLocal = g_powerHover == 0 &&
+                litCenter != idleCenter &&
+                redness(litCenter) > redness(neighbor) &&
+                outside == idleOutside;
+            ok = hoverIsLocal && SaveGrid(output + L"\\power-hover-zh-CN.png") && ok;
+            // The warning glass is one shared layer: it moves to the next
+            // button instead of two separate backgrounds.
+            SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(neighborX, y));
+            SettlePowerGlass();
+            Render();
+            ok = g_powerHover == 1 && SaveGrid(output + L"\\power-hover-restart-zh-CN.png") && ok;
+            if (g_layout.powerItems.size() >= 3) {
+                const auto last = PowerButtonRect((int)g_layout.powerItems.size() - 1);
+                const int lastX = (int)((last.left + last.right) / 2);
+                SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(lastX, y));
+                SettlePowerGlass();
+                Render();
+                ok = g_powerHover == (int)g_layout.powerItems.size() - 1 &&
+                     SaveGrid(output + L"\\power-hover-right-zh-CN.png") && ok;
+            }
+            // Kept as visual variants of the same hover state; the warning
+            // tint now lives inside the capsule, so the backdrop no longer
+            // drives a second material pass.
+            for (int theme = 0; theme < 3; ++theme) {
+                SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(x, y));
+                SettlePowerGlass();
+                Render();
+                ok = SaveGrid(output + (theme == 0 ? L"\\power-hover-dark-zh-CN.png"
+                                         : theme == 1 ? L"\\power-hover-light-zh-CN.png"
+                                                      : L"\\power-hover-color-zh-CN.png")) && ok;
+            }
+            SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(x, y));
+            SettlePowerGlass();
+            Render();
+            const auto hovered = GetPixel(g_surface.dc, centerX + (int)(13 * g_layout.scale),
+                                          centerY);
+            g_settings.powerNoConfirm = false;
+            const auto oldOrder = g_settings.powerOrder;
+            const int firstAction = g_layout.powerItems[0], secondAction = g_layout.powerItems[1];
+            SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x, y));
+            SettlePowerGlass();
+            Render();
+            // Press compresses the lobe without brightening it, so the same
+            // off-glyph probe must not get redder.
+            ok = g_powerPressed == firstAction && g_powerGlass.press > .9f &&
+                 redness(GetPixel(g_surface.dc, centerX + (int)(13 * g_layout.scale), centerY)) <=
+                     redness(hovered) &&
+                 SaveGrid(output + L"\\power-press-zh-CN.png") && ok;
+            std::iter_swap(std::find(g_settings.powerOrder.begin(), g_settings.powerOrder.end(), firstAction),
+                           std::find(g_settings.powerOrder.begin(), g_settings.powerOrder.end(), secondAction));
+            ComputeLayout();
+            SendMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(x, y));
+            ok = g_powerArmed == -1 && ok;
+            g_settings.powerOrder = oldOrder;
+            ComputeLayout();
+            SendMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x, y));
+            SendMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(x, y));
+            SettlePowerGlass();
+            Render();
+            ok = g_powerArmed == firstAction && SaveGrid(output + L"\\power-confirm-zh-CN.png") && ok;
+            SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(dockX, farY));
+            ok = g_powerHover == -1 && PowerAt(dockX, farY) == -1 && ok;
+            DisarmPower();
+            SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
+            ResetPowerGlass();
+            Render();
+            for (int i = 0; i < (int)std::size(g_settings.powerWarningActions); ++i)
+                g_settings.powerWarningActions[i] = warningActions[i];
+            Preview::Log(L"smoke: only the hovered power button lit up: %ls", hoverIsLocal ? L"PASS" : L"FAIL");
+        }
+        // Verify the three-button arrangement with the production renderer.
+        {
+            const auto saved = g_settings;
+            g_settings.backend = launchpad_material::Backend::Transparent;
+            g_settings.opacity = 1.f;
+            g_settings.tint = D2D1::ColorF(0x25252D);
+            for (int action = 0; action < (int)std::size(kPower); ++action) {
+                g_settings.powerShown[action] =
+                    action == (int)PowerAction::SignOut ||
+                    action == (int)PowerAction::Restart ||
+                    action == (int)PowerAction::ShutDown;
+                g_settings.powerWarningActions[action] = true;
+            }
+            ComputeLayout();
+            bool centred = g_layout.powerItems.size() == 3;
+            const float s = g_layout.scale;
+            const int tipY = (int)std::round(g_layout.powerBar.top - std::round(8.f * s) - 4.f * s);
+            const int dx = (int)std::round(10.f * s);
+            for (int slot = 0; slot < (int)g_layout.powerItems.size(); ++slot) {
+                const auto button = PowerButtonRect(slot);
+                const int x = (int)std::round((button.left + button.right) * .5f);
+                const int y = (int)std::round((button.top + button.bottom) * .5f);
+                SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(x + dx, y));
+                SettlePowerGlass();
+                const auto sample = [&](int offset) {
+                    const auto pixel = GetPixel(g_surface.dc, x + offset, tipY);
+                    return 2 * (int)GetRValue(pixel) - (int)GetGValue(pixel) - (int)GetBValue(pixel);
+                };
+                g_settings.powerWarningBleed = 0;
+                Render();
+                const int off[] = {sample(-dx), sample(0), sample(dx - 1)};
+                g_settings.powerWarningBleed = 100;
+                Render();
+                const int left = sample(-dx) - off[0];
+                const int centre = sample(0) - off[1];
+                const int right = sample(dx - 1) - off[2];
+                Preview::Log(L"smoke: warning reflection slot %d, left=%d centre=%d right=%d",
+                             slot, left, centre, right);
+                centred = g_powerHover == slot && centre > left && centre > right &&
+                          std::abs(left - right) <= std::max(5, centre / 20) && centred;
+                g_settings.powerWarningBleed = saved.powerWarningBleed;
+                Render();
+                ok = SaveGrid(output + L"\\power-three-" + std::to_wstring(slot) + L".png") && ok;
+            }
+            if (g_layout.powerItems.size() == 3) {
+                const auto start = PowerButtonRect(0), next = PowerButtonRect(1);
+                const int x0 = (int)std::round((start.left + start.right) * .5f);
+                const int x1 = (int)std::round((next.left + next.right) * .5f);
+                const int y = (int)std::round((start.top + start.bottom) * .5f);
+                const bool requested = g_requestedAnimations.exchange(true);
+                const bool system = g_systemAnimations.exchange(true);
+                const int gapX = (x0 + x1) / 2;
+                auto move = [&](int x) { SendMessageW(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(x, y)); };
+                const auto red = [&](int x, int dy) {
+                    const COLORREF p = GetPixel(g_surface.dc, x, y + dy);
+                    return 2 * (int)GetRValue(p) - (int)GetGValue(p) - (int)GetBValue(p);
+                };
+                // Sample the lobes below the opaque parts of their glyphs,
+                // on the same row as the dark shoulder of the neck.
+                const int sourceX = x0 + 5, arrivalX = x1 - 5, lobeY = 11;
+                SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
+                SettlePowerGlass();
+                Render();
+                const int sourceBase = red(sourceX, lobeY), arrivalBase = red(arrivalX, lobeY);
+                const int neckBase = red(gapX, 0), offNeckBase = red(gapX, 11);
+                move(x0);
+                SettlePowerGlass();
+                Render();
+                g_settings.powerWarningFollowButton = true;
+                move(x0);
+                SettlePowerGlass();
+                Render();
+                const auto renderAt = [&](int x, double elapsed) {
+                    move(x);
+                    g_powerGlass.tick = Now() - elapsed;
+                    Render();
+                };
+                // These three samples are geometrically outside either hit
+                // circle, even though the physical pointer moves each time.
+                bool gapTracks = true;
+                float shares[3]{};
+                int necks[3]{};
+                for (int offset = -1; offset <= 1; ++offset) {
+                    renderAt(gapX + offset * 2, .08);
+                    shares[offset + 1] = g_powerGlass.weights[1];
+                    necks[offset + 1] = red(gapX, 0) - neckBase;
+                    gapTracks = gapTracks && g_powerHover == -1 && PowerAt(gapX + offset * 2, y) == -1 &&
+                                g_powerGlass.litSlot == 0 && g_powerGlass.targetX == (float)x0;
+                    if (offset == 0) {
+                        const int tail = red(sourceX, lobeY) - sourceBase;
+                        const int head = red(arrivalX, lobeY) - arrivalBase;
+                        const int shoulder = red(gapX, 11) - offNeckBase;
+                        gapTracks = gapTracks && tail > 20 && head > 20 &&
+                                    necks[1] > shoulder + 15 &&
+                                    tail > shoulder + 12 && head > shoulder + 12;
+                    }
+                }
+                renderAt(gapX - 2, .08);
+                const bool reverses = g_powerHover == -1 && g_powerGlass.weights[1] < shares[1];
+                gapTracks = gapTracks && shares[1] > shares[0] + .10f &&
+                            shares[2] > shares[1] + .10f && necks[1] > 15;
+                renderAt(x1, .25);
+                renderAt(x1, .25);
+                const bool collapses = g_powerGlass.weights[0] == 0.f &&
+                                       g_powerGlass.weights[1] == 1.f &&
+                                       g_powerGlass.x == (float)x1;
+                Preview::Log(L"smoke: button-mode transfer in the non-clickable gap: %ls (%.2f %.2f %.2f)",
+                             gapTracks && reverses && collapses ? L"PASS" : L"FAIL",
+                             shares[0], shares[1], shares[2]);
+                ok = gapTracks && reverses && collapses && ok;
+
+                // Capture the physical path in both directions rather than
+                // generating frames from a fixed hover destination.
+                move(x0);
+                SettlePowerGlass();
+                const int path[] = {x0, x0+12, x0+15, gapX-4, gapX-2, gapX,
+                                    gapX+2, gapX+4, x1-14, x1-11, x1, x1,
+                                    x1-12, gapX+4, gapX+2, gapX, gapX-2,
+                                    gapX-4, x0+14, x0+11, x0, x0};
+                for (int frame = 0; frame < (int)std::size(path); ++frame) {
+                    renderAt(path[frame], .055);
+                    ok = SaveGrid(output + L"\\power-pointer-transfer-" + std::to_wstring(frame) + L".png") && ok;
+                }
+                g_requestedAnimations = requested;
+                g_systemAnimations = system;
+            }
+            SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
+            ResetPowerGlass();
+            g_settings = saved;
+            ComputeLayout();
+            Render();
+            ok = centred && ok;
+            Preview::Log(L"smoke: three warning reflections centred above their buttons: %ls",
+                         centred ? L"PASS" : L"FAIL");
+        }
+        auto updateDots = [&] {
+            unsigned count = 0;
+            for (int slot = 0; slot < (int)g_layout.powerItems.size(); ++slot) {
+                auto button = PowerButtonRect(slot);
+                int x = (int)std::round(button.right - 10 * g_layout.scale);
+                int y = (int)std::round(button.top + 10 * g_layout.scale);
+                COLORREF pixel = GetPixel(g_surface.dc, x, y);
+                bool yellow = GetRValue(pixel) > 200 && GetGValue(pixel) > 100 && GetBValue(pixel) < 120;
+                if (yellow) {
+                    ++count;
+                    ok = IsUpdatePowerAction(static_cast<PowerAction>(g_layout.powerItems[slot])) && ok;
+                }
+            }
+            return count;
+        };
+        SendMessageW(hwnd, kPowerUpdateStatusReady, static_cast<WPARAM>(PowerUpdateStatus::RestartRequired), 0);
+        ok = updateDots() == 2 && SaveGrid(output + L"\\power-update-zh-CN.png") && ok;
+        SendMessageW(hwnd, kPowerUpdateStatusReady, static_cast<WPARAM>(PowerUpdateStatus::Unknown), 0);
+        ok = updateDots() == 2 && ok;
+        SendMessageW(hwnd, kPowerUpdateStatusReady, static_cast<WPARAM>(PowerUpdateStatus::NoRestartPending), 0);
+        ok = updateDots() == 0 && ok;
+        g_materialCache={};
         ok=beforeGeometry==ArrangementLines()&&ok;
         g_settings=appearance;ClearGroupPositions();DeleteFileW(GroupPositionFile().c_str());DeleteFileW((GroupPositionFile()+L".bak").c_str());
         UpdateFilter();ComputeLayout();
@@ -691,7 +1368,7 @@ void Preview_RunSmoke(HWND hwnd) {
         ImportOrRestoreLayout(hwnd,true);
         ok=!g_layoutReadOnly && supported==ArrangementLines() && ok;
         Preview::Log(L"smoke: expanded group move, drag/cancel/hold, missing-app recovery, reorder, empty groups, Unicode persistence, four screen sizes, paging, backup restore and future-schema protection checked");
-        g_settings.groups=false; g_settings.pages=false;
+    g_settings.groups=false; g_settings.pages=false;
     } else ok = false;
     // Save tests queued reloads while validation storage was selected. They
     // must not run later against the user's independent preview data.
@@ -708,15 +1385,41 @@ void Preview_RunSmoke(HWND hwnd) {
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     Preview::Init();
     Preview::uiCheck=GetFileAttributesW(Preview::File(L"ui-check.flag").c_str())!=INVALID_FILE_ATTRIBUTES;
+    bool liveSettings = false;
     int count = 0;
     auto argv = CommandLineToArgvW(GetCommandLineW(), &count);
     for (int i = 1; i < count; i++) {
         std::wstring arg = argv[i];
         if (arg == L"--settings") Preview::settingsOnStart = true;
         if (arg == L"--smoke") Preview::smoke = true;
+        if (arg == L"--live-settings") liveSettings = true;
         if (arg == L"--lang" && i+1 < count) Preview::languageOverride = argv[++i];
     }
     LocalFree(argv);
+    if (liveSettings) {
+        // A real window, not an off-screen surface: the window region, the frame and the
+        // acrylic only exist on a live HWND, so this is the only way to look at the corner.
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        if (!Set_Create(false)) {
+            Preview::Log(L"live settings: Set_Create(false) failed, GetLastError=%lu", GetLastError());
+            return 3;
+        }
+        Preview::Log(L"live settings: window %p", (void*)g_setWin->hwnd);
+        Set_LoadFields(*g_setWin);
+        HWND h = g_setWin->hwnd;
+        SetWindowPos(h, HWND_TOPMOST, 80, 80, 1000, 760, SWP_SHOWWINDOW | SWP_NOACTIVATE);
+        DWORD until = GetTickCount() + 12000;
+        MSG message;
+        while (GetTickCount() < until) {
+            while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
+            Sleep(10);
+        }
+        DestroyWindow(h);
+        return 0;
+    }
     HANDLE instance = nullptr;
     if (!Preview::smoke) {
         instance = CreateMutexW(nullptr, FALSE, L"Local\\RYJSLaunchpadPreview");

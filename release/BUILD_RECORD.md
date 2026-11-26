@@ -1,76 +1,84 @@
-# 构建记录（1.0.0）
+# Build record (1.5.8)
 
-日期：2026-11-21（本轮整改后重新生成）
-产物：`ryjs-launchpad.wh.cpp`（仓库根）与 `release/mods/ryjs-launchpad.wh.cpp`
+Date: 2026-11-26
 
-| 项 | 值 |
+Artifact: `ryjs-launchpad.wh.cpp` (repository root) and
+`release/mods/ryjs-launchpad.wh.cpp` (byte-identical submission copy).
+
+| Item | Value |
 | --- | --- |
-| 版本 | 1.0.0 |
-| 行数 | 17,018 |
-| 字节数 | 774,274 |
-| SHA256 | `b844b0763afcfd577be72b62eef9fb3440ae786218f5923fa1f0f3a0074fe760` |
-| 架构 | x86-64（同一源码另测 i686 / aarch64 编译，均 0 warning） |
+| Version | 1.5.8 |
+| Lines | 21,392 |
+| Bytes | 1,119,813 |
+| SHA256 | `6915160ece5672b1f6723b49010dfc914036652efde3bfeb7f5258b2642ae2a3` |
+| Declared architecture | x86-64 |
+| Official validator | 0 problems |
+| Official compile | 0 problems |
 
-## 输入
+## Inputs
 
-生成器读取下列文件；任一变化都会改变产物。
+The generator reads the development source and its fragments, plus the settings
+schema, Chinese strings, the full-backup worker and the icon asset.
 
-| 文件 | Git 对象哈希 |
+| Input | Path |
 | --- | --- |
-| `ryjs-project.json`（版本唯一来源） | `d37c74ddfd81777ef8e3a2c1a066bee7dc78c088` |
-| `dev/settings-extension.json`（设置字段来源） | `c1000bdf0d1fff8c5b805f9af9beccf9ae207da0` |
-| `dev/strings.zh-CN.json`（中文资源） | `0442be48867b69ba9e79b4715f953da48c3e0a60` |
-| `dev/full_backup_worker.ps1`（内嵌备份脚本） | `60b3543eeaa2842bbe472f7fc3ad1bb8f5bef7ca` |
-| `mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp`（开发主文件） | `4b1e5cd5fe83c8d006e5c4df48166962172e9de6` |
+| Version source | `ryjs-project.json` |
+| Settings schema | `dev/settings-extension.json` |
+| Chinese resources | `dev/strings.zh-CN.json` |
+| Embedded backup worker | `dev/full_backup_worker.ps1` |
+| Development source | `mods/local/ryjs-launchpad/ryjs-launchpad.wh.cpp` |
+| App icon | `assets/app-icon-256.png`, embedded as `launchpad_app_icon.inc` |
 
-开发主文件通过 `#include "..."` 引入 18 个分片（`launchpad_*.h`、`launchpad_*.inc`、`ryjs_data.h`），全部位于 `mods/local/ryjs-launchpad/`，均已纳入版本管理。唯一例外是 `preview_api.h`：它只属于 `dev/preview`，生成时会替换为一行注释，因此产物中本地 `#include` 计数为 **0**。
+The development source includes the `launchpad_*.h` / `launchpad_*.inc`
+fragments and `ryjs_data.h` from `mods/local/ryjs-launchpad/`. The only
+developer-only include, `preview_api.h`, is replaced by a comment in the
+submission, so the artifact contains no local `#include`.
 
-## 生成命令
+## Generation
 
 ```powershell
 py -3.12 dev/generate_resources.py
 ```
 
-生成器对交付文件固定使用 LF 写入（`newline='\n'`）。原因：Git 在 Windows 上按 LF 存库，若工作副本是 CRLF，"本地文件哈希"与"GitHub 上的文件哈希"就会不一致，本记录里的 SHA256 无法从 GitHub 复核。现在工作副本、提交 blob 与 GitHub 上的文件是同一串字节。
-
-注意：在 `core.autocrlf=true` 的机器上重新 clone 时，工作副本会被 Git 转成 CRLF，`sha256sum` 会得到另一个值——那是换行规范化，不是内容差异。要核对请以 GitHub 上该文件的原始字节为准：
+The generator writes the artifact with LF (`newline='\n'`). On a checkout with
+`core.autocrlf=true`, the working copy may contain CRLF; the committed blob and
+the GitHub raw file remain LF. Verify the GitHub bytes with:
 
 ```bash
 curl -sL https://raw.githubusercontent.com/ryjs140/ryjs-launchpad/main/ryjs-launchpad.wh.cpp | sha256sum
 ```
 
-等价入口（额外编译预览与 x64 模块）：
+Equivalent local build and verification entry point:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File dev/Build.ps1 -Verify
 ```
 
-需要 PyYAML 6.0.3（`dev/requirements.txt`）。注意：`python` 若指向未安装 PyYAML 的解释器会直接失败，本记录使用 `py -3.12`（用 3.11 + PyYAML 6.0.3 重跑得到同一哈希）。
+Requires PyYAML 6.0.3. This record used `py -3.12`.
 
-## 校验方法
+## Checks performed on the final artifact
 
-```bash
-# 1. 两条发布路径必须逐字节一致
-cmp ryjs-launchpad.wh.cpp release/mods/ryjs-launchpad.wh.cpp && echo identical
-
-# 2. 哈希
-sha256sum ryjs-launchpad.wh.cpp release/mods/ryjs-launchpad.wh.cpp
-
-# 3. 从 Git 索引重建，证明只靠已入库文件即可复现
-rm -rf /tmp/ryjs-staged && mkdir -p /tmp/ryjs-staged
-git checkout-index -a --prefix=/tmp/ryjs-staged/
-cd /tmp/ryjs-staged && py -3.12 dev/generate_resources.py
-sha256sum ryjs-launchpad.wh.cpp
-```
-
-## 结果
-
-| 检查 | 结果 |
+| Check | Result |
 | --- | --- |
-| 连续两次生成（工作区） | 哈希相同 `b844b076…` |
-| 从 Git 索引重建（`70f7291` 的索引 + 重新生成） | 哈希相同 `b844b076…` |
-| 根文件与 `release/mods/` 副本 | `cmp` 无差异 |
-| 产物中本地 `#include` | 0 |
-| 产物中系统 `#include` | 73 |
+| Official metadata validator, current upstream `main` (`7628a65`) | `ok: true`, 0 problems |
+| Official compile script, current upstream `main` | `ok: true`, 0 problems |
+| Local x64 module compile | PASS |
+| Local preview compile | PASS |
+| Longest physical line | 2,282 characters (limit 4,096) |
+| `Wh_ModInit`, `Wh_ModBeforeUninit`, `Wh_ModUninit`, `Wh_ModSettingsChanged` scope | global namespace, 0 validator errors |
+| Root file and `release/mods/` copy | SHA256 identical |
+| Local `#include` directives in the artifact | 0 |
+| Feature checks | 612 checks, 0 failures |
+| Phase-one checks | 25 + 35 checks, 0 failures; 5 Python backup tests OK |
+| Full-backup checks | 28 checks, 0 failures; 12 Python full-backup tests OK |
+| Offscreen smoke test | PASS; three repeated `--smoke` runs exited 0 |
 
-三项检查均对最终产物执行，无遗留例外。
+## Notes
+
+The app icon is emitted as adjacent C++ string literals, one 1,024-character
+chunk per line, rather than one very long raw-string line. This keeps the
+submission inside the official line-length rule without changing the decoded
+PNG. The `LP_TEST_HOVER` test branch is expressed as a boolean
+`startTracking` value before a single `if`, so the official callback-scope
+checker sees balanced braces even though it does not evaluate preprocessor
+branches.

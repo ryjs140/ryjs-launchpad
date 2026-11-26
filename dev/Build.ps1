@@ -10,7 +10,7 @@ New-Item -ItemType Directory -Path $build -Force | Out-Null
 if ($LASTEXITCODE) { throw '资源生成失败' }
 $common = @('-std=c++23','-target','x86_64-w64-mingw32','-DUNICODE','-D_UNICODE','-DWINVER=0x0A00','-D_WIN32_WINNT=0x0A00','-D_WIN32_IE=0x0A00','-DNTDDI_VERSION=0x0A000008','-D__USE_MINGW_ANSI_STDIO=0','-Wno-pragma-pack','-Wno-pragma-system-header-outside-header','-O2')
 $libraries = @('-lgdi32','-lshell32','-lshcore','-ldwmapi','-ld2d1','-ldwrite','-ld3d11','-ldxgi','-ldcomp','-lole32','-luuid','-lcomdlg32','-luxtheme','-lpropsys','-lpowrprof','-lwindowscodecs','-limm32','-lcomctl32','-ladvapi32','-lwinhttp','-lshlwapi','-lruntimeobject','-loleaut32')
-$exe = Join-Path $build 'RYJSLaunchpadPreview.exe'
+$exe = Join-Path $build 'Lumiflow.exe'
 $argsPreview = $common + @('-include','windows.h','-I', (Join-Path $PSScriptRoot 'preview'),'-municode','-mwindows','-static','-o',$exe,(Join-Path $PSScriptRoot 'preview\main.cpp')) + $libraries
 [IO.File]::WriteAllText((Join-Path $build 'compile-preview.log'), '')
 $ErrorActionPreference = 'Continue'

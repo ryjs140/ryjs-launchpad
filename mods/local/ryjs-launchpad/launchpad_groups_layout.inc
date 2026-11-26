@@ -7,6 +7,10 @@ struct ExpandedGroupGeometry {
     int visibleRows = 1;
     bool wholeCells = false, squareCells = false;
 };
+int GroupPageCount(int apps, int columns, int visibleRows) {
+    const int perPage = columns * visibleRows;
+    return (apps + perPage - 1) / perPage;
+}
 [[clang::no_destroy]] std::vector<ExpandedGroupGeometry> g_groupGeometry;
 [[clang::no_destroy]] std::vector<Cell> g_groupCells;
 [[clang::no_destroy]] std::shared_ptr<Folder> g_groupDropFolder, g_groupHeaderDragging;
@@ -151,6 +155,11 @@ D2D1_RECT_F GroupResizeHit(const D2D1_RECT_F& r) {
 GroupPosition VisualGroupPosition(const std::shared_ptr<Folder>& group,GroupPosition base) {
     if(g_groupGesture.moved) {
         if(group==g_groupGesture.group)return g_groupGesture.continuous;
+        if (g_groupGesture.companions.contains(group)) {
+            base.x += g_groupGesture.continuous.x - g_groupGesture.original.x;
+            base.y += g_groupGesture.continuous.y - g_groupGesture.original.y;
+            return base;
+        }
         if(g_groupGesture.valid)for(const auto& node:g_groupGesture.solution)
             if(node.group==group&&!node.fixed)return node.position;
     }
@@ -158,6 +167,15 @@ GroupPosition VisualGroupPosition(const std::shared_ptr<Folder>& group,GroupPosi
     if(transition==g_groupTransitions.end())return base;
     const auto& t=transition->second;
     return InterpolateGroup(t.from,t.to,GroupEase(t.started));
+}
+bool ActiveGroupPreview(const ExpandedGroupGeometry& geometry) {
+    const auto& gesture = g_groupGesture;
+    if (!gesture.moved) return false;
+    if (geometry.group == gesture.group) return geometry.start == gesture.activeStart;
+    return gesture.companions.contains(geometry.group) &&
+           std::any_of(gesture.baseline.begin(), gesture.baseline.end(), [&](const auto& node) {
+               return node.group == geometry.group && node.start == geometry.start;
+           });
 }
 D2D1_RECT_F VisualGroupRect(const ExpandedGroupGeometry& geometry) {
     if(g_groupTransitions.empty()&&!g_groupGesture.moved)return ProjectGroupRect(geometry.area);
@@ -199,10 +217,11 @@ ExpandedGroupGeometry MakeFreeGroupGeometry(const std::shared_ptr<Folder>& group
     float fitRowPitch=p.OnGrid()?GroupPitchY():GroupIconPitchY();
     int visibleRows=side?(p.gridH-2)/4:p.WholeCells()?p.gridH-1:std::max(1,(int)std::floor((height-header-2*pad+.01f)/fitRowPitch));
     int count=group->collapsed?1:(int)group->apps.size();
-    int totalRows=(count+columns-1)/columns;
-    auto storedRow=g_groupRows.find(group);
-    int row=std::clamp(storedRow==g_groupRows.end()?0:storedRow->second,0,std::max(0,totalRows-visibleRows));
-    int first=row*columns;
+    visibleRows = std::max(1, visibleRows);
+    const int pages = GroupPageCount(count, columns, visibleRows);
+    auto storedRow = g_groupRows.find(group);
+    const int pageIndex = storedRow == g_groupRows.end() ? 0 : storedRow->second / visibleRows;
+    const int first = std::clamp(pageIndex, 0, std::max(0, pages - 1)) * visibleRows * columns;
 
     ExpandedGroupGeometry geometry;
     geometry.group=group;geometry.area={x,y,x+width,y+height};
@@ -338,10 +357,10 @@ void ComputeWholeCellGroups() {
 }
 void ComputeSquareGroups() {
     auto& L=g_layout;
-    const float side=SquareCellSize(g_squareGridColumns);
+    const int columnsPerPage = L.columns;
+    const float side = SquareCellSize(columnsPerPage);
     const float quarter=side/4;
-    const int columnsPerPage=g_squareGridColumns;
-    const int availableY=std::max(6,(int)std::floor((L.viewBottom-L.viewTop+.01f)/quarter));
+    const int availableY=std::max(6,(int)std::floor((L.groupPageBottom-L.viewTop+.01f)/quarter));
     const int maxRows=(availableY-2)/4;
     const int gapX=(int)std::ceil(g_settings.groupGap*L.scale/(side/2));
     const int gapY=(int)std::ceil(g_settings.groupGap*L.scale/quarter);
@@ -352,13 +371,13 @@ void ComputeSquareGroups() {
 
     L.contentHeight=0;L.pages=0;
     g_groupGeometry.clear();g_groupEntryOrder.clear();g_groupCells.assign(g_visible.size(),{});
-    ComputeFreeGroups();
+    if (L.useSavedGroupGeometry) ComputeFreeGroups();
     int page=g_settings.pages&&!g_groupGeometry.empty()?L.pages:0;
     int y=g_settings.pages||g_groupGeometry.empty()?0:(int)std::ceil((L.contentHeight-.01f)/quarter)+gapY;
     int x=0,rowHeight=0,global=0,order=0;
     for(const auto& tile:g_tiles)if(auto group=tile.folder;GroupVisible(group)) {
         int count=group->collapsed?1:(int)group->apps.size();
-        if(!g_groupPositions.count(group)) {
+        if(!L.useSavedGroupGeometry || !g_groupPositions.count(group)) {
             int offset=0;
             do {
                 int rows=std::max(1,(count-offset+columns-1)/columns);
@@ -366,12 +385,18 @@ void ComputeSquareGroups() {
                 int height=rows*4+2;
                 if(x&&(g_settings.groupRows||x+columns*2>columnsPerPage*2)) {x=0;y+=rowHeight+gapY;rowHeight=0;}
                 if(g_settings.pages&&y+height>availableY) {++page;x=0;y=0;rowHeight=0;}
-                auto position=GroupPosition{};
-                position.style=5;position.snapped=true;position.gridX=page*columnsPerPage*2+x;
-                position.gridY=y;position.gridW=columns*2;position.gridH=height;
-                auto geometry=MakeFreeGroupGeometry(group,position,global,order);
                 int chunk=std::min(count-offset,rows*columns);
-                geometry.firstInGroup=offset;geometry.start=global+offset;geometry.count=chunk;
+                const float left = page * L.width + GridMargin() + x * (side / 2);
+                const float top = L.viewTop + y * quarter;
+                ExpandedGroupGeometry geometry;
+                geometry.group = group;
+                geometry.area = {left, top, left + columns * side, top + height * quarter};
+                geometry.title = geometry.area;
+                geometry.title.bottom = top + side / 2;
+                geometry.firstInGroup = offset; geometry.start = global + offset; geometry.count = chunk;
+                geometry.columns = columns; geometry.visibleRows = rows; geometry.entryOrder = order;
+                geometry.cellWidth = geometry.rowPitch = side;
+                geometry.wholeCells = geometry.squareCells = true;
                 g_groupGeometry.push_back(geometry);
                 for(int i=0;i<chunk;++i) {
                     int index=geometry.start+i;
@@ -484,13 +509,16 @@ bool GroupIconFits(const Cell& cell,const D2D1_RECT_F& area) {
     return icon.left>=area.left&&icon.top>=area.top&&icon.right<=area.right&&icon.bottom<=area.bottom;
 }
 void EnsureFreeGroupVisible(int index) {
-    if(!g_freeGroupLayout)return;
+    if(!g_freeGroupLayout || !g_layout.useSavedGroupGeometry)return;
     for(const auto& geometry:g_groupGeometry) {
         int base=geometry.start-geometry.firstInGroup;
         if(index<base||index>=base+(geometry.group->collapsed?1:(int)geometry.group->apps.size()))continue;
-        int row=(index-base)/geometry.columns;
-        int next=std::clamp(g_groupRows[geometry.group],row-geometry.visibleRows+1,row);
-        if(next!=g_groupRows[geometry.group]){g_groupRows[geometry.group]=next;ComputeGroups();}
+        if (g_groupPositions.contains(geometry.group) &&
+            (index < geometry.start || index >= geometry.start + geometry.count)) {
+            const int row = (index - base) / geometry.columns;
+            g_groupRows[geometry.group] = row / geometry.visibleRows * geometry.visibleRows;
+            ComputeGroups();
+        }
         break;
     }
 }
@@ -514,17 +542,19 @@ struct GroupTitleRender {
     float width=0,height=0;
     UINT version=0;
     bool shrink=false;
-    ComPtr<IDWriteTextLayout> layout;
-    LabelShadowBitmap shadow;
+    LauncherText text;
 };
 [[clang::no_destroy]] std::map<std::wstring, GroupTitleRender> g_groupTitleRenders;
+
+void ClearGroupTitleRenders() {
+    g_groupTitleRenders.clear();
+}
 
 void DrawGroupHeaders(bool activeOnly,const ExpandedGroupGeometry* resizePreview) {
     const bool flying = FlyInActive();
     for(const auto& current:g_groupGeometry) {
-        bool active=g_groupGesture.moved&&current.group==g_groupGesture.group&&
-            current.start==g_groupGesture.activeStart;
-        if(active!=activeOnly||(g_groupGesture.moved&&current.group==g_groupGesture.group&&!active))continue;
+        bool active = ActiveGroupPreview(current);
+        if(active!=activeOnly||(g_groupGesture.moved&&GroupMovesWithGesture(g_groupGesture,current.group)&&!active))continue;
         const auto& geometry=active&&resizePreview?*resizePreview:current;
         auto area=VisualGroupRect(geometry);
         float pad=geometry.wholeCells?0:kGroupPadding*g_layout.scale;
@@ -536,7 +566,9 @@ void DrawGroupHeaders(bool activeOnly,const ExpandedGroupGeometry* resizePreview
             // A small inset keeps the outlines distinct when group bounds touch.
             float inset=std::min({2.5f*s,(area.right-area.left)/4,(area.bottom-area.top)/4});
             auto outline=D2D1::RectF(area.left+inset,area.top+inset,area.right-inset,area.bottom-inset);
-            g_brush->SetColor(D2D1::ColorF(active?0xEAF5FF:0x587187,.96f));
+            const bool selected = g_groupSelection.contains(geometry.group);
+            if (selected) Fill(area, D2D1::ColorF(0x72BAF8, .10f), 5 * s);
+            g_brush->SetColor(D2D1::ColorF(active?0xEAF5FF:selected?0x8DCEFF:0x587187,.96f));
             g_target->DrawRoundedRectangle(D2D1::RoundedRect(outline,5*s,5*s),g_brush.Get(),1.6f*s);
             auto color=D2D1::ColorF(0xFFFFFF);
             float glow=geometry.group==g_groupResizeHover?g_groupResizeGlow:0;
@@ -578,43 +610,27 @@ void DrawGroupHeaders(bool activeOnly,const ExpandedGroupGeometry* resizePreview
         bool shrink=geometry.squareCells&&titleHeight<fontSize*1.25f;
         auto& cached=g_groupTitleRenders[name];
         float titleWidth=title.right-title.left;
-        if(!cached.layout||cached.version!=g_formatVersion||cached.name!=name||
-           cached.width!=titleWidth||cached.height!=titleHeight||cached.shrink!=shrink) {
+        const auto& effects=g_settings.textEffects;
+        const bool effectsChanged=!SameTextEffects(cached.text.effects,effects);
+        if(!cached.text.layout||cached.version!=g_formatVersion||cached.name!=name||
+           cached.width!=titleWidth||cached.height!=titleHeight||cached.shrink!=shrink||effectsChanged) {
             cached.name=name;cached.width=titleWidth;cached.height=titleHeight;
             cached.version=g_formatVersion;cached.shrink=shrink;
-            cached.layout.Reset();cached.shadow.bitmap.Reset();
+            cached.text = {};
+            cached.text.effects=effects;
             if(SUCCEEDED(g_dwrite->CreateTextLayout(name.c_str(),(UINT32)name.size(),g_groupFormat.Get(),
-                titleWidth,titleHeight,&cached.layout))) {
-                if(shrink)cached.layout->SetFontSize(std::max(1.f,titleHeight/1.25f),{0,(UINT32)name.size()});
-                RenderTextWithShadow(cached.layout.Get(),titleWidth,titleHeight,cached.shadow);
-            } else cached.layout.Reset();
+                titleWidth,titleHeight,&cached.text.layout)) && shrink) {
+                cached.text.layout->SetFontSize(std::max(1.f,titleHeight/1.25f),{0,(UINT32)name.size()});
+            }
         }
-        if (cached.shadow.bitmap) {
-            g_target->DrawBitmap(cached.shadow.bitmap.Get(),
-                D2D1::RectF(title.left-cached.shadow.padX,title.top-cached.shadow.padTop,
-                            title.right+cached.shadow.padX,title.bottom+cached.shadow.padBottom),
-                progress*titleOpacity,D2D1_INTERPOLATION_MODE_LINEAR);
-        } else {
-            g_brush->SetColor(D2D1::ColorF(0xFFFFFF,progress*titleOpacity));
-            if (cached.layout) g_target->DrawTextLayout({title.left,title.top},cached.layout.Get(),g_brush.Get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
-            else g_target->DrawText(name.c_str(),(UINT32)name.size(),g_groupFormat.Get(),title,g_brush.Get(),D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        }
+        cached.text.Draw({title.left, title.top}, progress * titleOpacity, g_layout.scale);
         if (!geometry.count) {
             auto hint = area; hint.top = title.bottom;
             if (flying) {
                 hint.left += shift; hint.right += shift; hint.bottom += dy;
             }
-            g_brush->SetColor(D2D1::ColorF(0xFFFFFF,flying?progress:1.f));
             PCWSTR text = Tr(g_visible.empty() ? L"Search for an app, then use Move to group" : L"Drop apps here");
-            g_target->DrawText(text, (UINT32)wcslen(text), g_tipFormat.Get(), hint, g_brush.Get());
-        }
-        if(g_freeGroupLayout && !geometry.group->collapsed && (int)geometry.group->apps.size()>geometry.visibleRows*geometry.columns) {
-            auto hint=area;hint.top=hint.bottom-16*g_layout.scale;
-            if (flying) {
-                hint.left += shift; hint.right += shift; hint.top += dy; hint.bottom += dy;
-            }
-            std::wstring text=std::to_wstring(geometry.firstInGroup+1)+L"–"+std::to_wstring(geometry.firstInGroup+geometry.count)+L" / "+std::to_wstring(geometry.group->apps.size());
-            g_brush->SetColor(D2D1::ColorF(0xFFFFFF,flying?progress:1.f));g_target->DrawText(text.c_str(),(UINT32)text.size(),g_tipFormat.Get(),hint,g_brush.Get());
+            DrawLauncherText(text, g_tipFormat.Get(), hint, flying ? progress : 1.f);
         }
         if (geometry.group == g_groupDropFolder && g_groupDropSlot >= geometry.firstInGroup &&
             g_groupDropSlot <= geometry.firstInGroup + geometry.count) {
@@ -626,6 +642,31 @@ void DrawGroupHeaders(bool activeOnly,const ExpandedGroupGeometry* resizePreview
             Fill({x,y,x+3*g_layout.scale,y+g_layout.icon+16*g_layout.scale},color,1.5f*g_layout.scale);
         }
     }
+}
+void DrawGroupPageIndicator(const ExpandedGroupGeometry& geometry, D2D1_RECT_F area) {
+    if (g_groupEditMode || !g_freeGroupLayout || !g_layout.useSavedGroupGeometry ||
+        geometry.group->collapsed || !g_groupPositions.contains(geometry.group)) return;
+    const int pages = GroupPageCount((int)geometry.group->apps.size(), geometry.columns, geometry.visibleRows);
+    if (pages < 2) return;
+
+    const int page = geometry.firstInGroup / (geometry.columns * geometry.visibleRows);
+    const float scale = g_layout.scale;
+    const float opacity = FlyInChromeOpacity();
+    const float center = (area.left + area.right) / 2;
+    const float bottom = area.bottom - 4 * scale;
+    const float width = std::min({(area.right - area.left) / 2, 52 * scale, (pages * 7.f + 12) * scale});
+    const float left = center - width / 2;
+    const D2D1_RECT_F track{left, bottom - 5 * scale, left + width, bottom};
+    Fill(track, D2D1::ColorF(0x24272C, .7f * opacity), 2.5f * scale);
+    g_brush->SetColor(D2D1::ColorF(0xFFFFFF, .26f * opacity));
+    g_target->DrawRoundedRectangle(D2D1::RoundedRect(track, 2.5f * scale, 2.5f * scale),
+                                   g_brush.Get(), scale);
+    const float inset = 1.5f * scale;
+    const float inner = width - 2 * inset;
+    const float thumb = std::min(inner, std::max(6 * scale, inner / pages));
+    const float x = left + inset + (inner - thumb) * page / (pages - 1);
+    Fill({x, track.top + inset, x + thumb, bottom - inset},
+         D2D1::ColorF(0xFFFFFF, .92f * opacity), scale);
 }
 void DrawGroupGrid() {
     if(!g_groupEditMode||!g_squareGridColumns)return;
@@ -647,7 +688,23 @@ void DrawGroupGrid() {
         }
     }
 }
+D2D1_RECT_F GroupMarqueeRect() {
+    const auto& box = g_groupMarquee;
+    return {std::max(0.f, (float)std::min(box.start.x, box.end.x)),
+            std::max(g_layout.viewTop, (float)std::min(box.start.y, box.end.y)),
+            std::min((float)g_layout.width, (float)std::max(box.start.x, box.end.x)),
+            std::min(g_layout.viewBottom, (float)std::max(box.start.y, box.end.y))};
+}
+
 void DrawGroupEditPreview() {
+    if (g_groupMarquee.moved) {
+        const auto box = GroupMarqueeRect();
+        if (box.right > box.left && box.bottom > box.top) {
+            Fill(box, D2D1::ColorF(0x72BAF8, .13f));
+            g_brush->SetColor(D2D1::ColorF(0x8DCEFF, .85f));
+            g_target->DrawRectangle(box, g_brush.Get(), std::max(1.f, g_layout.scale));
+        }
+    }
     const auto& gesture=g_groupGesture;
     if(!g_groupEditMode||!gesture.group||!gesture.moved)return;
     float s=g_layout.scale;
@@ -671,9 +728,7 @@ void DrawGroupEditPreview() {
     float bottom=std::clamp(r.bottom-8*s,g_layout.viewTop+34*s,g_layout.viewBottom-4*s);
     auto label=D2D1::RectF(right-width,bottom-26*s,right,bottom);
     Fill(label,D2D1::ColorF(0x303030,.92f),6*s);
-    g_brush->SetColor(color);
-    g_target->DrawText(text.c_str(),(UINT32)text.size(),g_tipFormat.Get(),label,g_brush.Get(),
-                       D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    DrawLauncherText(text, g_tipFormat.Get(), label);
 }
 
 Cell GroupVisualCell(const ExpandedGroupGeometry& geometry,Cell c) {

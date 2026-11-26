@@ -256,7 +256,7 @@ class FullBackupTests(unittest.TestCase):
         exported = self.exported()
         result = self.run_job('import', preview=False, expected_hash=exported['hash'])
         self.assertEqual(result['status'], 'error')
-        self.assertIn('RYJS', result['summary'])
+        self.assertIn('Lumiflow', result['summary'])
 
 
 if __name__ == '__main__':

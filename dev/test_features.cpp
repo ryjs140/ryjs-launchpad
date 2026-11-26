@@ -14,6 +14,33 @@ int wmain(int argc,wchar_t** argv) {
     WCHAR executable[32768]{};GetModuleFileNameW(nullptr,executable,ARRAYSIZE(executable));
     auto cases=std::filesystem::path(executable).parent_path()/(L"feature-data-"+std::to_wstring(GetTickCount64()));
     std::filesystem::create_directories(cases);Preview::directory=cases.wstring();
+    const auto displayA = reinterpret_cast<HMONITOR>(1);
+    const auto displayB = reinterpret_cast<HMONITOR>(2);
+    const auto displayC = reinterpret_cast<HMONITOR>(3);
+    std::vector<LauncherDisplay> displays{{displayA, {}, true, L"display:a", L"A"},
+                                          {displayB, {}, false, L"display:b", L"B"},
+                                          {displayC, {}, false, L"display:c", L"C"}};
+    Check(ResolveLauncherDisplay(displays, L"display:b", displayA) == displayB,
+          "a connected fixed display is found by device");
+    displays.erase(displays.begin() + 1);
+    Check(ResolveLauncherDisplay(displays, L"display:b", displayA) == displayA &&
+          ResolveLauncherDisplay(displays, L"2", displayA) == displayC,
+          "an offline fixed display falls back while legacy ordinals remain available");
+    displays.push_back({displayB, {}, false, L"display:b", L"B"});
+    Check(ResolveLauncherDisplay(displays, L"display:b", displayA) == displayB,
+          "a fixed display is chosen again after reconnecting in another order");
+    {
+        SetWindow settings;
+        settings.fields = Set_MakeFields();
+        Preview::PutSetting(L"monitor", L"display:offline-fixture");
+        Set_LoadFields(settings);
+        auto field = std::find_if(settings.fields.begin(), settings.fields.end(), [](const auto& item) {
+            return wcscmp(item.key, L"monitor") == 0;
+        });
+        Check(field != settings.fields.end() && field->cur == L"display:offline-fixture" &&
+              field->value == field->cur, "opening settings preserves the offline display selection");
+        Preview::PutSetting(L"monitor", L"mouse");
+    }
     if ((argc==3||argc==4)&&std::wstring_view(argv[1])==L"--web-icon-probe") {
         App site;
         site.target=argv[2];
@@ -139,6 +166,27 @@ int wmain(int argc,wchar_t** argv) {
     Check(refreshed->iconSize==64&&!refreshed->pixels.empty()&&g_customIcons.at(AppKey(*refreshed))==savedIcon,
           "custom icon reloads after deleting its original and re-reading the mapping");
     UpdateFilter();g_layout.width=1600;g_layout.height=1000;g_layout.scale=1;ComputeLayout();
+    // A fresh square-group autolayout must not overlap groups. When groups
+    // overlap, the first cell in g_groupCells wins the hit test even though
+    // the later group is the one drawn on top, which reads as pointer drift.
+    g_settings.groups=true;
+    ClearGroupPositions();
+    g_squareGridColumns=18;g_wholeCellLayout=true;g_groupPositions.clear();
+    ComputeLayout();
+    Check(GroupedView(),"square group layout test starts in grouped view");
+    for(int i=0;i<(int)g_visible.size();++i) {
+        auto box=CellAt(i).highlight;
+        int x=(int)((box.left+box.right)/2),y=(int)((box.top+box.bottom)/2);
+        Check(ItemAt(x,y)==i,"every square-group tile hit-tests at its drawn centre");
+    }
+    for(int a=0;a<(int)g_groupGeometry.size();++a) {
+        for(int b=a+1;b<(int)g_groupGeometry.size();++b) {
+            auto A=g_groupGeometry[a].area,B=g_groupGeometry[b].area;
+            Check(A.right<=B.left||B.right<=A.left||A.bottom<=B.top||B.bottom<=A.top,
+                  "automatic square groups never overlap");
+        }
+    }
+    ClearGroupPositions();g_squareGridColumns=0;g_wholeCellLayout=false;ComputeLayout();
     Check(!g_freeGroupLayout&&LoadGroupPositions()&&!g_freeGroupLayout,"missing geometry preserves legacy layout mode");
     auto membership=ArrangementLines();
     ToggleGroupEdit();Check(g_groupEditMode&&g_wholeCellLayout&&!std::filesystem::exists(GroupPositionFile()),"opening the editor aligns the draft without writing geometry");
@@ -305,6 +353,41 @@ int wmain(int argc,wchar_t** argv) {
     g_layout.width=oldScreenWidth;g_layout.height=oldScreenHeight;ComputeLayout();
     CancelGroupEdit();
     Check(g_squareGridColumns==committedColumns&&ReadLines(gridFile)==savedGeometry,"cancel restores the committed column count");
+    const bool showLabels = g_settings.showLabels;
+    const bool pages = g_settings.pages;
+    const float oldScale = g_layout.scale;
+    g_settings.showLabels = true;
+    g_squareGridColumns = 16;
+    struct TestScreen { int width, height; float scale; };
+    for (auto screen : {TestScreen{1920, 1080, 1.25f}, TestScreen{3120, 2080, 2.5f}, TestScreen{3840, 2160, 2.f}}) {
+        g_layout.width = screen.width;
+        g_layout.height = screen.height;
+        g_layout.scale = screen.scale;
+        for (bool paged : {false, true}) {
+            g_settings.pages = paged;
+            for (int requested : {56, 192}) {
+                g_settings.iconSize = requested;
+                ComputeLayout();
+                const auto drawn = std::find_if(g_groupCells.begin(), g_groupCells.end(), [](const Cell& cell) {
+                    return cell.icon.right > cell.icon.left;
+                });
+                Check(drawn != g_groupCells.end() &&
+                      std::abs(drawn->icon.right - drawn->icon.left - requested * screen.scale) < .01f &&
+                      std::abs(drawn->label.bottom - drawn->label.top - g_layout.labelHeight) < .01f,
+                      "mixed-DPI group grid honors the configured icon and label sizes");
+                if (requested == 192) Check(g_layout.columns < 16 && !g_layout.useSavedGroupGeometry,
+                    "large icons reduce the display columns when saved columns cannot fit");
+            }
+        }
+    }
+    Check(g_squareGridColumns == 16 && ReadLines(gridFile) == savedGeometry,
+          "responsive layout preserves the saved column count and geometry");
+    g_squareGridColumns = committedColumns;
+    g_layout.scale = oldScale;
+    g_settings.showLabels = showLabels;
+    g_settings.pages = pages;
+    g_settings.iconSize = size;
+    g_layout.width=oldScreenWidth;g_layout.height=oldScreenHeight;ComputeLayout();
     g_settings.globalColumns=0;ComputeLayout();
     auto requestedAnimations=g_requestedAnimations.exchange(true),systemAnimations=g_systemAnimations.exchange(true);
     double clock=Now();
@@ -337,6 +420,30 @@ int wmain(int argc,wchar_t** argv) {
               distance(wide,0,wide.columns).y==GroupIconPitchY(),
             "different group sizes use the same vertical icon spacing");
     }
+    {
+        const bool oldPages = g_settings.pages;
+        g_settings.pages = true;
+        g_scroll = g_scrollTarget = g_groupPagePan = 0;
+        ComputeLayout();
+        const auto first = g_groupGeometry[0];
+        const auto area = ProjectGroupRect(first.area);
+        const int perPage = first.columns * first.visibleRows;
+        auto wheel = [&](int delta) {
+            WndProc(nullptr, WM_MOUSEWHEEL, MAKEWPARAM(0, delta),
+                    MAKELPARAM((int)(area.left + 10), (int)(area.top + 10)));
+        };
+        wheel(-WHEEL_DELTA);
+        Check(g_groupGeometry[0].firstInGroup == perPage && !g_groupPagePan && !g_scrollTarget,
+              "one wheel detent on a group moves exactly one page");
+        wheel(WHEEL_DELTA / 2);
+        Check(g_groupGeometry[0].firstInGroup == perPage, "partial group wheel input waits for a full detent");
+        wheel(WHEEL_DELTA / 2);
+        Check(g_groupGeometry[0].firstInGroup == 0, "partial wheel input completes one page in the opposite direction");
+        g_groupWheelTarget.reset();
+        g_groupWheelRemainder = 0;
+        g_settings.pages = oldPages;
+        ComputeLayout();
+    }
     EnsureFreeGroupVisible(30);
     Check(g_groupGeometry[0].firstInGroup<=30&&g_groupGeometry[0].firstInGroup+g_groupGeometry[0].count>30&&ArrangementLines()==allContents,"keyboard navigation reaches final overflow entry in original order");
     Check(SaveGroupPositions(),"integer row/column geometry saves");ClearGroupPositions();LoadGroupPositions();
@@ -359,9 +466,11 @@ int wmain(int argc,wchar_t** argv) {
         for(int slot=0;slot<final.count;++slot) {
             auto expected=MakeExpandedGroupCell(*previewGeometry,slot);
             const auto& actual=g_groupCells[final.start+slot];
-            Check(expected.icon.left==actual.icon.left&&expected.icon.top==actual.icon.top&&
-                  expected.label.right==actual.label.right&&expected.label.bottom==actual.label.bottom&&
-                  expected.icon.right-expected.icon.left<=std::round(97*g_layout.scale)&&
+            Check(std::abs(expected.icon.left - actual.icon.left) < .01f &&
+                  std::abs(expected.icon.top - actual.icon.top) < .01f &&
+                  std::abs(expected.label.right - actual.label.right) < .01f &&
+                  std::abs(expected.label.bottom - actual.label.bottom) < .01f &&
+                  expected.icon.right-expected.icon.left<=std::round(97*g_layout.scale)+.01f&&
                   expected.label.right>expected.label.left,
                   "preview matches the committed icon size, spacing and label geometry");
         }
@@ -461,6 +570,70 @@ int wmain(int argc,wchar_t** argv) {
     send(WM_LBUTTONDOWN,MK_LBUTTON,openX,cancelY);send(WM_LBUTTONUP,0,openX,cancelY);
     Check(waitForMarker(L"0.txt")&&waitForMarker(L"2.txt")&&g_appSelection.empty()&&g_batchBlend==0,
           "batch toolbar opens selected apps and returns to normal");
+    auto dragTo = [&](int index, int x, int y, bool cancel = false) {
+        auto icon = ItemCell(index).icon;
+        int fromX = (int)((icon.left + icon.right) / 2);
+        int fromY = (int)((icon.top + icon.bottom) / 2);
+        send(WM_LBUTTONDOWN, MK_LBUTTON, fromX, fromY);
+        send(WM_MOUSEMOVE, MK_LBUTTON, x, y);
+        Check(g_drag.active && g_drag.tiles.size() == 2, "dragging a selected icon grabs both apps");
+        if (cancel) SendMessageW(g_wnd, WM_KEYDOWN, VK_ESCAPE, 0);
+        else send(WM_LBUTTONUP, 0, x, y);
+    };
+    g_apps = probes;
+    g_tiles = {{probes[0], nullptr}, {probes[1], nullptr}, {probes[2], nullptr}};
+    Refresh();
+    click(2, MK_CONTROL); click(0, MK_CONTROL);
+    auto middle = CellAt(1);
+    dragTo(2, (int)((middle.icon.left + middle.icon.right) / 2), (int)middle.highlight.bottom - 2);
+    Check(g_tiles == Tiles{{probes[1], nullptr}, {probes[0], nullptr}, {probes[2], nullptr}} &&
+          g_appSelection.size() == 2, "quick drop reorders selected tiles as a block in layout order");
+    middle = CellAt(0);
+    dragTo(2, (int)((middle.icon.left + middle.icon.right) / 2), (int)((middle.icon.top + middle.icon.bottom) / 2));
+    auto createdFolder = g_tiles.empty() ? nullptr : g_tiles.front().folder;
+    Check(createdFolder && createdFolder->apps == Tiles{{probes[1], nullptr}, {probes[0], nullptr}, {probes[2], nullptr}},
+          "dropping on another icon creates one folder with every dragged app");
+    if (createdFolder) {
+        OpenFolder(createdFolder);
+        auto folderClick = [&](int index) {
+            auto icon = ItemCell(index).icon;
+            int x = (int)((icon.left + icon.right) / 2), y = (int)((icon.top + icon.bottom) / 2);
+            send(WM_LBUTTONDOWN, MK_LBUTTON | MK_CONTROL, x, y);
+            send(WM_LBUTTONUP, MK_CONTROL, x, y);
+        };
+        folderClick(1); folderClick(2);
+        SendMessageW(g_wnd, WM_KEYDOWN, VK_DELETE, 0);
+        Check(g_appSelection.empty() && g_hidden.contains(AppKey(*probes[0])) &&
+              g_hidden.contains(AppKey(*probes[2])) && !g_hidden.contains(AppKey(*probes[1])),
+              "Delete removes selected icons inside an open folder");
+    }
+    g_hidden.clear();
+    g_openFolder.reset();
+    g_settings.groups = true;
+    ClearGroupPositions();
+    auto sourceGroup = std::make_shared<decltype(g_openFolder)::element_type>();
+    auto targetGroup = std::make_shared<decltype(g_openFolder)::element_type>();
+    sourceGroup->name = L"Source";
+    sourceGroup->apps = {{probes[0], nullptr}, {probes[1], nullptr}};
+    targetGroup->name = L"Target";
+    targetGroup->apps = {{probes[2], nullptr}};
+    g_tiles = {{nullptr, sourceGroup}, {nullptr, targetGroup}};
+    Refresh();
+    click(0, MK_CONTROL); click(1, MK_CONTROL);
+    auto targetArea = ProjectGroupRect(g_groupGeometry[1].area);
+    int targetX = (int)(targetArea.right - 8), targetY = (int)(targetArea.top + 8);
+    auto beforeDrag = ArrangementLines();
+    dragTo(0, targetX, targetY, true);
+    Check(beforeDrag == ArrangementLines() && g_appSelection.size() == 2,
+          "Escape cancels the drag while keeping the selection");
+    dragTo(0, targetX, targetY);
+    auto afterDrop = std::find_if(g_tiles.begin(), g_tiles.end(), [](const Tile& tile) {
+        return tile.folder && tile.folder->name == L"Target";
+    });
+    Check(afterDrop != g_tiles.end() &&
+          afterDrop->folder->apps == Tiles{{probes[2], nullptr}, {probes[0], nullptr}, {probes[1], nullptr}},
+          "drop moves both apps into the target group and preserves their order");
+    ClearAppSelection();
     // Drive the layout toolbar through its normal mouse-message handlers.
     g_settings.groups=true;g_settings.pages=false;g_settings.groupGap=32;
     ClearGroupPositions();
@@ -490,6 +663,67 @@ int wmain(int argc,wchar_t** argv) {
     Check(LoadGroupPositions()&&g_wholeCellLayout&&g_groupPositions[topRight].gridX==rightGrid.gridX&&
           g_groupPositions[bottomLeft].gridY==bottomGrid.gridY,
           "the whole-cell draft survives a fresh geometry load");
+    {
+        const auto previousLayout = g_layout;
+        const int previousIconSize = g_settings.iconSize;
+        g_settings.iconSize = 192;
+        g_layout.width = 3120;
+        g_layout.height = 2080;
+        g_layout.scale = 2.5f;
+        g_squareGridColumns = 16;
+        Refresh();
+        const int fittedColumns = g_layout.columns;
+        const auto geometryOnDisk = ReadLines(GroupPositionFile());
+        Check(!g_layout.useSavedGroupGeometry && fittedColumns < 16,
+              "the 3:2 high-DPI fixture starts with a responsive browsing grid");
+        ToggleGroupEdit();
+        Check(g_groupEditMode && g_squareGridColumns == fittedColumns && g_layout.columns == fittedColumns,
+              "the 3:2 editor adopts the columns used in browsing");
+        FinishGroupEdit();
+        Check(g_squareGridColumns == 16 && ReadLines(GroupPositionFile()) == geometryOnDisk,
+              "leaving the responsive editor without changes preserves the original layout");
+        ToggleGroupEdit();
+        auto titlePoint = [&](const auto& group) {
+            auto found = std::find_if(g_groupGeometry.begin(), g_groupGeometry.end(),
+                [&](const auto& geometry) { return geometry.group == group; });
+            auto title = ProjectGroupRect(found->title);
+            return POINT{(LONG)((title.left + title.right) / 2), (LONG)((title.top + title.bottom) / 2)};
+        };
+        const auto left = titlePoint(topLeft);
+        const auto right = titlePoint(topRight);
+        int startX = (int)(GridMargin() / 2);
+        int startY = (int)std::ceil(g_layout.viewTop + 2);
+        send(WM_LBUTTONDOWN, MK_LBUTTON, startX, startY);
+        send(WM_MOUSEMOVE, MK_LBUTTON, right.x + 4, right.y + 4);
+        send(WM_LBUTTONUP, 0, right.x + 4, right.y + 4);
+        Check(g_groupSelection == GroupSelection{topLeft, topRight}, "marquee selects two distinct groups");
+        send(WM_LBUTTONDOWN, MK_LBUTTON | MK_CONTROL, right.x, right.y);
+        send(WM_LBUTTONUP, MK_CONTROL, right.x, right.y);
+        Check(g_groupSelection == GroupSelection{topLeft}, "Ctrl-click toggles a group off");
+        send(WM_LBUTTONDOWN, MK_LBUTTON | MK_CONTROL, right.x, right.y);
+        send(WM_LBUTTONUP, MK_CONTROL, right.x, right.y);
+        int destination = left.y + (int)std::round(GroupStepY() * g_layout.scale);
+        auto first = g_groupPositions.at(topLeft), second = g_groupPositions.at(topRight);
+        send(WM_LBUTTONDOWN, MK_LBUTTON, left.x, left.y);
+        send(WM_MOUSEMOVE, MK_LBUTTON, left.x, destination);
+        Check(g_groupGesture.valid && g_groupGesture.companions.contains(topRight),
+              "dragging a selected group previews the full selection");
+        send(WM_LBUTTONUP, 0, left.x, destination);
+        auto movedFirst = g_groupPositions.at(topLeft), movedSecond = g_groupPositions.at(topRight);
+        Check(movedFirst.gridY > first.gridY &&
+              movedFirst.gridY - first.gridY == movedSecond.gridY - second.gridY &&
+              movedFirst.gridX - first.gridX == movedSecond.gridX - second.gridX,
+              "group drag keeps the selected groups' relative spacing");
+        auto beforeFinish = g_groupGeometry;
+        Check(FinishGroupEdit() && g_layout.columns == fittedColumns && g_layout.useSavedGroupGeometry,
+              "saving the 3:2 edit keeps the preview density");
+        Check(beforeFinish.size() == g_groupGeometry.size() &&
+              std::equal(beforeFinish.begin(), beforeFinish.end(), g_groupGeometry.begin(), [](const auto& a, const auto& b) {
+                  return a.group == b.group && SameGroupBounds(PositionFromArea(a.area), PositionFromArea(b.area));
+              }), "saved 3:2 group rectangles match the final preview");
+        g_layout = previousLayout;
+        g_settings.iconSize = previousIconSize;
+    }
     // The custom popup menu has to keep a submenu alive while the pointer
     // walks from the row that owns it to the submenu itself. That path stays
     // inside the parent panel from start to finish, so closing on any move
@@ -753,6 +987,259 @@ int wmain(int argc,wchar_t** argv) {
             Check(!g_target&&!g_d2dDevice&&!g_d3d,"the device objects are released with the groups");
             Check(g_groupPositions.empty()&&!g_closingFolder,"the layout holders are empty after the cycle");
         }
+    }
+    // The power dock's one shared warning source: the agreed colour ramp,
+    // geometry and the continuous time constants, plus teardown.
+    {
+        const auto& spec = power_ambient::Get();
+        Check(std::abs(spec.stop35 - .88f) < 1e-4f && std::abs(spec.stop65 - .48f) < 1e-4f,
+              "the radial stops stay at 88% and 48% of the centre");
+        Check(std::abs(spec.radiusX - 23.f) < .01f && std::abs(spec.radiusY - 23.f) < .01f &&
+              std::abs(spec.radiusX - spec.radiusY) < 1e-4f,
+              "the light is a circle (X radius == Y radius == 23 DIP)");
+        Check(std::abs(spec.yOffset) <= 1.f,
+              "the only vertical compensation allowed is -1..+1 DIP");
+        Check(spec.positionMs == 35.f && spec.riseMs == 120 && spec.fallMs == 180,
+              "position follows in 35 ms; intensity rises in 120 ms and falls in 180 ms");
+        Check(std::abs(spec.pressScale - .95f) < 1e-4f,
+              "press keeps its 0.95 scale");
+        Check(kSetCornerDip == 20.f && kDwmRedirectionBitmapAlpha == 39,
+              "the settings frame asks for a real 20 DIP mask through DWM alpha");
+        Check(g_settings.powerWarning && g_settings.powerWarningStrength == 78 &&
+              g_settings.powerWarningSpread == 100 && g_settings.powerWarningEdge == 65 &&
+              g_settings.powerWarningBleed == 15,
+              "the warning defaults are on, 78%, 100%, 65% and 15%");
+        Check(g_settings.powerWarningActions[1] && g_settings.powerWarningActions[4] &&
+              g_settings.powerWarningActions[5] && !g_settings.powerWarningActions[0],
+              "the default warning actions are sign out, restart and shut down");
+        Check(!g_settings.powerWarningFollowButton,
+              "the default follow mode is the pointer");
+
+        g_requestedAnimations = true;
+        g_systemAnimations = true;
+        ResetPowerGlass();
+        g_layout.scale = 1.f;
+        g_layout.powerItems = {0, 1, 2};
+        g_layout.powerBar = D2D1::RectF(100, 900, 300, 944);
+        g_layout.powerButton = 36;
+        g_layout.powerGap = 12;
+        g_powerHover = 1;  // Sign out, warning on by default.
+        g_powerPointerInside = true;
+        const float startX = PowerButtonCentreX(1);
+        const float nextX = PowerButtonCentreX(2);
+        g_powerPointerX = startX;
+        g_powerGlass.tick = Now() - .05;
+        UpdatePowerGlass();
+        Check(g_powerGlass.targetAlpha == 1.f && g_powerGlass.alpha > 0,
+              "hovering a warned button targets one light");
+        Check(std::abs(g_powerGlass.y - 922.f) < .01f,
+              "the light Y is the capsule geometry centre");
+
+        const float beforeX = g_powerGlass.x;
+        g_powerPointerX = startX + 12.f;
+        g_powerGlass.tick = Now() - .05;
+        UpdatePowerGlass();
+        Check(g_powerGlass.x > beforeX && g_powerGlass.x < startX + 4.f,
+              "pointer tracking stays local to the hovered button");
+
+        g_settings.powerWarningActions[2] = true;
+        g_settings.powerWarningFollowButton = true;
+        g_powerHover = -1;
+        const float middle = (startX + nextX) * .5f;
+        g_powerPointerX = middle - 3.f;
+        g_powerGlass.tick = Now() - .08;
+        UpdatePowerGlass();
+        const float nearShare = g_powerGlass.weights[2];
+        Check(g_powerGlass.litSlot == 1 && nearShare > .20f && nearShare < .50f &&
+              g_powerGlass.targetX == startX,
+              "button mode starts to light the next anchor within the gap");
+        g_powerPointerX = middle + 3.f;
+        g_powerGlass.tick = Now() - .08;
+        g_glowAnimating = false;
+        UpdatePowerGlass();
+        const float farShare = g_powerGlass.weights[2];
+        Check(g_glowAnimating && g_powerGlass.litSlot == 1 && g_powerGlass.targetAlpha == 1.f &&
+              farShare > nearShare + .25f && g_powerGlass.targetX == startX,
+              "light follows travel across the gap before the next button is hovered");
+        g_powerPointerX = middle - 3.f;
+        g_powerGlass.tick = Now() - .08;
+        UpdatePowerGlass();
+        Check(g_powerGlass.litSlot == 1 && g_powerGlass.weights[2] < farShare - .25f,
+              "reversing inside the gap reverses the transfer without a hover change");
+
+        g_powerHover = 2;
+        g_powerPointerX = nextX;
+        g_powerGlass.tick = Now() - .04;
+        UpdatePowerGlass();
+        Check(g_powerGlass.litSlot == 2 && g_powerGlass.weights[2] > .60f,
+              "entering the destination completes the pointer-directed transfer");
+        g_powerHover = 1;
+        g_powerPointerX = startX;
+        g_powerGlass.tick = Now() - .025;
+        UpdatePowerGlass();
+        Check(g_powerGlass.litSlot == 1 && g_powerGlass.weights[2] > .1f,
+              "a jump in the reverse direction fades the old lobe rather than snapping it off");
+        for (int step = 0; step < 2; ++step) {
+            g_powerGlass.tick = Now() - .25;
+            UpdatePowerGlass();
+        }
+        Check(g_powerGlass.x == startX && g_powerGlass.weights[1] == 1 &&
+              g_powerGlass.weights[2] == 0, "the two anchored lobes settle to one circle");
+        g_requestedAnimations = false;
+        g_powerHover = 2;
+        g_powerPointerX = nextX;
+        UpdatePowerGlass();
+        Check(g_powerGlass.x == nextX && g_powerGlass.weights[1] == 0 &&
+              g_powerGlass.weights[2] == 1, "disabled animations jump to the new anchor");
+        g_requestedAnimations = true;
+
+        g_settings.powerWarningFollowButton = false;
+
+        // Moving to a normal button fades the remaining light.
+        g_settings.powerWarningActions[0] = false;
+        g_powerHover = 0;
+        g_powerPointerX = 160.f;
+        g_powerGlass.tick = Now() - .05;
+        UpdatePowerGlass();
+        Check(g_powerGlass.targetAlpha == 0.f && g_powerGlass.alpha > 0,
+              "a normal button fades the light instead of switching it off instantly");
+        g_powerGlass.tick = Now() - .25;
+        UpdatePowerGlass();
+        g_powerGlass.tick = Now() - .25;
+        UpdatePowerGlass();
+        Check(g_powerGlass.alpha < .05f, "the light reaches zero after the fall time");
+
+        // The gap between two warned buttons is not a reset.
+        g_powerHover = -1;
+        g_powerPointerInside = true;
+        g_powerPointerX = 200.f;  // Between sign-out and restart centres.
+        g_powerGlass.tick = Now() - .05;
+        UpdatePowerGlass();
+        Check(g_powerGlass.targetAlpha == 1.f,
+              "the gap between two warned buttons keeps the light on");
+
+        g_powerHover = -1;
+        g_powerPointerInside = false;
+        UpdatePowerGlass();
+        g_powerGlass.tick = Now() - .25;
+        UpdatePowerGlass();
+        g_powerGlass.tick = Now() - .25;
+        UpdatePowerGlass();
+        Check(g_powerGlass.alpha < .05f, "leaving the capsule fades the light out");
+        ResetPowerGlass();
+        Check(g_powerGlass.slot == -1 && g_powerGlass.alpha == 0 &&
+              g_powerGlass.targetAlpha == 0,
+              "closing the menu leaves no light or animation behind");
+        g_frameTimer = false;
+        g_layout.powerItems.clear();
+    }
+    // Glow reach: measured from the icon's hit box so the distance setting has
+    // room to act, and resolved to the closest tile so the lit icon is always
+    // the one the pointer is nearest — never a neighbour picked by paint order.
+    {
+        const D2D1_RECT_F box = D2D1::RectF(0, 0, 100, 80);
+        Check(PointBoxDistance(box, 50, 40) == 0, "a point inside the icon is at distance 0");
+        Check(std::abs(PointBoxDistance(box, 112, 40) - 12.f) < .01f,
+              "the reach is measured from the icon's edge");
+        Check(std::abs(PointBoxDistance(box, 112, 96) - 20.f) < .01f,
+              "a diagonal point uses the box corner, not either axis");
+        Check(std::abs(PointBoxDistance(box, -9, -12) - 15.f) < .01f,
+              "the distance never goes negative outside the icon");
+        Cell cell{};
+        cell.unit = D2D1::RectF(0, 0, 120, 160);
+        cell.icon = D2D1::RectF(30, 20, 90, 80);  // Icon centre is above the cell centre.
+        const D2D1_POINT_2F centre{.5f, .3125f}, movedRight{.55f, .3125f};
+        const auto neutral = TileRimLight(cell, centre, 80, 1.5f);
+        const auto low = TileRimLight(cell, movedRight, 0, 1.5f);
+        const auto mid = TileRimLight(cell, movedRight, 40, 1.5f);
+        const auto high = TileRimLight(cell, movedRight, 80, 1.5f);
+        const auto upper = TileRimLight(cell, {.5f, .27f}, 80, 1.5f);
+        const auto lower = TileRimLight(cell, {.5f, .36f}, 80, 1.5f);
+        Check(neutral.x == centre.x && neutral.y == centre.y,
+              "the actual icon centre has no preferred rim");
+        Check(low.x == movedRight.x && low.y == movedRight.y && mid.x > low.x &&
+              mid.x < high.x && std::abs(high.x - 1.f) < .001f,
+              "a higher setting increasingly steers small pointer movements to the facing edge");
+        Check(upper.y < .001f && lower.y > .999f,
+              "above and below the icon centre reach the top and bottom rim on a scaled layout");
+        g_glowNearest = -1;
+        g_glassScenePointer.reset();
+        Check(!GlowNearestIs(nullptr, 24), "without a pointer nothing resolves as nearest");
+    }
+    // The settings window's own theme: the palette flips with themeMode, and
+    // the dark table stays byte-for-byte what 1.4.x shipped.
+    {
+        const std::wstring previousTheme = GetStringSetting(L"themeMode");
+        Preview::PutSetting(L"themeMode", L"light");
+        settings_palette::Refresh();
+        Check(pal().light && pal().text == 0x111111 && pal().base == 0xFFFFFF,
+              "light puts ink text on white cards");
+        Check(SetGlassTint() > .8f, "the light window is tinted more solidly than dark glass");
+        Preview::PutSetting(L"themeMode", L"dark");
+        settings_palette::Refresh();
+        Check(!pal().light && pal().text == 0xFFFFFF && pal().base == 0x242424,
+              "the dark palette is unchanged");
+        Preview::PutSetting(L"themeMode", L"system");
+        settings_palette::Refresh();
+        Check(pal().light == settings_palette::SystemLight(),
+              "system follows the Windows app theme");
+        Preview::PutSetting(L"themeMode", previousTheme);
+        settings_palette::Refresh();
+    }
+    // The material file reader is reachable from the settings window; nested
+    // arrays must fail before they can exhaust the stack, and an oversized
+    // import must be refused instead of being loaded into memory.
+    {
+        std::wstring shallow(8, L'[');
+        shallow.append(8, L']');
+        launchpad_material::Json shallowJson;
+        Check(launchpad_material::JsonReader(shallow).Read(shallowJson),
+              "shallow material JSON parses");
+        std::wstring deep(100, L'[');
+        deep.append(100, L']');
+        launchpad_material::Json deepJson;
+        Check(!launchpad_material::JsonReader(deep).Read(deepJson),
+              "material JSON nesting is bounded");
+        std::vector<launchpad_material::UserPreset> presets;
+        Check(!launchpad_material::ParseUserPresets(deep, presets) && presets.empty(),
+              "stored preset nesting is bounded");
+    }
+    {
+        std::wstring oversized = cases / L"oversized-material.ryjsm";
+        HANDLE file = CreateFileW(oversized.c_str(), GENERIC_WRITE, 0, nullptr,
+                                  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        Check(file != INVALID_HANDLE_VALUE, "oversized material fixture created");
+        if (file != INVALID_HANDLE_VALUE) {
+            std::string bytes(8 * 1024 * 1024 + 1, 'x');
+            DWORD written = 0;
+            Check(WriteFile(file, bytes.data(), (DWORD)bytes.size(), &written, nullptr) &&
+                  written == bytes.size(), "oversized material fixture written");
+            CloseHandle(file);
+        }
+        std::wstring text;
+        Check(!Set_ReadUtf8File(oversized, text) && text.empty(),
+              "material import refuses files above the size cap");
+        DeleteFileW(oversized.c_str());
+    }
+    // A real (hidden) settings window must give back its memory DC and DIB.
+    // Three cycles expose the two GDI objects per close that the old
+    // WM_NCDESTROY path leaked.
+    {
+        // Warm up the one-time GDI caches (icon decoding and the window class)
+        // before measuring; the loop below is what must be flat.
+        Set_Create(false);
+        if (g_setWin && g_setWin->hwnd) DestroyWindow(g_setWin->hwnd);
+        int before = (int)GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS);
+        for (int i = 0; i < 3; ++i) {
+            Check(Set_Create(false), "settings window creates for a resource cycle");
+            if (g_setWin && g_setWin->hwnd) DestroyWindow(g_setWin->hwnd);
+            Check(!g_setWin, "settings window releases its window object");
+        }
+        MSG message{};
+        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+        }
+        int after = (int)GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS);
+        Check(after <= before + 1, "settings window releases its GDI resources");
     }
     printf("Feature checks: %d, failures: %d\n",checks,failures);
     return failures?1:0;

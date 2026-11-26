@@ -207,10 +207,12 @@ void ShowFullBackupDialog(HWND owner,bool importing) {
     WCHAR file[32768]{};
     if(!importing) {
         SYSTEMTIME now{};GetLocalTime(&now);
-        swprintf_s(file,L"RYJS-Launchpad-%04u%02u%02u-%02u%02u%02u.ryjs.zip",now.wYear,now.wMonth,now.wDay,now.wHour,now.wMinute,now.wSecond);
+        std::wstring brand = Tr(L"Lumiflow");
+        swprintf_s(file, L"%ls-%04u%02u%02u-%02u%02u%02u.ryjs.zip", brand.c_str(),
+                   now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
     }
     PWSTR desktop=nullptr;SHGetKnownFolderPath(FOLDERID_Desktop,0,nullptr,&desktop);
-    auto filter=std::wstring(Tr(L"Complete Launchpad backups"))+L'\0'+L"*.zip"+L'\0'+L'\0';
+    auto filter=std::wstring(Tr(L"Complete Lumiflow backups"))+L'\0'+L"*.zip"+L'\0'+L'\0';
     OPENFILENAMEW dialog{sizeof(dialog)};dialog.hwndOwner=owner;dialog.lpstrFile=file;dialog.nMaxFile=ARRAYSIZE(file);
     dialog.lpstrFilter=filter.c_str();dialog.lpstrDefExt=L"zip";dialog.lpstrInitialDir=desktop;
     dialog.lpstrTitle=Tr(importing?L"Import complete backup":L"Create complete backup");

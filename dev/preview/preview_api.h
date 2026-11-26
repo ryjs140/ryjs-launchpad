@@ -9,7 +9,7 @@
 #include <string>
 
 #define WH_MOD_ID L"ryjs-launchpad"
-#define WH_MOD_VERSION L"1.0.0-preview"
+#define WH_MOD_VERSION L"1.5.8-preview"
 namespace Preview {
 inline std::wstring directory;
 inline std::wstring languageOverride;

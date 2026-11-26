@@ -249,7 +249,7 @@ function Read-Archive([string]$path) {
                 $files[$entry.FullName]=$buffer.ToArray()
             } finally { $stream.Dispose(); $buffer.Dispose() }
         }
-        if (!$files.ContainsKey('manifest.json')) { throw 'This is not a complete Launchpad backup.' }
+        if (!$files.ContainsKey('manifest.json')) { throw 'This is not a complete Lumiflow backup.' }
         $manifest=$utf8.GetString($files['manifest.json']) | ConvertFrom-Json
         if ($manifest.schema -ne 1) { throw 'Unsupported backup version.' }
         if ($manifest.source_mod -notin @('local@ryjs-launchpad','ryjs-launchpad','local@seamless-launchpad-custom','seamless-launchpad-custom','local@seamless-launchpad','seamless-launchpad','local@fullscreen-start-plus','fullscreen-start-plus')) { throw 'Backup belongs to a different application.' }
@@ -300,7 +300,7 @@ function Export-Complete {
         }
     }
     $instructions=@'
-RYJS Launchpad complete backup
+Lumiflow complete backup
 
 To restore it, choose "Import complete backup" in the launcher, pick this ZIP,
 review the verification summary and confirm.
@@ -310,7 +310,7 @@ or executed.
 The data that was in place before the import is kept next to data-v1 in a
 .before-import-* folder.
 
-RYJS Launchpad 完整备份
+流光启动台完整备份
 在启动器菜单选择“导入完整备份”，选中本 ZIP，校验后确认即可。
 导入仅恢复布局、设置和图标；source/binary 仅用于兼容旧备份，不会安装或执行。
 替换前的数据保留在原 data-v1 同级的 .before-import-* 目录。
@@ -344,8 +344,8 @@ function Import-Complete($checked) {
     $destination=[IO.Path]::GetFullPath($job.storage).TrimEnd('\')
     if (!$job.preview) {
         $parent=Split-Path -Parent $destination
-        if ([IO.Path]::GetFileName($destination) -ne 'data-v1' -or [IO.Path]::GetFileName($parent) -notin @('local@ryjs-launchpad','ryjs-launchpad')) { throw 'Import is restricted to RYJS storage.' }
-        if (!(Test-Path -LiteralPath (Join-Path $destination 'ryjs-storage.ini'))) { throw 'Existing RYJS storage marker is missing.' }
+        if ([IO.Path]::GetFileName($destination) -ne 'data-v1' -or [IO.Path]::GetFileName($parent) -notin @('local@ryjs-launchpad','ryjs-launchpad')) { throw 'Import is restricted to Lumiflow storage.' }
+        if (!(Test-Path -LiteralPath (Join-Path $destination 'ryjs-storage.ini'))) { throw 'Existing Lumiflow storage marker is missing.' }
     }
     $ancestor=$destination
     while ($ancestor) {
@@ -416,4 +416,96 @@ try {
 }
 [IO.File]::WriteAllText((Join-Path $work 'result.ini'),$resultText,[Text.Encoding]::Unicode)
 )RYJS_BACKUP";
-constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "globalColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "glowStrength": "60", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "0", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "backgroundDim": "0", "launchpadAnimation": "iconFlyIn"})RYJS_DEFAULTS";
+constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS({"interfaceLanguage": "auto", "uiFont": "auto", "winKeyAction": "grid", "shiftWinKeyAction": "start", "startButtonAction": "grid", "program": "", "monitor": "mouse", "appSource": "allApps", "gridLayout": "groups", "gridColumns": "0", "globalColumns": "0", "coverScreen": "0", "gridIconSize": "56", "showLabels": "1", "normalizeIcons": "1", "blurMode": "custom", "blurAmount": "60", "backgroundOpacity": "30", "tintColor": "#000000", "glowStrength": "60", "chromeOpacity": "90", "powerBar": "1", "dockAlignment": "center", "powerButtons.lock": "1", "powerButtons.signOut": "1", "powerButtons.sleep": "1", "powerButtons.hibernate": "1", "powerButtons.restart": "1", "powerButtons.shutDown": "1", "powerNoConfirm": "0", "powerWarning": "1", "powerWarningActions.lock": "0", "powerWarningActions.signOut": "1", "powerWarningActions.sleep": "0", "powerWarningActions.hibernate": "0", "powerWarningActions.restart": "1", "powerWarningActions.shutDown": "1", "powerWarningFollow": "mouse", "powerWarningColor": "#A91223", "powerWarningStrength": "78", "powerWarningSpread": "100", "powerWarningEdge": "65", "powerWarningBleed": "15", "wiggle": "1", "holdTime": "420", "animations": "1", "settingsGlass": "1", "nativeSettingsTitleBar": "0", "settingsTrayIcon": "1", "gpuPresenter": "1", "performanceLogging": "0", "frameRateLimit": "0", "openDuration": "280", "closeDuration": "180", "animationEasing": "settle", "reducedMotion": "0", "labelFontSize": "13", "horizontalSpacing": "56", "verticalSpacing": "16", "groupWidth": "0", "groupSpacing": "32", "groupFlow": "columns", "groupNavigation": "scroll", "folderDuration": "180", "themeMode": "custom", "backgroundDim": "0", "launchpadAnimation": "iconFlyIn", "powerOrder": "lock,signOut,sleep,hibernate,restart,shutDown", "textShadowOpacity": "72", "textShadowBlur": "2", "textOutlineOpacity": "75", "textOutlineWidth": "1", "materialPreset": "Default", "materialPresetName": "", "materialUserPresets": "", "materialBlur": "36", "materialSaturation": "100", "materialBrightness": "100", "materialContrast": "100", "materialLuminosity": "0", "materialNoise": "0", "materialNoiseScale": "100", "powerShadowOpacity": "72", "powerShadowBlur": "2", "glowDistance": "24"})RYJS_DEFAULTS";
+std::wstring_view DeclaredSettingDefault(std::wstring_view key) {
+    static constexpr std::pair<std::wstring_view, std::wstring_view> defaults[] = {
+        {L"animationEasing", L"settle"},
+        {L"animations", L"1"},
+        {L"appSource", L"allApps"},
+        {L"backgroundDim", L"0"},
+        {L"backgroundOpacity", L"30"},
+        {L"blurAmount", L"60"},
+        {L"blurMode", L"custom"},
+        {L"chromeOpacity", L"90"},
+        {L"closeDuration", L"180"},
+        {L"coverScreen", L"0"},
+        {L"dockAlignment", L"center"},
+        {L"folderDuration", L"180"},
+        {L"frameRateLimit", L"0"},
+        {L"globalColumns", L"0"},
+        {L"glowDistance", L"24"},
+        {L"glowStrength", L"60"},
+        {L"gpuPresenter", L"1"},
+        {L"gridColumns", L"0"},
+        {L"gridIconSize", L"56"},
+        {L"gridLayout", L"groups"},
+        {L"groupFlow", L"columns"},
+        {L"groupNavigation", L"scroll"},
+        {L"groupSpacing", L"32"},
+        {L"groupWidth", L"0"},
+        {L"holdTime", L"420"},
+        {L"horizontalSpacing", L"56"},
+        {L"interfaceLanguage", L"auto"},
+        {L"labelFontSize", L"13"},
+        {L"launchpadAnimation", L"iconFlyIn"},
+        {L"materialBlur", L"36"},
+        {L"materialBrightness", L"100"},
+        {L"materialContrast", L"100"},
+        {L"materialLuminosity", L"0"},
+        {L"materialNoise", L"0"},
+        {L"materialNoiseScale", L"100"},
+        {L"materialPreset", L"Default"},
+        {L"materialPresetName", L""},
+        {L"materialSaturation", L"100"},
+        {L"materialUserPresets", L""},
+        {L"monitor", L"mouse"},
+        {L"nativeSettingsTitleBar", L"0"},
+        {L"normalizeIcons", L"1"},
+        {L"openDuration", L"280"},
+        {L"performanceLogging", L"0"},
+        {L"powerBar", L"1"},
+        {L"powerButtons.hibernate", L"1"},
+        {L"powerButtons.lock", L"1"},
+        {L"powerButtons.restart", L"1"},
+        {L"powerButtons.shutDown", L"1"},
+        {L"powerButtons.signOut", L"1"},
+        {L"powerButtons.sleep", L"1"},
+        {L"powerNoConfirm", L"0"},
+        {L"powerOrder", L"lock,signOut,sleep,hibernate,restart,shutDown"},
+        {L"powerShadowBlur", L"2"},
+        {L"powerShadowOpacity", L"72"},
+        {L"powerWarning", L"1"},
+        {L"powerWarningActions.hibernate", L"0"},
+        {L"powerWarningActions.lock", L"0"},
+        {L"powerWarningActions.restart", L"1"},
+        {L"powerWarningActions.shutDown", L"1"},
+        {L"powerWarningActions.signOut", L"1"},
+        {L"powerWarningActions.sleep", L"0"},
+        {L"powerWarningBleed", L"15"},
+        {L"powerWarningColor", L"#A91223"},
+        {L"powerWarningEdge", L"65"},
+        {L"powerWarningFollow", L"mouse"},
+        {L"powerWarningSpread", L"100"},
+        {L"powerWarningStrength", L"78"},
+        {L"program", L""},
+        {L"reducedMotion", L"0"},
+        {L"settingsGlass", L"1"},
+        {L"settingsTrayIcon", L"1"},
+        {L"shiftWinKeyAction", L"start"},
+        {L"showLabels", L"1"},
+        {L"startButtonAction", L"grid"},
+        {L"textOutlineOpacity", L"75"},
+        {L"textOutlineWidth", L"1"},
+        {L"textShadowBlur", L"2"},
+        {L"textShadowOpacity", L"72"},
+        {L"themeMode", L"custom"},
+        {L"tintColor", L"#000000"},
+        {L"uiFont", L"auto"},
+        {L"verticalSpacing", L"16"},
+        {L"wiggle", L"1"},
+        {L"winKeyAction", L"grid"},
+    };
+    const auto match = std::lower_bound(std::begin(defaults), std::end(defaults), key,
+        [](const auto& item, std::wstring_view name) { return item.first < name; });
+    return match != std::end(defaults) && match->first == key ? match->second : std::wstring_view{};
+}

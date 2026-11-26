@@ -1,4 +1,4 @@
-// Seamless Launchpad keys helper
+// Lumiflow keys helper
 //
 // Windows keeps keys typed in a window that runs as administrator away from
 // programs that don't, Explorer included, so the mod can't see Shift + Windows
@@ -68,7 +68,8 @@ LRESULT CALLBACK KeyboardHook(int code, WPARAM wParam, LPARAM lParam) {
 
 bool KeysUp() {
     return GetAsyncKeyState(VK_SHIFT) >= 0 && GetAsyncKeyState(VK_LWIN) >= 0 &&
-           GetAsyncKeyState(VK_RWIN) >= 0;
+           GetAsyncKeyState(VK_RWIN) >= 0 && GetAsyncKeyState(VK_CONTROL) >= 0 &&
+           GetAsyncKeyState(VK_MENU) >= 0;
 }
 
 void PressCtrlEsc() {
@@ -99,7 +100,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_TIMER:
             if (wParam == kTimerKeysUp) {
                 // With Shift still down, Ctrl+Esc would be Task Manager.
-                if (KeysUp() || ++g_waited > 150) {
+                if (++g_waited > 125) {
+                    KillTimer(hwnd, kTimerKeysUp);
+                } else if (KeysUp()) {
                     KillTimer(hwnd, kTimerKeysUp);
                     PressCtrlEsc();
                     g_waited = 0;

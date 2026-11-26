@@ -1,19 +1,32 @@
 #include "launchpad_group_edit.inc"
 // Shared operations for pointer, context-menu and keyboard group editing.
-void MoveAppToGroup(const Tile& tile, const std::shared_ptr<Folder>& destination, int position) {
-    if (!tile.app || !destination) return;
-    std::wstring key = AppKey(*tile.app);
+void MoveAppsToGroup(const Tiles& moving, const std::shared_ptr<Folder>& destination, int position) {
+    if (moving.empty() || !destination || g_layoutReadOnly || g_dataReadOnly || g_entriesReadOnly) return;
+    std::unordered_set<std::wstring> keys;
+    for (const auto& tile : moving) keys.insert(AppKey(*tile.app));
+    EraseTiles(g_tiles, moving);
     for (auto& group : g_tiles) if (group.folder) {
         auto& apps = group.folder->apps;
-        for (int i = (int)apps.size() - 1; i >= 0; --i) if (apps[i].app && AppKey(*apps[i].app) == key) {
-            if (group.folder == destination && i < position) --position;
-            apps.erase(apps.begin() + i);
-        }
+        int originalPosition = position;
+        int index = 0;
+        std::erase_if(apps, [&](const Tile& tile) {
+            bool moved = tile.app && keys.contains(AppKey(*tile.app));
+            if (moved && group.folder == destination && index < originalPosition) --position;
+            ++index;
+            return moved;
+        });
     }
     position = std::clamp(position, 0, (int)destination->apps.size());
-    destination->apps.insert(destination->apps.begin() + position, tile);
-    g_hidden.erase(key);
-    if (PinnedOnly()) { g_pins.insert(key); SavePins(); }
+    destination->apps.insert(destination->apps.begin() + position, moving.begin(), moving.end());
+    for (const auto& key : keys) g_hidden.erase(key);
+    if (PinnedOnly()) {
+        g_pins.insert(keys.begin(), keys.end());
+        SavePins();
+    }
+}
+
+void MoveAppToGroup(const Tile& tile, const std::shared_ptr<Folder>& destination, int position) {
+    if (tile.app) MoveAppsToGroup({tile}, destination, position);
 }
 
 void MoveGroup(const std::shared_ptr<Folder>& group, int destination) {
@@ -202,15 +215,15 @@ POINT g_groupHeaderStart{};
 POINT g_groupHeaderAt{};
 double g_groupHeaderEdgeTime=0;
 int g_groupHeaderEdge=0;
-bool GroupPointerDown(HWND hwnd, int x, int y) {
-    if(g_groupEditMode)return FreeGroupPointerDown(hwnd,x,y);
+bool GroupPointerDown(HWND hwnd, int x, int y, bool control = false) {
+    if(g_groupEditMode)return FreeGroupPointerDown(hwnd,x,y,control);
     int index = GroupAtPoint(x, y, true);
     if (index < 0) return false;
     g_groupHeaderPressed = g_groupGeometry[index].group;
     g_groupHeaderStart = g_groupHeaderAt = {x,y}; SetCapture(hwnd); return true;
 }
 bool GroupPointerMove(int x, int y) {
-    if(g_groupGesture.group)return FreeGroupPointerMove(x,y);
+    if(g_groupGesture.group || g_groupMarquee.pending)return FreeGroupPointerMove(x,y);
     if(!g_groupEditMode&&g_groupHeaderPressed)return true;
     if (!g_groupHeaderPressed) return false;
     if (std::abs(x-g_groupHeaderStart.x) > GetSystemMetrics(SM_CXDRAG) || std::abs(y-g_groupHeaderStart.y) > GetSystemMetrics(SM_CYDRAG))
@@ -231,7 +244,9 @@ void GroupHeaderTick() {
     g_groupDropFolder=index<0?nullptr:g_groupGeometry[index].group;
 }
 void CancelGroupPointer() {
-    bool preview=(bool)g_groupGesture.group;g_groupGesture={};
+    const bool preview = g_groupGesture.group || g_groupMarquee.pending;
+    CancelGroupMarquee();
+    g_groupGesture={};
     if(preview){g_groupTransitions.clear();StartFrames();}
     g_groupHeaderPressed.reset(); g_groupHeaderDragging.reset(); g_groupDropFolder.reset();
     g_groupHeaderEdge=0;
@@ -254,7 +269,7 @@ void ImportOrRestoreLayout(HWND hwnd, bool restore) {
     std::wstring path = StoragePath(LayoutFile()) + L".bak";
     if (!restore) {
         WCHAR file[MAX_PATH]{};
-        auto filter = std::wstring(Tr(L"Launchpad layout files")) + L'\0' + L"*.zip;*.txt;*.bak" + L'\0' + L'\0';
+        auto filter = std::wstring(Tr(L"Lumiflow layout files")) + L'\0' + L"*.zip;*.txt;*.bak" + L'\0' + L'\0';
         OPENFILENAMEW dialog{sizeof(dialog)};
         dialog.hwndOwner=hwnd; dialog.lpstrFilter=filter.c_str(); dialog.lpstrFile=file; dialog.nMaxFile=ARRAYSIZE(file);
         dialog.lpstrTitle=Tr(L"Import layout file"); dialog.Flags=OFN_FILEMUSTEXIST|OFN_NOCHANGEDIR;
@@ -314,7 +329,9 @@ UINT_PTR CALLBACK LayoutExportHook(HWND dialog, UINT message, WPARAM, LPARAM dat
 }
 
 void ExportLayout(HWND hwnd) {
-    WCHAR file[32768] = L"ryjs-layout";
+    WCHAR file[32768] = {};
+    std::wstring defaultName = Tr(L"Lumiflow");
+    wcsncpy_s(file, defaultName.c_str(), _TRUNCATE);
     auto filter = std::wstring(Tr(L"Layout, icons and settings (ZIP)")) + L'\0' + L"*.zip" + L'\0' +
                   Tr(L"Current layout only (TXT)") + L'\0' + L"*.txt" + L'\0' + L'\0';
     OPENFILENAMEW dialog{sizeof(dialog)};

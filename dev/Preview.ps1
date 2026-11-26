@@ -1,10 +1,10 @@
 param([switch]$Rebuild, [switch]$Settings, [ValidateSet('auto','zh-CN','en')][string]$Language = 'auto')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $root 'build\RYJSLaunchpadPreview.exe'
+$exe = Join-Path $root 'build\Lumiflow.exe'
 if ($Rebuild -or !(Test-Path -LiteralPath $exe)) {
     # Only close this workspace's own preview, never Windhawk or Explorer.
-    Get-Process RYJSLaunchpadPreview -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } | Stop-Process
+    Get-Process Lumiflow -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } | Stop-Process
     & (Join-Path $PSScriptRoot 'Build.ps1') -Verify
 }
 $launchArgs = @()

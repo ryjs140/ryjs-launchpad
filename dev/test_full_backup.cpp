@@ -24,6 +24,7 @@ int wmain() {
     Preview::directory=(root/L"data-v1").wstring();
     for(const auto& field:Set_MakeFields())Preview::PutSetting(field.key,field.def);
     Preview::PutSetting(L"appSource",L"pinned");Preview::PutSetting(L"gridLayout",L"groups");
+    Preview::PutSetting(L"gridIconSize",L"96");
     LoadSettings();g_appsKey=AppsKey();
     auto layout=std::vector<std::wstring>{L"schema\t1\tgroups",L"folder\t备份测试",L"in\tryjs-entry:fixture"};
     Check(WriteLines(StoragePath(L"groups-v1-pinned.txt"),layout),"native Unicode layout fixture written");
@@ -43,6 +44,7 @@ int wmain() {
     Check(BackupReadResult(g_fullBackupJob->work,L"hash",false)==hash,"confirmation binds to exact archive hash");
     StopFullBackupJob();
     Check(WriteLines(StoragePath(L"groups-v1-pinned.txt"),{L"schema\t1\tgroups",L"folder\tReplaced"}),"current layout changed before import");
+    Preview::PutSetting(L"gridIconSize",L"56");
     g_fullImportBusy=true;
     Check(!SaveTiles(),"layout writes blocked during import");
     StartLoadingApps();Check(!g_worker,"app enumeration blocked during import");
@@ -57,6 +59,12 @@ int wmain() {
     Check(ReadLines(StoragePath(L"display-names-v1.txt"))[1][3]==L"备份别名","local display names survive native full backup restore");
     auto restoredGeometry=ReadLines(StoragePath(L"group-geometry-layout-pinned.txt"));
     Check(restoredGeometry[0][1]==L"2"&&restoredGeometry[1][8]==L"3"&&restoredGeometry[1][9]==L"2","integer cell counts survive native full backup restore");
+    const auto settingsFile=StoragePath(L"ui-settings.ini");
+    using launchpad_settings_store::Resolve;
+    Check(Resolve(settingsFile,L"gridIconSize",L"56")==L"96","backup restores the icon size over the destination setting");
+    Check(launchpad_settings_store::Save(settingsFile,{{L"gridIconSize",L"128",L"56"}})&&
+          Resolve(settingsFile,L"gridIconSize",L"56")==L"128","built-in settings can change the restored icon size");
+    Check(Resolve(settingsFile,L"gridIconSize",L"72")==L"72","a Windhawk size change replaces the restored override");
     printf("Native full-backup checks: %d, failures: %d\n",checks,failures);
     return failures?1:0;
 }

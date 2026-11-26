@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace launchpad_settings_store {
@@ -38,12 +39,15 @@ inline std::wstring Read(const std::wstring& path, PCWSTR section, PCWSTR key) {
     }
     return {};
 }
-inline std::wstring Resolve(const std::wstring& path, PCWSTR key, const std::wstring& host) {
+inline std::wstring Resolve(const std::wstring& path, PCWSTR key, const std::wstring& host,
+                            std::wstring_view declaredDefault = {}) {
     std::lock_guard lock(mutex);
     if (GetPrivateProfileIntW(L"meta",L"version",1,path.c_str())>1 || Read(path,L"present",key)!=L"1") return host;
     std::wstring baseline,value;
     if (!Decode(Read(path,L"host",key),baseline) || !Decode(Read(path,L"values",key),value)) return host;
-    if (baseline!=host) {
+    // Windhawk may materialize an unset key at its declared default during a
+    // rebuild. That is the same baseline, not a user edit of the setting.
+    if (baseline != host && !(baseline.empty() && host == declaredDefault)) {
         WritePrivateProfileStringW(L"present",key,nullptr,path.c_str());
         return host;
     }

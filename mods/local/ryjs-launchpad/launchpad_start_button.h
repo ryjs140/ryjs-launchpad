@@ -7,6 +7,7 @@ constexpr WCHAR kStartPressProperty[] = L"Launchpad.StartPress." WH_MOD_ID;
 std::vector<HWND> g_startButtonWindows;  // Launcher thread only.
 HWINEVENTHOOK g_startButtonEvents;
 std::atomic<bool> g_startButtonReplacementActive{false};
+std::atomic<bool> g_nativeStartPassthrough{false};
 
 UINT StartButtonCleanupMessage() {
     static UINT message = RegisterWindowMessageW(L"Launchpad.StartButtonCleanup." WH_MOD_ID);
@@ -54,7 +55,7 @@ LRESULT CALLBACK StartButtonSubclass(HWND window, UINT message, WPARAM wp,
         // The mouse pair alone does not clear a previously latched state or
         // the native hover left behind when the launcher covers the button.
         // Perform cleanup on its owning thread, after the click has unwound.
-        if ((wp && !g_startButtonReplacementActive) ||
+        if (g_nativeStartPassthrough.load() || (wp && !g_startButtonReplacementActive) ||
             (!wp && g_startButtonAction == KeyAction::Start) || (INT_PTR)GetPropW(window,kStartPressProperty)>1) return 0;
         DefSubclassProc(window, WM_CANCELMODE, 0, 0);
         DefSubclassProc(window, BM_SETSTATE, FALSE, 0);

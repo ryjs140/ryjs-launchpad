@@ -1,4 +1,4 @@
-# RYJS Launchpad 四项整改交付记录
+# 流光启动台 四项整改交付记录
 
 日期：2026-11-18，更新至本机开始按钮实测确认。修改范围：本仓库启动台及其开发验证代码。经用户授权 UAC，已更新正在运行的同一个 `local@ryjs-launchpad` 模块；未提交、推送、发布，未修改其他插件或系统快捷方式。源码与作者、插件 ID、动画速度保留。
 
@@ -18,7 +18,7 @@
 |---|---|---|
 | 分组二维布局 | 原尺寸按 16 DIP 取整，组内列宽还会被拉伸，无法代表完整图标单元；每次松手立刻写盘，无法取消整次编辑。改为连续 DIP 坐标移动、完整图标节距的整数行列拉伸、实时内容预览与尺寸反馈；只通过右下角手柄调整尺寸。碰撞显示红色预览并拒绝落位，其他组不动。Enter/菜单统一保存，Esc 先取消手势、再取消整个会话，关闭也放弃未保存编辑。 | `launchpad_group_edit.inc`、`launchpad_groups_layout.inc`、`launchpad_group_positions.inc`、`launchpad_groups_actions.inc` |
 | 无底板黑白文字 | 原绘制函数显式填充标签胶囊和标题条，固定主题色与显示背景无关。删除标签底板、阴影和文件夹标题胶囊；按实际文字布局范围采样无本层文字的背景，线性化 sRGB 后计算相对亮度，选择纯黑/纯白，加入约 0.155–0.205 的亮度滞回。 | 新增 `launchpad_contrast.inc`，修改 `seamless-launchpad.wh.cpp`、`launchpad_groups_layout.inc`；移除相应无效设置控件 |
-| Windows 开始按钮 | 本机原生 XAML `ExperienceToggleButton::OnToggle` 在菜单打开前把 `IsChecked` 置为 1；RYJS 拦截 `ShowStartView` 后没有原生菜单关闭生命周期将它复位。旧修复只处理 Win32 状态和 `IsExperienceVisible`，漏掉独立的选中状态。现在仅对 AutomationId=`StartButton` 且配置由 RYJS 接管的点击拦截原生选中切换，并清除已遗留的 `IsChecked`；指针释放、悬停及后续 Click/ShowStartView 保留。其他 XAML 按钮和原生开始菜单模式透传。真实日志和用户确认见第 4 节。 | `launchpad_start_xaml.h`、`seamless-launchpad.wh.cpp`（补充 Primitives 头文件）、重新生成的 `ryjs-launchpad.wh.cpp`；既有兼容路径 `launchpad_start_button.h` 保留 |
+| Windows 开始按钮 | 本机原生 XAML `ExperienceToggleButton::OnToggle` 在菜单打开前把 `IsChecked` 置为 1；流光启动台拦截 `ShowStartView` 后没有原生菜单关闭生命周期将它复位。旧修复只处理 Win32 状态和 `IsExperienceVisible`，漏掉独立的选中状态。现在仅对 AutomationId=`StartButton` 且配置由流光启动台接管的点击拦截原生选中切换，并清除已遗留的 `IsChecked`；指针释放、悬停及后续 Click/ShowStartView 保留。其他 XAML 按钮和原生开始菜单模式透传。真实日志和用户确认见第 4 节。 | `launchpad_start_xaml.h`、`seamless-launchpad.wh.cpp`（补充 Primitives 头文件）、重新生成的 `ryjs-launchpad.wh.cpp`；既有兼容路径 `launchpad_start_button.h` 保留 |
 | 应用显示名称 | 原有“编辑入口”包含名称覆盖，但需要同时处理启动目标等字段，没有轻量独立重命名/恢复操作。新增所有应用右键“重命名”和“恢复原始名称”，复用轻量输入框；保存原名与自定义名，显示名按稳定 `AppKey` 关联。恢复原名保留空覆盖标记，避免旧入口别名在重扫后复活。搜索匹配原名与自定义名；原生工具提示提供完整名称。 | 新增 `launchpad_display_names.inc`，修改 `launchpad_entry_editor.inc`、`launchpad_groups_actions.inc`、`seamless-launchpad.wh.cpp` |
 
 所有源码集成到重新生成的 `ryjs-launchpad.wh.cpp`。相关资源/验证文件包括 `dev/generate_resources.py`、`dev/settings-extension.json`、`dev/settings-defaults.json`、`dev/strings.zh-CN.json`、`dev/Build.ps1`、`dev/test_features.cpp`、`dev/test_start_button.cpp`、`dev/preview/*` 及完整备份测试与内嵌脚本。生成的 `launchpad_strings.inc`、`launchpad_backup_script.inc` 随之更新。

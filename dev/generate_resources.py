@@ -103,7 +103,7 @@ def main():
     for field in extension:
         default = ('1' if field['default'] else '0') if isinstance(field['default'], bool) else str(field['default'])
         options = '{' + ', '.join('{' + literal(k) + ', ' + literal(v) + '}' for k,v in field.get('options', {}).items()) + '}'
-        values = ['K::'+field['type'], literal(field['key']), literal(field['label']), literal(field['description']), literal(default), options,
+        values = ['K::'+field['type'], literal(field['key']), literal(field['label']), literal(field.get('description','')), literal(default), options,
                   str(field.get('min',0)), str(field.get('max',100)), str(field['page']), literal(field['group'])]
         fieldRows.append('{' + ', '.join(values) + '},')
     fieldBlock = '// Custom settings begin\n' + '\n'.join(fieldRows) + '\n// Custom settings end'
@@ -124,10 +124,12 @@ def main():
         item = next((x for x in schema if field['key'] in x), None)
         if item is None:
             item = {}; schema.append(item)
-        item.update({field['key']:field['default'], '$name':field['label'], '$description':field['description']})
+        item.update({field['key']:field['default'], '$name':field['label']})
+        if field.get('description'): item['$description'] = field['description']
         if 'options' in field: item['$options'] = [{k:v} for k,v in field['options'].items()]
     missing = set()
     def localize(items):
+        seen = set()
         for field in items:
             for key in list(field):
                 if key in ('$name', '$description'):
@@ -140,8 +142,14 @@ def main():
                         translated.append({k: strings.get(v, v) for k,v in option.items()})
                         missing.update(v for v in option.values() if v not in strings)
                     field['$options:zh-CN'] = translated
-                elif not key.startswith('$') and isinstance(field[key], list):
-                    localize(field[key])
+                elif not key.startswith('$'):
+                    if '.' in key:
+                        raise ValueError(f'Windhawk settings require nested YAML for {key!r}')
+                    if key in seen:
+                        raise ValueError(f'Duplicate Windhawk settings ID {key!r}')
+                    seen.add(key)
+                    if isinstance(field[key], list):
+                        localize(field[key])
     localize(schema)
     if missing: raise ValueError('Untranslated settings: ' + repr(sorted(missing)))
     defaults = {}
@@ -153,11 +161,22 @@ def main():
                 if isinstance(value, list): collect_defaults(value, name + '.')
                 else: defaults[name] = ('1' if value else '0') if isinstance(value, bool) else str(value)
     collect_defaults(schema)
+    default_rows = ''.join(
+        f'        {{{literal(key)}, {literal(value)}}},\n'
+        for key, value in sorted(defaults.items()))
     (MOD / 'launchpad_backup_script.inc').write_text(
         '// Generated from dev/full_backup_worker.ps1 and the settings schema.\n'
         'constexpr wchar_t kFullBackupScript[] = LR"RYJS_BACKUP(' + worker + ')RYJS_BACKUP";\n'
         'constexpr wchar_t kFullBackupDefaults[] = LR"RYJS_DEFAULTS(' +
-        json.dumps(defaults, ensure_ascii=False) + ')RYJS_DEFAULTS";\n', encoding='utf-8')
+        json.dumps(defaults, ensure_ascii=False) + ')RYJS_DEFAULTS";\n'
+        'std::wstring_view DeclaredSettingDefault(std::wstring_view key) {\n'
+        '    static constexpr std::pair<std::wstring_view, std::wstring_view> defaults[] = {\n'
+        + default_rows +
+        '    };\n'
+        '    const auto match = std::lower_bound(std::begin(defaults), std::end(defaults), key,\n'
+        '        [](const auto& item, std::wstring_view name) { return item.first < name; });\n'
+        '    return match != std::end(defaults) && match->first == key ? match->second : std::wstring_view{};\n'
+        '}\n', encoding='utf-8')
     (ROOT / 'dev/settings-defaults.json').write_text(json.dumps(defaults, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     localized = yaml.safe_dump(schema, allow_unicode=True, sort_keys=False, width=110)
     source.write_text(text[:begin] + localized.rstrip() + text[end:], encoding='utf-8')
@@ -178,8 +197,10 @@ def main():
     packed = packed.replace('#include "launchpad_start_button.h"', (MOD / 'launchpad_start_button.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
     packed = packed.replace('#include \"ryjs_data.h\"', (MOD / 'ryjs_data.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
     packed = packed.replace('#include "launchpad_lifecycle.h"', (MOD / 'launchpad_lifecycle.h').read_text(encoding='utf-8').replace('#pragma once\n', ''))
-    for fragment in ['launchpad_start_xaml.h', 'launchpad_contrast.inc', 'launchpad_groups_layout.inc', 'launchpad_groups_actions.inc', 'launchpad_svg.inc', 'launchpad_entries.inc', 'launchpad_display_names.inc', 'launchpad_group_positions.inc', 'launchpad_group_edit.inc', 'launchpad_web_icons.inc', 'launchpad_entry_editor.inc', 'launchpad_full_backup.inc', 'launchpad_backup_script.inc']:
-        if (MOD / fragment).exists(): packed = packed.replace('#include "' + fragment + '"', (MOD / fragment).read_text(encoding='utf-8'))
+    for fragment in ['launchpad_material.h', 'launchpad_start_xaml.h', 'launchpad_contrast.inc', 'launchpad_groups_layout.inc', 'launchpad_groups_actions.inc', 'launchpad_svg.inc', 'launchpad_entries.inc', 'launchpad_display_names.inc', 'launchpad_group_positions.inc', 'launchpad_group_edit.inc', 'launchpad_app_icon.inc', 'launchpad_web_icons.inc', 'launchpad_entry_editor.inc', 'launchpad_full_backup.inc', 'launchpad_backup_script.inc']:
+        if (MOD / fragment).exists():
+            contents = (MOD / fragment).read_text(encoding='utf-8').removeprefix('#pragma once\n')
+            packed = packed.replace('#include "' + fragment + '"', contents)
     includes = set(re.findall(r'^\s*#\s*include\s*"([^"]+)"', packed, flags=re.M))
     remaining = includes - {'preview_api.h'}  # Only used by SEAMLESS_PREVIEW.
     if remaining:
@@ -190,6 +211,8 @@ def main():
     packed = strip_preview(packed)
     if 'SEAMLESS_PREVIEW' in packed:
         raise ValueError('Standalone source still mentions SEAMLESS_PREVIEW')
+    if re.search(r'^\s*#\s*pragma\s+once\b', packed, flags=re.M):
+        raise ValueError('Standalone source still contains a header-only #pragma once')
     output = ROOT / 'build'
     output.mkdir(exist_ok=True)
     # Write LF on every platform: this file is submitted verbatim, and Git

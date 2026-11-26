@@ -5,7 +5,6 @@
 // otherwise no native menu-close notification ever clears the checked state.
 // Hook the WinRT ABI setter: pThis is an actual COM interface, so identifying
 // the element requires no implementation offsets or foreign memory writes.
-std::atomic<bool> g_nativeStartPassthrough{false};
 // The checked-state latch was diagnosed with this trace. Writing it runs on
 // the taskbar's UI thread on every press, release and pointer move, so it is
 // compiled out of normal builds; set this to true only for that diagnosis.
@@ -22,47 +21,38 @@ void StartStateTrace(PCWSTR event,int checked=-2,int pressed=-2,int hover=-2,int
     }
     CloseHandle(file);
 }
-// The keyboard path latches the button's checked state without ever running
-// OnToggle (no trace, no hook there), and the native menu close that would
-// clear it never happens either. Remember the element whenever a hook sees it,
-// so the launcher can wipe the latch when it opens and hides. XAML objects
-// live on the taskbar's UI thread, so the reset is posted through the
-// element's own dispatcher.
-static winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton> g_startButtonElement;
-// Written by the taskbar's XAML hooks and read by the launcher thread when the
-// grid hides, so every access copies the reference under a lock. Resolving it
-// (weak_ref::get) happens outside the lock: that call goes into XAML, and a
-// lock held across it could deadlock with the taskbar thread.
+// Remember the element when the public toggle or visibility setter sees a
+// replaced Start request. XAML objects live on the taskbar's UI thread, so
+// the launcher posts its cleanup through the element's own dispatcher.
+using StartButtonWeak = winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton>;
+using StartDispatcher = winrt::Windows::UI::Core::CoreDispatcher;
+struct StartButtonReference {
+    StartButtonWeak element;
+    StartDispatcher dispatcher{nullptr};
+};
+[[clang::no_destroy]] static StartButtonReference g_startButtonReference;
 SRWLOCK g_startButtonElementLock = SRWLOCK_INIT;
 struct StartButtonLock {
     StartButtonLock() { AcquireSRWLockExclusive(&g_startButtonElementLock); }
     ~StartButtonLock() { ReleaseSRWLockExclusive(&g_startButtonElementLock); }
 };
 static void RememberStartButton(const winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton& element) {
-    using Weak = winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton>;
     try {
-        Weak weak = winrt::make_weak(element);
-        Weak replaced;
-        {
-            StartButtonLock lock;
-            replaced = std::move(g_startButtonElement);  // Move out: no Release under the lock.
-            g_startButtonElement = weak;                 // AddRef of the new reference.
-        }
-        // The replaced reference is released here, outside the lock: a Release
-        // that had to go through a proxy must never wait on a thread that is
-        // waiting for this lock.
-    } catch(...) {}
+        // Capture the dispatcher here, on the thread that owns the element.
+        // Looking it up during launcher teardown can block on that thread.
+        StartButtonReference next{winrt::make_weak(element), element.Dispatcher()};
+        StartButtonLock lock;
+        std::swap(next, g_startButtonReference);
+    } catch (...) {}
 }
-static winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton> StartButtonElement() {
+static StartButtonReference StartButtonReferenceForReset() {
     StartButtonLock lock;
-    return g_startButtonElement;
+    return g_startButtonReference;
 }
-// Drops the reference at unload. The move keeps the Release outside the lock,
-// for the same reason as above.
 void ForgetStartButton() {
-    winrt::weak_ref<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton> replaced;
+    StartButtonReference previous;
     StartButtonLock lock;
-    replaced = std::move(g_startButtonElement);
+    std::swap(previous, g_startButtonReference);
 }
 // A queued reset is a lambda in this image, so it may not outlive the module.
 // The counter, the gate and the drain live in launchpad_lifecycle.h; the gate
@@ -101,35 +91,28 @@ void ClearStartButtonLatch(const wchar_t* why) {
     // starts. Counting it is what stops the drain from seeing zero while this
     // thread has not even reached the queue yet.
     StartLatchTicket invocation;
-    if(g_startLatchStopping.load())return;
-    auto weak=StartButtonElement();
-    auto element=weak.get();  // Resolve outside the lock.
-    if(!element) {
-        // No hook has seen the button yet: the clear could not run. Trace it,
-        // so a silent no-op is never mistaken for a working reset.
-        StartStateTrace(why,-3,-3,-3);
+    if (g_startLatchStopping.load() || g_nativeStartPassthrough.load()) return;
+    auto reference = StartButtonReferenceForReset();
+    if (!reference.dispatcher) return;
+    g_startLatchPending.fetch_add(1);
+    if (g_startLatchStopping.load()) {
+        FinishStartLatchReset();
         return;
     }
     try {
-        auto dispatcher=element.Dispatcher();
-        // The queued lambda is a second unit with its own count. It is released
-        // by the lambda, or right here when queueing fails; the two paths are
-        // mutually exclusive because RunAsync only fails when it did not queue.
-        // Always queued, never inline: two of the callers are themselves XAML
-        // property-changed and visibility hooks, and writing IsChecked or
-        // moving the focus from inside one of those re-enters the state
-        // machine.
-        g_startLatchPending.fetch_add(1);
-        if(g_startLatchStopping.load()) {FinishStartLatchReset();return;}
-        try {
-            dispatcher.RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,[element,why]() {
-                // RAII: the queued unit is released even if the body ever
-                // unwinds, so the drain cannot be left with a stuck count.
-                struct Release { ~Release(){ FinishStartLatchReset(); } } release;
-                ClearStartButtonLatchNow(element,why);
+        reference.dispatcher.RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,
+            [weak = std::move(reference.element), why]() {
+                struct Release { ~Release() { FinishStartLatchReset(); } } release;
+                // A reset queued before Ctrl+Esc may run after native Start
+                // takes ownership. Leave its checked and focus states alone.
+                if (g_nativeStartPassthrough.load()) return;
+                try {
+                    if (auto element = weak.get()) ClearStartButtonLatchNow(element, why);
+                } catch (...) {}
             });
-        } catch(...) {FinishStartLatchReset();}  // The dispatcher is already gone.
-    } catch(...) {}
+    } catch (...) {
+        FinishStartLatchReset();
+    }
 }
 winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton StartToggleElement(void* object) {
     try {
@@ -140,112 +123,61 @@ winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton StartToggleElement(
     } catch(...) {}
     return nullptr;
 }
-void TraceStartElement(PCWSTR event,winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton const& element) {
-    if(!element)return;
-    try {auto checked=element.IsChecked();StartStateTrace(event,checked?(checked.Value()?1:0):-1,element.IsPressed(),element.IsPointerOver());}catch(...){}
-}
-using XamlStartToggle_t=HRESULT(WINAPI*)(void*);
-using XamlStartPointer_t=HRESULT(WINAPI*)(void*,void*);
-XamlStartToggle_t g_xamlStartToggleOriginal=nullptr;
-XamlStartPointer_t g_xamlStartPressedOriginal=nullptr,g_xamlStartReleasedOriginal=nullptr,g_xamlStartExitedOriginal=nullptr;
+using XamlStartToggle_t = HRESULT(WINAPI*)(void*);
+XamlStartToggle_t g_xamlStartToggleOriginal = nullptr;
 HRESULT WINAPI XamlStartToggleHook(void* object) {
-    auto element=StartToggleElement(object);
-    if(element)RememberStartButton(element);
-    TraceStartElement(L"toggle-before",element);
-    if(element&&g_wnd&&g_startButtonAction.load()!=KeyAction::Start) {
-        // Only the selection latch belongs to the native menu. Leave the
-        // pointer lifecycle and the following Click/ShowStartView untouched.
-        // Also clear a latch left by a previous version or native-menu click.
-        try {element.IsChecked(winrt::box_value(false).as<winrt::Windows::Foundation::IReference<bool>>());}
-        catch(...) {return g_xamlStartToggleOriginal(object);}
-        TraceStartElement(L"toggle-replaced",element);
+    if (g_nativeStartPassthrough.load() || !g_wnd || g_startButtonAction == KeyAction::Start)
+        return g_xamlStartToggleOriginal(object);
+
+    auto element = StartToggleElement(object);
+    if (!element) return g_xamlStartToggleOriginal(object);
+    RememberStartButton(element);
+    try {
+        element.IsChecked(winrt::box_value(false).as<winrt::Windows::Foundation::IReference<bool>>());
         return S_OK;
+    } catch (...) {
+        return g_xamlStartToggleOriginal(object);
     }
-    auto result=g_xamlStartToggleOriginal(object);
-    TraceStartElement(L"toggle-after",element);return result;
 }
-HRESULT WINAPI XamlStartPressedHook(void* object,void* args) {
-    auto element=StartToggleElement(object);TraceStartElement(L"press-before",element);
-    auto result=g_xamlStartPressedOriginal(object,args);TraceStartElement(L"press-after",element);return result;
-}
-HRESULT WINAPI XamlStartReleasedHook(void* object,void* args) {
-    auto element=StartToggleElement(object);TraceStartElement(L"release-before",element);
-    auto result=g_xamlStartReleasedOriginal(object,args);TraceStartElement(L"release-after",element);return result;
-}
-HRESULT WINAPI XamlStartExitedHook(void* object,void* args) {
-    auto element=StartToggleElement(object);
-    auto result=g_xamlStartExitedOriginal(object,args);
-    TraceStartElement(L"exit-after",element);return result;
-}
-// IsChecked's dependency-property callback: every change of the checked state
-// passes here, including the programmatic writes of the taskbar's view model.
-// The keyboard path latches the button through exactly such a write — it
-// never runs OnToggle and never touches IsExperienceVisible, so without this
-// hook both the latch and the element reference behind ClearStartButtonLatch
-// stay invisible. The sender is the button itself (a DependencyObject).
-using XamlStartCheckedChange_t=void(WINAPI*)(void*,void*,void*);
-XamlStartCheckedChange_t g_xamlStartCheckedChangeOriginal=nullptr;
-void WINAPI XamlStartCheckedChangeHook(void* pThis,void* sender,void* property) {
-    auto element=sender?StartToggleElement(sender):nullptr;
-    if(element)RememberStartButton(element);
-    g_xamlStartCheckedChangeOriginal(pThis,sender,property);
-    TraceStartElement(L"checked-change",element);
-    bool replacing=g_wnd&&!g_nativeStartPassthrough&&
-        (g_startButtonAction!=KeyAction::Start||g_startButtonReplacementActive);
-    if(element&&replacing)ClearStartButtonLatch(L"latch-checked-clear");
-}
+
 using XamlStartVisible_t=HRESULT(WINAPI*)(void*,bool);
 XamlStartVisible_t g_xamlStartVisibleOriginal=nullptr;
 std::atomic<bool> g_xamlStartInstalling{false};
-// The module image HookSymbols was already tried on; see HookXamlStartVisibility.
-std::atomic<HMODULE> g_xamlAttemptedModule{nullptr};
+// Accessed only while holding the installation guard.
+HMODULE g_xamlAttemptedModule = nullptr;
 using XamlLoadLibrary_t=HMODULE(WINAPI*)(LPCWSTR,HANDLE,DWORD);
 XamlLoadLibrary_t g_xamlLoadLibraryOriginal=nullptr;
 bool HookXamlStartVisibility();
 HMODULE WINAPI XamlTaskbarLoadHook(LPCWSTR name,HANDLE file,DWORD flags) {
     auto module=g_xamlLoadLibraryOriginal(name,file,flags);
-    if(module&&!g_xamlStartVisibleOriginal&&
+    if(module&&
        (module==GetModuleHandleW(L"Taskbar.View.dll")||module==GetModuleHandleW(L"ExplorerExtensions.dll"))) {
         if(HookXamlStartVisibility())Wh_ApplyHookOperations();
     }
     return module;
 }
-HRESULT WINAPI XamlStartVisibleHook(void* object,bool visible) {
-    bool start=false;
-    winrt::Windows::Foundation::IInspectable inspectable{nullptr};
-    try {
-        winrt::copy_from_abi(inspectable,object);
-        auto element=inspectable.try_as<winrt::Windows::UI::Xaml::FrameworkElement>();
-        start=element&&winrt::Windows::UI::Xaml::Automation::AutomationProperties::GetAutomationId(element)==L"StartButton";
-    } catch(...) { }
-    if(start) {
-        bool replacing=g_wnd&&!g_nativeStartPassthrough&&
-            (g_startButtonAction!=KeyAction::Start||g_startButtonReplacementActive);
-        bool effective=visible&&!replacing;
-        // The keyboard path never reaches the toggle or pointer hooks, so the
-        // visibility request is the only trace it leaves. Log the element's
-        // state with it: this is where a keyboard-driven latch becomes
-        // visible.
-        auto toggle=start?inspectable.try_as<winrt::Windows::UI::Xaml::Controls::Primitives::ToggleButton>():nullptr;
-        if(toggle)RememberStartButton(toggle);
-        try {
-            if(toggle) {
-                auto checked=toggle.IsChecked();
-                StartStateTrace(visible?L"visible-true":L"visible-false",
-                    checked?(checked.Value()?1:0):-1,toggle.IsPressed(),toggle.IsPointerOver());
-            } else StartStateTrace(visible?L"visible-true":L"visible-false");
-        } catch(...) {StartStateTrace(visible?L"visible-true-err":L"visible-false-err");}
-        Wh_Log(L"XAML Start visibility requested=%d effective=%d replacing=%d native=%d",
-            visible,effective,replacing,(bool)g_nativeStartPassthrough);
-        if(visible&&replacing)ClearStartButtonLatch(L"latch-visible-clear");
-        auto result=g_xamlStartVisibleOriginal(object,effective);
-        if(!visible)g_nativeStartPassthrough=false;
-        return result;
+HRESULT WINAPI XamlStartVisibleHook(void* object, bool visible) {
+    // The shell can publish several visibility and checked changes as native
+    // Start loses focus. Pass through the whole sequence, including nested
+    // calls, until ShowStartView chooses a replacement again.
+    if (!visible || g_nativeStartPassthrough.load() || !g_wnd ||
+        (g_startButtonAction == KeyAction::Start && !g_startButtonReplacementActive)) {
+        return g_xamlStartVisibleOriginal(object, visible);
     }
-    return g_xamlStartVisibleOriginal(object,visible);
+
+    auto element = StartToggleElement(object);
+    if (!element) return g_xamlStartVisibleOriginal(object, visible);
+    RememberStartButton(element);
+    ClearStartButtonLatch(L"latch-visible-clear");
+    return g_xamlStartVisibleOriginal(object, false);
 }
+
 bool HookXamlStartVisibility() {
-    if(g_xamlStartVisibleOriginal)return true;
+    if (g_xamlStartInstalling.exchange(true)) return false;
+    struct InstallingGuard {
+        ~InstallingGuard() { g_xamlStartInstalling = false; }
+    } guard;
+    if (g_xamlStartVisibleOriginal) return false;
     auto module=GetModuleHandleW(L"Taskbar.View.dll");
     if(!module)module=GetModuleHandleW(L"ExplorerExtensions.dll");
     if(!module){
@@ -269,30 +201,25 @@ bool HookXamlStartVisibility() {
     // second attempt on the same image would queue the same hooks again. One
     // attempt per loaded module is enough; a different base address means the
     // module was reloaded and the hooks really are gone.
-    if(g_xamlAttemptedModule.load()==module)
-        return g_xamlStartVisibleOriginal!=nullptr;
-    if(g_xamlStartInstalling.exchange(true))return false;
-    g_xamlAttemptedModule=module;
-    struct InstallingGuard {~InstallingGuard(){g_xamlStartInstalling=false;}} guard;
+    if (g_xamlAttemptedModule == module) return false;
+    g_xamlAttemptedModule = module;
     // Taskbar.View.dll, ExplorerExtensions.dll
     WindhawkUtils::SYMBOL_HOOK taskbarViewHooks[]={
         {{LR"(public: virtual int __cdecl winrt::impl::produce<struct winrt::Taskbar::implementation::ExperienceToggleButton,struct winrt::Windows::UI::Xaml::Controls::Primitives::IToggleButtonOverrides>::OnToggle(void))"},
             &g_xamlStartToggleOriginal,XamlStartToggleHook,true},
-        {{LR"(private: void __cdecl winrt::Taskbar::implementation::ExperienceToggleButton::OnIsCheckedPropertyChanged(struct winrt::Windows::UI::Xaml::DependencyObject const &,struct winrt::Windows::UI::Xaml::DependencyProperty const &))"},
-            &g_xamlStartCheckedChangeOriginal,XamlStartCheckedChangeHook,true},
-        {{LR"(public: virtual int __cdecl winrt::impl::produce<struct winrt::Taskbar::implementation::ExperienceToggleButton,struct winrt::Windows::UI::Xaml::Controls::IControlOverrides>::OnPointerPressed(void *))"},
-            &g_xamlStartPressedOriginal,XamlStartPressedHook,true},
-        {{LR"(public: virtual int __cdecl winrt::impl::produce<struct winrt::Taskbar::implementation::ExperienceToggleButton,struct winrt::Windows::UI::Xaml::Controls::IControlOverrides>::OnPointerReleased(void *))"},
-            &g_xamlStartReleasedOriginal,XamlStartReleasedHook,true},
-        {{LR"(public: virtual int __cdecl winrt::impl::produce<struct winrt::Taskbar::implementation::ExperienceToggleButton,struct winrt::Windows::UI::Xaml::Controls::IControlOverrides>::OnPointerExited(void *))"},
-            &g_xamlStartExitedOriginal,XamlStartExitedHook,true},
         {{LR"(public: virtual int __cdecl winrt::impl::produce<struct winrt::Taskbar::implementation::ExperienceToggleButton,struct winrt::Taskbar::IExperienceToggleButton>::put_IsExperienceVisible(bool))"},
             &g_xamlStartVisibleOriginal,XamlStartVisibleHook,true},
     };
-    bool ok=WindhawkUtils::HookSymbols(module,taskbarViewHooks,ARRAYSIZE(taskbarViewHooks))&&g_xamlStartVisibleOriginal;
-    // The checked-change hook is the one that sees the keyboard path's latch:
-    // record whether its symbol actually resolved.
-    StartStateTrace(g_xamlStartCheckedChangeOriginal?L"hooks-installed-cc1":L"hooks-installed-cc0",
-        g_xamlStartToggleOriginal!=nullptr,g_xamlStartPressedOriginal!=nullptr,g_xamlStartReleasedOriginal!=nullptr);
-    Wh_Log(L"XAML Start visibility hook available=%d",ok);return ok;
+    const bool hadToggle = g_xamlStartToggleOriginal != nullptr;
+    const auto started = GetTickCount64();
+    Wh_Log(L"Resolving Start button symbols");
+    const bool resolved = WindhawkUtils::HookSymbols(module, taskbarViewHooks, ARRAYSIZE(taskbarViewHooks));
+    const bool hasToggle = g_xamlStartToggleOriginal != nullptr;
+    const bool hasVisibility = g_xamlStartVisibleOriginal != nullptr;
+    // Keep the hook surface on WinRT ABI interfaces. The private checked-change
+    // callback takes references to projected C++ objects, which have a different ABI.
+    Wh_Log(L"Start button symbols resolved=%d toggle=%d visibility=%d elapsed=%llu ms",
+           resolved, hasToggle, hasVisibility, GetTickCount64() - started);
+    // A resolved optional hook can be queued even if its companion is missing.
+    return (hasToggle && !hadToggle) || hasVisibility;
 }

@@ -30,7 +30,7 @@ bool DownloadWeb(const std::wstring& url,std::string& bytes,std::wstring& finalU
     path+=std::wstring(parts.lpszExtraInfo?parts.lpszExtraInfo:L"",parts.dwExtraInfoLength);
     if(auto fragment=path.find(L'#');fragment!=std::wstring::npos)path.resize(fragment);
     if(path.empty()||path.front()==L'?')path.insert(path.begin(),L'/');
-    WebHandle session(WinHttpOpen(L"RYJSLaunchpad/0.1",WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));
+    WebHandle session(WinHttpOpen(L"Lumiflow/" WH_MOD_VERSION,WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0));
     if(!session)return false;
     WinHttpSetTimeouts(session,3000,3000,3000,3000);
     WebHandle connection(WinHttpConnect(session,host.c_str(),parts.nPort,0));if(!connection)return false;
@@ -67,7 +67,7 @@ bool DecodeInlineWebsiteIcon(std::wstring_view url,std::string& bytes) {
     auto content=url.substr(comma+1);
     if(content.empty())return false;
     int size=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,content.data(),(int)content.size(),nullptr,0,nullptr,nullptr);
-    if(size<=0||size>kMaxWebIconBytes)return false;
+    if(size<=0||(size_t)size>kMaxWebIconBytes)return false;
     std::string encoded(size,'\0');
     WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,content.data(),(int)content.size(),encoded.data(),size,nullptr,nullptr);
     bytes.clear();

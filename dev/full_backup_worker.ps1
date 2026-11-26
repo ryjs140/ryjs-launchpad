@@ -248,7 +248,7 @@ function Read-Archive([string]$path) {
                 $files[$entry.FullName]=$buffer.ToArray()
             } finally { $stream.Dispose(); $buffer.Dispose() }
         }
-        if (!$files.ContainsKey('manifest.json')) { throw 'This is not a complete Launchpad backup.' }
+        if (!$files.ContainsKey('manifest.json')) { throw 'This is not a complete Lumiflow backup.' }
         $manifest=$utf8.GetString($files['manifest.json']) | ConvertFrom-Json
         if ($manifest.schema -ne 1) { throw 'Unsupported backup version.' }
         if ($manifest.source_mod -notin @('local@ryjs-launchpad','ryjs-launchpad','local@seamless-launchpad-custom','seamless-launchpad-custom','local@seamless-launchpad','seamless-launchpad','local@fullscreen-start-plus','fullscreen-start-plus')) { throw 'Backup belongs to a different application.' }
@@ -299,7 +299,7 @@ function Export-Complete {
         }
     }
     $instructions=@'
-RYJS Launchpad complete backup
+Lumiflow complete backup
 
 To restore it, choose "Import complete backup" in the launcher, pick this ZIP,
 review the verification summary and confirm.
@@ -309,7 +309,7 @@ or executed.
 The data that was in place before the import is kept next to data-v1 in a
 .before-import-* folder.
 
-RYJS Launchpad 完整备份
+流光启动台完整备份
 在启动器菜单选择“导入完整备份”，选中本 ZIP，校验后确认即可。
 导入仅恢复布局、设置和图标；source/binary 仅用于兼容旧备份，不会安装或执行。
 替换前的数据保留在原 data-v1 同级的 .before-import-* 目录。
@@ -343,8 +343,8 @@ function Import-Complete($checked) {
     $destination=[IO.Path]::GetFullPath($job.storage).TrimEnd('\')
     if (!$job.preview) {
         $parent=Split-Path -Parent $destination
-        if ([IO.Path]::GetFileName($destination) -ne 'data-v1' -or [IO.Path]::GetFileName($parent) -notin @('local@ryjs-launchpad','ryjs-launchpad')) { throw 'Import is restricted to RYJS storage.' }
-        if (!(Test-Path -LiteralPath (Join-Path $destination 'ryjs-storage.ini'))) { throw 'Existing RYJS storage marker is missing.' }
+        if ([IO.Path]::GetFileName($destination) -ne 'data-v1' -or [IO.Path]::GetFileName($parent) -notin @('local@ryjs-launchpad','ryjs-launchpad')) { throw 'Import is restricted to Lumiflow storage.' }
+        if (!(Test-Path -LiteralPath (Join-Path $destination 'ryjs-storage.ini'))) { throw 'Existing Lumiflow storage marker is missing.' }
     }
     $ancestor=$destination
     while ($ancestor) {

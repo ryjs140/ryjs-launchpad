@@ -90,7 +90,7 @@ std::wstring ResolveWebsiteUrl(const App& app) {
     WCHAR value[32768]{};
     if (EndsWith(target, L".url") && !PathIsRelativeW(app.target.c_str())) {
         DWORD length = GetPrivateProfileStringW(L"InternetShortcut", L"URL", L"", value, ARRAYSIZE(value), app.target.c_str());
-        if (length < ARRAYSIZE(value) - 1 && IsWebEntry(value)) return value;
+        if (length < (DWORD)ARRAYSIZE(value) - 1 && IsWebEntry(value)) return value;
     } else if (EndsWith(target, L".exe")) {
         return WebsiteUrlFromArguments(app.arguments);
     } else if (EndsWith(target, L".lnk")) {

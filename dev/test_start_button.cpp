@@ -2,9 +2,17 @@
 // or physical mouse/keyboard input. Exercises the production subclass itself.
 #include <windows.h>
 #include <commctrl.h>
+#include <inspectable.h>
+#undef GetCurrentTime
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.UI.Xaml.Automation.h>
+#include <winrt/Windows.UI.Xaml.Controls.h>
+#include <winrt/Windows.UI.Xaml.Controls.Primitives.h>
+#include <winrt/Windows.UI.Core.h>
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <string>
 #include <vector>
 #define WH_MOD_ID L"ryjs-launchpad-test"
 #define Wh_Log(...) ((void)0)
@@ -28,8 +36,20 @@ BOOL SetWindowSubclassFromAnyThread(HWND w, Proc p, DWORD_PTR data) {
 void RemoveWindowSubclassFromAnyThread(HWND w, Proc p) {
     RemoveWindowSubclass(w, Wrapper, (UINT_PTR)p);
 }
+// The fixture calls the replacement functions directly.
+struct SYMBOL_HOOK {
+    template <typename T>
+    SYMBOL_HOOK(std::initializer_list<PCWSTR>, T*, T, bool) {}
+};
+bool HookSymbols(HMODULE, const SYMBOL_HOOK*, size_t) { return false; }
+template <typename T>
+void SetFunctionHook(T, T, T*) {}
 }
 #include "../mods/local/ryjs-launchpad/launchpad_start_button.h"
+#include "../mods/local/ryjs-launchpad/launchpad_lifecycle.h"
+std::wstring StoragePath(PCWSTR name) { return name; }
+void Wh_ApplyHookOperations() {}
+#include "../mods/local/ryjs-launchpad/launchpad_start_xaml.h"
 
 int failures, checks, nativeDown, nativeUp, rightClicks, toggles, runs;
 bool nativeChecked;
@@ -38,6 +58,47 @@ void Check(bool condition, const char* what) {
     ++checks;
     if (!condition) { ++failures; printf("FAIL: %s\n", what); }
 }
+struct InspectableProbe final : IInspectable {
+    unsigned accesses = 0;
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void** out) override {
+        ++accesses;
+        *out = nullptr;
+        return E_NOINTERFACE;
+    }
+    ULONG STDMETHODCALLTYPE AddRef() override { ++accesses; return 2; }
+    ULONG STDMETHODCALLTYPE Release() override { return 1; }
+    HRESULT STDMETHODCALLTYPE GetIids(ULONG*, IID**) override { return E_NOTIMPL; }
+    HRESULT STDMETHODCALLTYPE GetRuntimeClassName(HSTRING*) override { return E_NOTIMPL; }
+    HRESULT STDMETHODCALLTYPE GetTrustLevel(TrustLevel*) override { return E_NOTIMPL; }
+};
+
+bool nativeXamlVisible;
+HRESULT WINAPI FakeXamlVisible(void*, bool visible) {
+    nativeXamlVisible = visible;
+    return S_FALSE;
+}
+HRESULT WINAPI FakeXamlToggle(void*) { return S_FALSE; }
+
+void TestNativeXamlDismissal() {
+    InspectableProbe probe;
+    g_xamlStartVisibleOriginal = FakeXamlVisible;
+    g_xamlStartToggleOriginal = FakeXamlToggle;
+    g_startButtonReplacementActive = false;
+    g_nativeStartPassthrough = true;
+    Check(XamlStartVisibleHook(&probe, true) == S_FALSE && nativeXamlVisible,
+          "native visibility-on reaches the original ABI entry point");
+    Check(XamlStartVisibleHook(&probe, false) == S_FALSE && !nativeXamlVisible &&
+          g_nativeStartPassthrough, "native dismissal retains pass-through ownership");
+    Check(XamlStartVisibleHook(&probe, false) == S_FALSE && !nativeXamlVisible &&
+          XamlStartToggleHook(&probe) == S_FALSE && probe.accesses == 0,
+          "subsequent native visibility and toggle notifications bypass COM inspection");
+    g_nativeStartPassthrough = false;
+    Check(XamlStartVisibleHook(&probe, false) == S_FALSE && !nativeXamlVisible && probe.accesses == 0,
+          "visibility-off always passes through without examining the button");
+    Check(XamlStartVisibleHook(&probe, true) == S_FALSE && nativeXamlVisible && probe.accesses > 0,
+          "replacement visibility-on still checks Start button identity");
+}
+
 LRESULT CALLBACK FakeWindow(HWND w, UINT m, WPARAM p, LPARAM l) {
     if (m == BM_SETCHECK) { nativeChecked = p != 0; return 0; }
     if (m == BM_SETSTATE) { nativePushed = p != 0; return 0; }
@@ -98,6 +159,12 @@ int main() {
     g_startButtonReplacementActive=false; nativeChecked=nativePushed=nativeHot=true;
     PostMessageW(button,StartButtonResetMessage(),1,0); Pump();
     Check(nativeChecked && nativePushed && nativeHot, "queued reset does not clear a later original Start action");
+    g_nativeStartPassthrough = true;
+    PostMessageW(button, StartButtonResetMessage(), 0, 0);
+    Pump();
+    Check(nativeChecked && nativePushed && nativeHot,
+          "an attachment reset leaves native Start button state alone during dismissal");
+    TestNativeXamlDismissal();
     ResetTaskbarStartButtons(true); Pump();
 
     Click(button, MAKELPARAM(200, 200));

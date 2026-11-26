@@ -1,6 +1,6 @@
 """Versioned, verified layout backup. Uses only Python's standard library.
 
-Export reads legacy/RYJS data. Import writes only the explicitly chosen RYJS
+Export reads legacy data. Import writes only the explicitly chosen Lumiflow
 destination, never the old mod, and never changes Windhawk registry settings.
 """
 import argparse
@@ -177,11 +177,11 @@ def restore(archive, destination, replace=False):
         if destination == old_path or destination.is_relative_to(old_path):
             raise ValueError('Restoring into legacy mod storage is prohibited')
     if destination.exists() and not replace:
-        raise FileExistsError('Destination exists. Keep it and choose an empty RYJS destination; no data was replaced')
+        raise FileExistsError('Destination exists. Keep it and choose an empty Lumiflow destination; no data was replaced')
     if destination.exists() and not (destination / 'ryjs-storage.ini').is_file():
-        raise ValueError('Only a marked RYJS data directory can be replaced')
+        raise ValueError('Only a marked Lumiflow data directory can be replaced')
     if integration_running():
-        raise RuntimeError('Disable RYJS Launchpad before importing data')
+        raise RuntimeError('Disable Lumiflow before importing data')
     stage = destination.with_name(destination.name + '.restore-' + uuid.uuid4().hex)
     stage.mkdir(parents=True)
     for name, blob in files.items():

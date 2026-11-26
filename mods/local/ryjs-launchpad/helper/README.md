@@ -1,4 +1,4 @@
-# Keys helper for Seamless Launchpad
+# Keys helper for Lumiflow
 
 Windows keeps keys you press in an app running as administrator away from
 apps that don't run that way, Explorer included. So while such an app is in
@@ -17,7 +17,9 @@ Ctrl+Esc and the Start button aren't affected.
    ```
 
 2. In PowerShell as administrator, run `.\install.ps1` from this folder. It
-   copies the program to `C:\Program Files\RYJSLaunchpad` and adds a
-   scheduled task, `RYJSLaunchpadKeys`, that starts it when you sign in.
+   copies the program to `C:\Program Files\Lumiflow` and adds a
+   scheduled task, `LumiflowKeys`, that starts it when you sign in. The installer
+   removes a previous `RYJSLaunchpad` task and folder during the migration.
 
-To remove it, run `.\install.ps1 -Uninstall` as administrator.
+To remove it, run `.\install.ps1 -Uninstall` as administrator. This also removes
+the legacy task and folder if they are still present.

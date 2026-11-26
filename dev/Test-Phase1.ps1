@@ -21,7 +21,7 @@ if ($LASTEXITCODE) { throw 'Storage test compilation failed' }
 & $test $snapshotPath (Join-Path $root 'build\storage-test-cases') | Tee-Object -FilePath (Join-Path $root 'build\storage-tests.log')
 if ($LASTEXITCODE) { throw 'Storage regression failed' }
 $buttonTest = Join-Path $root 'build\test_start_button.exe'
-$arguments = $common + @((Join-Path $PSScriptRoot 'test_start_button.cpp'),'-lcomctl32','-o',$buttonTest)
+$arguments = $common + @((Join-Path $PSScriptRoot 'test_start_button.cpp'),'-lcomctl32','-lole32','-loleaut32','-lruntimeobject','-o',$buttonTest)
 & $clang @arguments
 if ($LASTEXITCODE) { throw 'Start button test compilation failed' }
 & $buttonTest | Tee-Object -FilePath (Join-Path $root 'build\start-button-tests.log')
